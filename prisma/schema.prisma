@@ -37,6 +37,7 @@ model User {
   examSessions      ExamSession[]
   moduleSkillStatus ModuleSkillStatus[]
   reportCards       ReportCard[]
+  exerciseAttempts  ExerciseAttempt[]
 }
 
 model Account {
@@ -295,6 +296,43 @@ model ModuleSkillStatus {
   module Module @relation(fields: [moduleId], references: [id])
 
   @@unique([userId, moduleId, skill])
+}
+
+// ---------------------------------------------------------------------------
+// Modultest-style exercises ("opgaver").
+//
+// Separate from Attempt on purpose. Attempt records ONE Item answer and feeds
+// the construct/SRS engine. ExerciseAttempt records a whole opgave — a
+// Læsning Opgave 1 with six sub-answers is one row here — and exists to drive
+// exercise history: which variants the learner has already sat, so the
+// selector never serves the same content twice while still repeating formats.
+// See lib/exercises/registry.ts.
+// ---------------------------------------------------------------------------
+
+model ExerciseAttempt {
+  id        String @id @default(cuid())
+  userId    String
+  moduleId  Int
+  category  String // READING | WRITING | SPEAKING | LISTENING
+  taskType  String // e.g. "reading_task_1_matching"
+  variantId String // e.g. "r1-bolig" — stable across reseeds
+  topic     String
+
+  status String @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED | ABANDONED
+
+  responseJson String? // learner's raw answers
+  // Null for writing/speaking, which have no objectively correct answer.
+  score        Int?
+  total        Int?
+  mistakes     Int?
+  wordCount    Int? // writing tasks only
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, moduleId, category])
 }
 
 // ---------------------------------------------------------------------------

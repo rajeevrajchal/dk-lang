@@ -4,6 +4,8 @@ import { getModuleDashboardState, MODULTEST_SKILLS, PD3_SKILLS } from "@/lib/unl
 import { getSkillStatusesForModule, hasContent } from "@/lib/dashboard";
 import { MODULE_BY_ID } from "@/lib/curriculum/modules";
 import { theoryForTiers } from "@/lib/content-gen/theory";
+import { categoryHasContent } from "@/lib/exercises/registry";
+import { EXERCISE_CATEGORIES } from "@/lib/exercises/types";
 import { getServerDictionary } from "@/lib/i18n/server";
 
 export default async function ClassModulePage({
@@ -112,6 +114,46 @@ export default async function ClassModulePage({
               </Link>
             </section>
           )}
+
+          <section>
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">
+              {dict.exercises.sectionTitle}
+            </h2>
+            <p className="text-sm text-slate-500 mb-3">{dict.exercises.sectionDesc}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {EXERCISE_CATEGORIES.map((cat) => {
+                const available = categoryHasContent(moduleIdNum, cat);
+                const body = (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">{dict.exercises.categories[cat]}</p>
+                      {available && (
+                        <span className="text-xs font-medium rounded-md border border-slate-300 px-2.5 py-1">
+                          {dict.exercises.open}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {dict.exercises.categorySubtitles[cat]}
+                    </p>
+                  </>
+                );
+                return available ? (
+                  <Link
+                    key={cat}
+                    href={`/opgaver/${moduleIdNum}/${cat.toLowerCase()}`}
+                    className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
+                  >
+                    {body}
+                  </Link>
+                ) : (
+                  <div key={cat} className="rounded-xl border border-slate-200 bg-white p-5 opacity-50">
+                    {body}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
 
           <section>
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
