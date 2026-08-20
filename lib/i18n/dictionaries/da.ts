@@ -169,6 +169,43 @@ export const da: Dictionary = {
     historyCompleted: "gennemført",
   },
 
+  mockTest: {
+    title: "Mock modultest",
+    subtitle: "Læsning Opgave 1-4 og én skriveopgave i ét forløb.",
+    introBody:
+      "Testen følger rækkefølgen i den rigtige modultest på Modul 2, men er kortere: de fire læseopgaver og derefter en skriveopgave. Du har ét forsøg pr. opgave, og svarene bliver først vist, når du afleverer hele testen — ligesom til den rigtige prøve. Ingen ordbog eller hjælpemidler.",
+    structure: "Testen indeholder",
+    readingPart: "Læsning — Opgave 1, 2, 3 og 4",
+    writingPart: "Skrivning — én opgave",
+    timeLimit: (minutes) => `${minutes} minutter til hele testen`,
+    disclaimer:
+      "Dette er en intern øvelsestest og ikke en officiel eksamen. Et bestået resultat låser næste moduls indhold op i appen; det erstatter ikke den rigtige modultest hos dit sprogcenter.",
+    preparing: "Gør din test klar...",
+    preparingNote: "Skriver de fire læseopgaver og skriveopgaven.",
+    start: "Start test",
+    partProgress: (current, total) => `Del ${current} af ${total}`,
+    next: "Næste opgave",
+    finish: "Aflever testen",
+    confirmFinish: "Vil du aflevere testen? Du kan ikke ændre dine svar bagefter.",
+    unanswered: (n) => `${n} ubesvarede`,
+    resultTitle: "Testresultat",
+    readingResult: "Læsning",
+    writingResult: "Skrivning",
+    readingScore: (correct, total, pct) => `${correct} ud af ${total} rigtige (${pct}%)`,
+    passed: "Bestået",
+    notPassed: "Ikke bestået",
+    thresholdNote: (pct) => `Grænse for bestået: ${pct}%`,
+    passedNote: "Dette låser næste moduls øvelsesindhold op i appen (kun in-app-signal).",
+    writingNotScored:
+      "Skrivning bliver ikke rettet automatisk — der er ingen censor her. Din tekst er gemt, så du kan holde den op mod tjeklisten eller vise den til din lærer.",
+    writingWordCount: (n, min) => `Du skrev ${n} ord (minimum ${min}).`,
+    writingSkipped: "Du afleverede ikke en skriftlig besvarelse.",
+    perPart: "Pr. opgave",
+    reviewAnswers: "Dine svar",
+    backToModule: "Tilbage til modulet",
+    retake: "Tag en ny mock modultest",
+  },
+
   explain: {
     show: "Forklar teksten",
     hide: "Skjul forklaring",

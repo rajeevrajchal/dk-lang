@@ -180,6 +180,46 @@ export const en = {
     historyCompleted: "completed",
   },
 
+  mockTest: {
+    title: "Mock modultest",
+    subtitle: "Læsning Opgave 1–4 and one Skrivning task, in one sitting.",
+    introBody:
+      "This follows the running order of the real Modul 2 modultest, shortened: the four reading opgaver, then a writing task. You get one attempt at each — answers are not shown until you hand the whole test in, just like the real thing. No dictionary or aids.",
+    structure: "What the test contains",
+    readingPart: "Læsning — Opgave 1, 2, 3 and 4",
+    writingPart: "Skrivning — one task",
+    timeLimit: (minutes: number) => `${minutes} minutes for the whole test`,
+    disclaimer:
+      "This is an internal practice test, not an official exam. A pass here unlocks the next module's content in the app; it does not replace the real modultest at your sprogcenter.",
+    preparing: "Preparing your test...",
+    preparingNote: "Writing the four reading opgaver and the writing task.",
+    start: "Start test",
+    partProgress: (current: number, total: number) => `Part ${current} of ${total}`,
+    next: "Next opgave",
+    finish: "Hand in test",
+    confirmFinish: "Hand the test in? You cannot change your answers afterwards.",
+    unanswered: (n: number) => `${n} unanswered`,
+    // Results
+    resultTitle: "Test result",
+    readingResult: "Læsning",
+    writingResult: "Skrivning",
+    readingScore: (correct: number, total: number, pct: number) =>
+      `${correct} of ${total} correct (${pct}%)`,
+    passed: "Passed",
+    notPassed: "Not passed",
+    thresholdNote: (pct: number) => `Pass threshold: ${pct}%`,
+    passedNote:
+      "This unlocks the next module's practice content in the app (in-app signal only).",
+    writingNotScored:
+      "Writing is not scored automatically — there is no examiner here. Your text is saved so you can compare it against the checklist, or show it to your teacher.",
+    writingWordCount: (n: number, min: number) => `You wrote ${n} words (minimum ${min}).`,
+    writingSkipped: "You did not hand in a written answer.",
+    perPart: "Per opgave",
+    reviewAnswers: "Your answers",
+    backToModule: "Back to module",
+    retake: "Take another mock test",
+  },
+
   explain: {
     show: "Explain this text",
     hide: "Hide explanation",

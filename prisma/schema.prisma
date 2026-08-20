@@ -266,6 +266,9 @@ model ExamSession {
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   module   Module    @relation(fields: [moduleId], references: [id])
   attempts Attempt[]
+  // Populated for the opgave-format mock test; the older item-based mock
+  // populates `attempts` instead. A session uses one or the other.
+  exerciseAttempts ExerciseAttempt[]
 }
 
 // ---------------------------------------------------------------------------
@@ -320,6 +323,13 @@ model ExerciseAttempt {
 
   status String @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED | ABANDONED
 
+  // Set when this opgave is one part of a timed mock modultest rather than a
+  // standalone practice exercise. orderIndex is its position in that test
+  // (Opgave 1..4 then the writing task), and feedback is withheld until the
+  // whole session is submitted — see app/api/mock-test.
+  examSessionId String?
+  orderIndex    Int?
+
   // Set only for LLM-generated exercises: the whole variant, answer key
   // included. It lives here because generation is per-attempt — the key has to
   // survive from /next until the learner submits, and it must never be sent to
@@ -338,9 +348,11 @@ model ExerciseAttempt {
   startedAt   DateTime  @default(now())
   completedAt DateTime?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examSession ExamSession? @relation(fields: [examSessionId], references: [id])
 
   @@index([userId, moduleId, category])
+  @@index([examSessionId])
 }
 
 // ---------------------------------------------------------------------------

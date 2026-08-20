@@ -63,5 +63,18 @@ export async function POST(
     },
   });
 
+  // Inside a mock test the answers stay hidden until the whole test is handed
+  // in — showing per-opgave feedback mid-test would let the learner recalibrate
+  // on the next opgave, which the real modultest never allows.
+  if (attempt.examSessionId) {
+    const exam = await prisma.examSession.findUnique({
+      where: { id: attempt.examSessionId },
+      select: { status: true },
+    });
+    if (exam?.status === "IN_PROGRESS") {
+      return NextResponse.json({ recorded: true });
+    }
+  }
+
   return NextResponse.json(result);
 }

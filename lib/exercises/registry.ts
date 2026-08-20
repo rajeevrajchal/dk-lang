@@ -199,6 +199,36 @@ export function toPublicExercise(
   };
 }
 
+/**
+ * Picks one authored variant of a given task type, preferring one the learner
+ * hasn't sat. Used to assemble a mock test when generation is unavailable, and
+ * as the per-slot fallback when a generation fails.
+ */
+export function pickAuthoredVariantOfType(
+  moduleId: number,
+  taskType: TaskType,
+  history: HistoryEntry[]
+): ExerciseVariant | null {
+  const ofType = ALL_VARIANTS.filter(
+    (v) => v.moduleId === moduleId && v.taskType === taskType
+  );
+  if (ofType.length === 0) return null;
+
+  const lastDoneAt = new Map<string, number>();
+  for (const h of history) {
+    const t = h.completedAt ? h.completedAt.getTime() : 0;
+    const prev = lastDoneAt.get(h.variantId);
+    if (prev === undefined || t > prev) lastDoneAt.set(h.variantId, t);
+  }
+
+  const unseen = ofType.filter((v) => !lastDoneAt.has(v.variantId));
+  if (unseen.length > 0) return unseen[0];
+
+  return ofType.reduce((best, v) =>
+    (lastDoneAt.get(v.variantId) ?? 0) < (lastDoneAt.get(best.variantId) ?? 0) ? v : best
+  );
+}
+
 /** How many answers an exercise expects — used for progress display. */
 export function answerCount(variant: ExerciseVariant): number {
   const c = variant.content;

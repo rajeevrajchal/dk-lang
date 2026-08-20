@@ -192,14 +192,17 @@ export default async function ClassModulePage({
               </h2>
               {hasContent(moduleIdNum, "READING") && (
                 <Link
-                  href={`/exam/reading/${moduleIdNum}`}
+                  href={`/mock-test/${moduleIdNum}`}
                   className="text-sm font-medium rounded-md bg-slate-900 text-white px-4 py-2"
                 >
                   {dict.class.startTest}
                 </Link>
               )}
             </div>
-            <p className="mt-2 text-xs text-slate-500">{dict.class.passThresholdNote}</p>
+            <p className="mt-2 text-xs text-slate-500">
+              {dict.mockTest.readingPart} · {dict.mockTest.writingPart}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">{dict.class.passThresholdNote}</p>
 
             <div className="mt-4 space-y-2">
               {state.disciplines.map((d) => (
