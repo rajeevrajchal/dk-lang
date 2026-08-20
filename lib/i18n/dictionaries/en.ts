@@ -130,6 +130,9 @@ export const en = {
     newBadge: "NEW",
     topicLabel: "Topic",
     loading: "Loading exercise...",
+    generating: "Writing you a new exercise...",
+    generatingNote: "This takes a few seconds — the text and the questions are being written fresh.",
+    generatedBadge: "Generated",
     noneAvailable: "No exercises are available for this category yet.",
     listeningUnavailable:
       "Listening exercises need audio, which this app does not generate yet. The exercise types are defined and ready — showing you text and calling it listening would not rehearse the skill, so nothing is offered here for now.",

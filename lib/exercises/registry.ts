@@ -38,6 +38,8 @@ export interface HistoryEntry {
   variantId: string;
   taskType: string;
   completedAt: Date | null;
+  /** Present for generated exercises; lets the generator avoid recent topics. */
+  topic?: string;
 }
 
 /**
@@ -53,6 +55,35 @@ export interface HistoryEntry {
  *
  * `isNew` reports whether the chosen variant has never been completed before.
  */
+/**
+ * The task type to serve next — the first of the two rotations, split out so
+ * LLM generation can reuse it without needing an authored variant to exist.
+ */
+export function selectNextTaskType(
+  moduleId: number,
+  category: ExerciseCategory,
+  history: HistoryEntry[]
+): TaskType | null {
+  const orderedTypes = TASK_TYPES_BY_CATEGORY[category].filter(
+    (t) => t.startsWith("listening_") === false
+  );
+  if (orderedTypes.length === 0) return null;
+  void moduleId;
+
+  const typeLastDoneAt = new Map<string, number>();
+  for (const h of history) {
+    const t = h.completedAt ? h.completedAt.getTime() : 0;
+    const prev = typeLastDoneAt.get(h.taskType);
+    if (prev === undefined || t > prev) typeLastDoneAt.set(h.taskType, t);
+  }
+
+  return orderedTypes.reduce((best, t) => {
+    const bestSeen = typeLastDoneAt.get(best) ?? -1;
+    const tSeen = typeLastDoneAt.get(t) ?? -1;
+    return tSeen < bestSeen ? t : best;
+  }, orderedTypes[0]);
+}
+
 export function selectNextVariant(
   moduleId: number,
   category: ExerciseCategory,

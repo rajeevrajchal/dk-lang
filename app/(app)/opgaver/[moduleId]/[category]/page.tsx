@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { ExerciseRunner } from "@/components/exercises/ExerciseRunner";
+import { llmGenerationAvailable } from "@/lib/exercises/generator";
 import { EXERCISE_CATEGORIES, type ExerciseCategory } from "@/lib/exercises/types";
 
 export default async function OpgaverPage({
@@ -15,5 +16,13 @@ export default async function OpgaverPage({
     notFound();
   }
 
-  return <ExerciseRunner moduleId={moduleIdNum} category={upper} />;
+  // Drives the loading copy only: with generation on, /next takes seconds and
+  // the learner should know why; without it, an authored exercise is instant.
+  return (
+    <ExerciseRunner
+      moduleId={moduleIdNum}
+      category={upper}
+      generationEnabled={llmGenerationAvailable()}
+    />
+  );
 }

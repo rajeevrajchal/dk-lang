@@ -32,7 +32,10 @@ export async function GET(req: Request) {
       taskType: r.taskType,
       taskNumber: TASK_NUMBER[r.taskType as TaskType] ?? null,
       topic: r.topic,
-      title: VARIANT_BY_ID.get(r.variantId)?.title ?? r.variantId,
+      generated: r.generated,
+      title: r.variantJson
+        ? ((JSON.parse(r.variantJson) as { title?: string }).title ?? r.topic)
+        : (VARIANT_BY_ID.get(r.variantId)?.title ?? r.variantId),
       score: r.score,
       total: r.total,
       mistakes: r.mistakes,

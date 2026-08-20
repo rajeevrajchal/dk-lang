@@ -123,6 +123,9 @@ export const da: Dictionary = {
     newBadge: "NY",
     topicLabel: "Emne",
     loading: "Indlæser opgave...",
+    generating: "Skriver en ny opgave til dig...",
+    generatingNote: "Det tager et par sekunder — teksten og spørgsmålene bliver skrevet helt fra bunden.",
+    generatedBadge: "Genereret",
     noneAvailable: "Der er endnu ingen opgaver i denne kategori.",
     listeningUnavailable:
       "Lytteopgaver kræver lyd, som appen endnu ikke kan lave. Opgavetyperne er defineret og klar – men at vise tekst og kalde det lytning ville ikke træne færdigheden, så der er ikke noget her endnu.",

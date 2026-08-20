@@ -27,9 +27,11 @@ interface HistoryRow {
 export function ExerciseRunner({
   moduleId,
   category,
+  generationEnabled = false,
 }: {
   moduleId: number;
   category: ExerciseCategory;
+  generationEnabled?: boolean;
 }) {
   const { dict } = useI18n();
   const t = dict.exercises;
@@ -97,7 +99,17 @@ export function ExerciseRunner({
         {t.backToModule}
       </Link>
 
-      {loading && <p className="text-sm text-slate-500">{t.loading}</p>}
+      {loading &&
+        (generationEnabled ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-6">
+            <p className="text-sm font-medium text-slate-700">
+              <span className="inline-block animate-pulse">{t.generating}</span>
+            </p>
+            <p className="mt-1 text-xs text-slate-500">{t.generatingNote}</p>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">{t.loading}</p>
+        ))}
 
       {unavailable && !loading && (
         <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -119,6 +131,11 @@ export function ExerciseRunner({
               {exercise.isNew && (
                 <span className="text-xs font-bold rounded-full bg-emerald-600 text-white px-2.5 py-1 tracking-wide">
                   {t.newBadge}
+                </span>
+              )}
+              {exercise.generated && (
+                <span className="text-xs font-medium rounded-full border border-slate-300 text-slate-500 px-2.5 py-1">
+                  {t.generatedBadge}
                 </span>
               )}
               <span className="text-xs text-slate-500">

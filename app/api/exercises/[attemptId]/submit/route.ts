@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { VARIANT_BY_ID } from "@/lib/exercises/registry";
 import { gradeExercise } from "@/lib/exercises/grading";
+import type { ExerciseVariant } from "@/lib/exercises/types";
 
 const SubmitSchema = z.object({
   response: z.record(z.string(), z.string()),
@@ -29,7 +30,12 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const variant = VARIANT_BY_ID.get(attempt.variantId);
+  // Generated exercises carry their own answer key on the attempt row;
+  // authored ones are looked up in the registry.
+  const variant: ExerciseVariant | undefined = attempt.variantJson
+    ? (JSON.parse(attempt.variantJson) as ExerciseVariant)
+    : VARIANT_BY_ID.get(attempt.variantId);
+
   if (!variant) {
     return NextResponse.json({ error: "Unknown exercise" }, { status: 410 });
   }

@@ -233,6 +233,8 @@ export interface PublicExercise {
   difficulty: ExerciseVariant["difficulty"];
   /** True the first time this learner has seen this variant. */
   isNew: boolean;
+  /** True when this exercise was written by the model for this attempt. */
+  generated?: boolean;
   content: PublicExerciseContent;
 }
 
