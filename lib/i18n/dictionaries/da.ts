@@ -81,6 +81,46 @@ export const da: Dictionary = {
     appLabel: "app",
     officialLabel: "officiel",
     discrepancy: "⚠ uoverensstemmelse",
+    theorySection: "Teori & grammatik",
+    theorySectionDesc: "Lær reglerne, før du øver dem.",
+    openTheory: "Åbn teori",
+  },
+
+  theory: {
+    title: "Teori & grammatik",
+    subtitle:
+      "Grammatikken bag modulets læsetekster. Lektionerne er skrevet på engelsk, så forklaringerne er lette at følge — de danske eksempler er det, du skal lære.",
+    backToModule: "← Modul",
+    backToTheory: "← Teori",
+    tierLabel: (tier) => `Tier ${tier}`,
+    lessonsCount: (n) => `${n} lektion${n === 1 ? "" : "er"}`,
+    readLesson: "Læs",
+    teaches: "Underviser i",
+    notTestedYet: "Baggrund — testes ikke separat",
+    examples: "Eksempler",
+    watchOut: "Pas på",
+    relatedPractice: "Øv dette",
+    notFound: "Den lektion findes ikke.",
+  },
+
+  explain: {
+    show: "Forklar teksten",
+    hide: "Skjul forklaring",
+    title: "Forklaring",
+    intro:
+      "Hele teksten brudt ned — hvad den betyder, hvordan hver sætning er bygget op, og hvad hvert ord laver.",
+    wholeText: "Hvad teksten siger",
+    sentenceBreakdown: "Sætning for sætning",
+    structureLabel: "Grammatik",
+    wordByWord: "Ord for ord",
+    colWord: "Ord",
+    colMeaning: "Betydning",
+    colDictionary: "Opslagsform",
+    colHow: "Sådan fungerer formen",
+    grammarAtPlay: "Grammatik i denne tekst",
+    openLesson: "Læs reglen →",
+    noExplanation:
+      "Der er endnu ikke skrevet en detaljeret forklaring til denne tekst. Prøv oversættelserne på ordniveau ved at klikke på de enkelte ord.",
   },
 
   practice: {

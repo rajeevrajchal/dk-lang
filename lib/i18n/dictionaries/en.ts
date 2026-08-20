@@ -88,6 +88,46 @@ export const en = {
     appLabel: "app",
     officialLabel: "official",
     discrepancy: "⚠ discrepancy",
+    theorySection: "Theory & grammar",
+    theorySectionDesc: "Learn the rules before you practice them.",
+    openTheory: "Open theory",
+  },
+
+  theory: {
+    title: "Theory & grammar",
+    subtitle:
+      "The grammar behind this module's reading texts. Lessons are written in English so the explanations are easy to follow — the Danish examples are the part you're learning.",
+    backToModule: "← Module",
+    backToTheory: "← Theory",
+    tierLabel: (tier: number) => `Tier ${tier}`,
+    lessonsCount: (n: number) => `${n} lesson${n === 1 ? "" : "s"}`,
+    readLesson: "Read",
+    teaches: "Teaches",
+    notTestedYet: "Background — not separately tested",
+    examples: "Examples",
+    watchOut: "Watch out",
+    relatedPractice: "Practice this",
+    notFound: "That lesson doesn't exist.",
+  },
+
+  explain: {
+    show: "Explain this text",
+    hide: "Hide explanation",
+    title: "Explanation",
+    intro:
+      "The whole passage broken down — what it means, how each sentence is built, and what every word is doing.",
+    wholeText: "What the text says",
+    sentenceBreakdown: "Sentence by sentence",
+    structureLabel: "Grammar",
+    wordByWord: "Word by word",
+    colWord: "Word",
+    colMeaning: "Meaning",
+    colDictionary: "Dictionary form",
+    colHow: "How this form works",
+    grammarAtPlay: "Grammar in this text",
+    openLesson: "Read the rule →",
+    noExplanation:
+      "No detailed explanation has been written for this passage yet. Try the word-level translations by clicking individual words.",
   },
 
   practice: {

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import { TranslatablePassage } from "@/components/TranslatablePassage";
 
 interface ExamItem {
   id: string;
@@ -23,7 +22,7 @@ function formatTime(seconds: number) {
 }
 
 export default function ExamReadingPage({ params }: { params: Promise<{ moduleId: string }> }) {
-  const { dict, translateHelperDefault } = useI18n();
+  const { dict } = useI18n();
   const { moduleId } = usePromise(params);
   const moduleIdNum = Number(moduleId);
 
@@ -150,12 +149,13 @@ export default function ExamReadingPage({ params }: { params: Promise<{ moduleId
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
+        {/* Deliberately a plain passage: the mock modultest promises "no
+            dictionary or aids", so the click-to-translate helper and the
+            Explain panel are practice-mode tools only. */}
         {item.passageText && (
-          <TranslatablePassage
-            passageText={item.passageText}
-            passageId={item.passageId}
-            defaultOn={translateHelperDefault}
-          />
+          <p className="mb-5 leading-relaxed text-slate-800 whitespace-pre-line">
+            {item.passageText}
+          </p>
         )}
         <p className="mb-4 font-medium">{item.promptText}</p>
 

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getModuleDashboardState, MODULTEST_SKILLS, PD3_SKILLS } from "@/lib/unlock";
 import { getSkillStatusesForModule, hasContent } from "@/lib/dashboard";
+import { MODULE_BY_ID } from "@/lib/curriculum/modules";
+import { theoryForTiers } from "@/lib/content-gen/theory";
 import { getServerDictionary } from "@/lib/i18n/server";
 
 export default async function ClassModulePage({
@@ -46,6 +48,9 @@ export default async function ClassModulePage({
   const skillStatuses = await getSkillStatusesForModule(session!.user.id, moduleIdNum, dict);
   const lessonSkills = skillStatuses.filter((s) => requiredSkills.includes(s.skill));
 
+  const mod = MODULE_BY_ID.get(moduleIdNum);
+  const theoryLessons = mod ? theoryForTiers(mod.tiersSpanned) : [];
+
   return (
     <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-8">
       <Link href="/class" className="text-sm text-slate-500 hover:underline">
@@ -69,6 +74,45 @@ export default async function ClassModulePage({
 
       {!state.isOralOnly && (
         <>
+          {theoryLessons.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                {dict.class.theorySection}
+              </h2>
+              <Link
+                href={`/class/${moduleIdNum}/theory`}
+                className="block rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
+              >
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <p className="text-sm font-medium">{dict.class.theorySectionDesc}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {dict.theory.lessonsCount(theoryLessons.length)}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium rounded-md border border-slate-300 px-3 py-1.5">
+                    {dict.class.openTheory}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {theoryLessons.slice(0, 6).map((l) => (
+                    <span
+                      key={l.slug}
+                      className="text-xs rounded-full bg-slate-100 text-slate-600 px-2.5 py-1"
+                    >
+                      {l.title}
+                    </span>
+                  ))}
+                  {theoryLessons.length > 6 && (
+                    <span className="text-xs text-slate-400 px-1 py-1">
+                      +{theoryLessons.length - 6}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            </section>
+          )}
+
           <section>
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
               {dict.class.lessonsAndPractice}

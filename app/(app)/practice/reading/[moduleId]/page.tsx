@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, use as usePromise } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { TranslatablePassage } from "@/components/TranslatablePassage";
+import { ExplainPanel } from "@/components/ExplainPanel";
 
 interface PracticeItem {
   id: string;
@@ -263,6 +264,10 @@ export default function ReadingPracticePage({
               {index + 1 < items.length ? dict.practice.next : dict.practice.seeResult}
             </button>
           </div>
+        )}
+
+        {item.passageText && (
+          <ExplainPanel passageId={item.passageId} moduleId={moduleIdNum} />
         )}
       </div>
     </div>
