@@ -1,0 +1,325 @@
+// Danish Modultest / PD3 Prep App — data model
+// Boring choice: SQLite for zero-config dev; swap `provider` to "postgresql"
+// and set DATABASE_URL for a real deployment. SQLite has no native enum
+// support in Prisma, so "enum-shaped" fields below are plain Strings whose
+// allowed values are validated at the app layer (see lib/constants.ts) —
+// switching to Postgres later can promote them to real Prisma enums without
+// touching application code.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth (NextAuth Prisma adapter shape, kept even though this is single-learner
+// today — costs nothing and means a second learner is a config change, not a
+// migration).
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  name          String?
+  createdAt     DateTime  @default(now())
+
+  accounts          Account[]
+  sessions          Session[]
+  attempts          Attempt[]
+  constructStats    ConstructAccuracy[]
+  srsStates         SrsState[]
+  vocabSrsStates    VocabSrsState[]
+  examSessions      ExamSession[]
+  moduleSkillStatus ModuleSkillStatus[]
+  reportCards       ReportCard[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Curriculum structure: modules, tiers, constructs, vocab
+// ---------------------------------------------------------------------------
+
+// Modul 1..5. Modul 5 is PD3 (isFinalExam = true) rather than a routine
+// modultest — the exam engine branches on that flag.
+model Module {
+  id           Int     @id // 1..5
+  slug         String  @unique // "modul-1" .. "modul-5"
+  name         String
+  cefrGoal     String // e.g. "A2 -> B1 transition"
+  description  String
+  isFinalExam  Boolean @default(false) // true only for Modul 5 / PD3
+  isOralOnly   Boolean @default(false) // true only for Modul 1
+  order        Int
+
+  items             Item[]
+  vocabItems        VocabItem[]
+  examSessions      ExamSession[]
+  moduleSkillStatus ModuleSkillStatus[]
+}
+
+// Complexity ladder, global across modules (module + tier is what an Item
+// actually carries).
+model Tier {
+  id          Int    @id // 1..4
+  name        String // "Tier 1" etc.
+  description String
+
+  items      Item[]
+  constructs Construct[]
+}
+
+// A specific grammatical/lexical construct, e.g. "subordinate-clause:fordi".
+// This is the unit the weak-area engine reports on — never just "module" or
+// "skill" alone.
+model Construct {
+  id          String @id @default(cuid())
+  code        String @unique // "subordinate-clause:fordi"
+  name        String // "Subordinate clause with 'fordi'"
+  description String
+  tierId      Int
+
+  tier            Tier                @relation(fields: [tierId], references: [id])
+  itemConstructs  ItemConstruct[]
+  constructAccura ConstructAccuracy[]
+}
+
+// A single practice question/task. Always `generated: true` — see
+// docs/content-validation.md for how these are calibrated and never sourced
+// from the real SIRI bank.
+model Item {
+  id          String   @id @default(cuid())
+  moduleId    Int
+  skill       String // READING | LISTENING | WRITING | SPEAKING
+  tierId      Int
+  type        String // MULTIPLE_CHOICE | TRUE_FALSE | GAP_FILL | MATCHING
+  topic       String // ARBEJDE | UDDANNELSE | HVERDAGSLIV | MEDBORGERSKAB
+  passageText String? // reading passage / listening transcript, if any
+  audioUrl    String? // pre-generated TTS audio for LISTENING items
+  promptText  String
+  optionsJson String? // JSON-encoded options (MC/matching)
+  answerJson  String // JSON-encoded correct answer(s)
+  explanation String? // shown after submission
+  rubricJson  String? // for WRITING/SPEAKING: fixed per-tier rubric
+  generated   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  module         Module          @relation(fields: [moduleId], references: [id])
+  tier           Tier            @relation(fields: [tierId], references: [id])
+  itemConstructs ItemConstruct[]
+  attempts       Attempt[]
+
+  @@index([moduleId, skill, tierId])
+}
+
+model ItemConstruct {
+  itemId      String
+  constructId String
+
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  construct Construct @relation(fields: [constructId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, constructId])
+}
+
+model VocabItem {
+  id              String  @id @default(cuid())
+  moduleId        Int
+  topic           String // ARBEJDE | UDDANNELSE | HVERDAGSLIV | MEDBORGERSKAB
+  danish          String
+  translation     String
+  exampleSentence String?
+
+  module         Module          @relation(fields: [moduleId], references: [id])
+  vocabSrsStates VocabSrsState[]
+}
+
+// ---------------------------------------------------------------------------
+// Attempts + adaptive tracking
+// ---------------------------------------------------------------------------
+
+model Attempt {
+  id            String   @id @default(cuid())
+  userId        String
+  itemId        String
+  examSessionId String?
+  responseJson  String // learner's raw response
+  isCorrect     Boolean
+  timeMs        Int?
+  createdAt     DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item        Item         @relation(fields: [itemId], references: [id])
+  examSession ExamSession? @relation(fields: [examSessionId], references: [id])
+
+  @@index([userId, itemId])
+}
+
+// Aggregated, continuously-updated accuracy per (user, construct, skill).
+// This is what the "you drop to 40% on 'selvom'" recommendation reads from,
+// so it's maintained as attempts land rather than recomputed from scratch.
+model ConstructAccuracy {
+  id            String    @id @default(cuid())
+  userId        String
+  constructId   String
+  skill         String // READING | LISTENING | WRITING | SPEAKING
+  correctCount  Int       @default(0)
+  totalCount    Int       @default(0)
+  lastAttemptAt DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  construct Construct @relation(fields: [constructId], references: [id])
+
+  @@unique([userId, constructId, skill])
+}
+
+// Spaced-repetition state, SM-2-style, for constructs (grammar) — resurfaces
+// earlier now-easy constructs while the growing edge keeps moving forward.
+model SrsState {
+  id             String    @id @default(cuid())
+  userId         String
+  constructId    String
+  easeFactor     Float     @default(2.5)
+  intervalDays   Int       @default(0)
+  repetitions    Int       @default(0)
+  dueAt          DateTime  @default(now())
+  lastReviewedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, constructId])
+}
+
+model VocabSrsState {
+  id             String    @id @default(cuid())
+  userId         String
+  vocabId        String
+  easeFactor     Float     @default(2.5)
+  intervalDays   Int       @default(0)
+  repetitions    Int       @default(0)
+  dueAt          DateTime  @default(now())
+  lastReviewedAt DateTime?
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vocab VocabItem @relation(fields: [vocabId], references: [id])
+
+  @@unique([userId, vocabId])
+}
+
+// ---------------------------------------------------------------------------
+// Exam simulation (timed mock modultest / mock PD3)
+// ---------------------------------------------------------------------------
+
+model ExamSession {
+  id          String    @id @default(cuid())
+  userId      String
+  moduleId    Int
+  examType    String // MODULTEST | PD3
+  status      String    @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED | ABANDONED
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  scoresJson  String? // per-skill score breakdown once completed
+  passedJson  String? // per-skill pass/fail once completed
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module   Module    @relation(fields: [moduleId], references: [id])
+  attempts Attempt[]
+}
+
+// ---------------------------------------------------------------------------
+// Module unlock state — in-app mock pass vs verified official result are
+// tracked as two distinct fields, never merged. See docs/unlock-logic.md.
+// ---------------------------------------------------------------------------
+
+model ModuleSkillStatus {
+  id       String @id @default(cuid())
+  userId   String
+  moduleId Int
+  skill    String // READING | LISTENING | WRITING | SPEAKING
+
+  inAppPassed   Boolean   @default(false)
+  inAppScore    Float?
+  inAppPassedAt DateTime?
+
+  officialPassed   Boolean? // null = no verified record yet
+  officialSourceId String? // ReportCard.id that set this
+  officialSetAt    DateTime?
+
+  discrepancy     Boolean @default(false) // true if official conflicted with in-app at reconciliation time
+  discrepancyNote String?
+
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module Module @relation(fields: [moduleId], references: [id])
+
+  @@unique([userId, moduleId, skill])
+}
+
+// ---------------------------------------------------------------------------
+// Report card upload / OCR extraction / confirmation / reconciliation
+// ---------------------------------------------------------------------------
+
+model ReportCard {
+  id         String   @id @default(cuid())
+  userId     String
+  filePath   String // path under access-controlled storage; never a public URL
+  mimeType   String
+  uploadedAt DateTime @default(now())
+
+  status String @default("PENDING_EXTRACTION") // PENDING_EXTRACTION | PENDING_CONFIRMATION | CONFIRMED | REJECTED
+
+  // Extracted fields (populated by the OCR/vision step, editable by the
+  // learner before confirmation — see lib/ocr.ts).
+  extractedSprogcenter String?
+  extractedModule      Int?
+  extractedDate        DateTime?
+  extractedResultsJson String? // {"mundtlig": "pass", "laesning": "fail", "skrivning": "pass"}
+  extractionConfidence Float?
+  rawOcrText           String?
+
+  confirmedAt        DateTime?
+  reconciliationJson String? // summary of what changed vs prior in-app state
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
