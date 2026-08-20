@@ -30,6 +30,10 @@ export interface GeneratedReadingItem {
   topic: TopicCode;
   constructs: string[]; // construct codes, must exist in constructs.ts
   type: ItemTypeCode;
+  // Stable key shared by every item built on the same passage — survives
+  // reseeds, unlike the DB row's generated id. Used to look up the
+  // word/paragraph translation glossary (see modul2-glossary.ts).
+  passageId?: string;
   passageText: string;
   promptText: string;
   // MULTIPLE_CHOICE: full option list, answer = exact matching string.

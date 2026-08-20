@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { selectPracticeSet } from "@/lib/adaptive/engine";
 import { SKILLS, type Skill } from "@/lib/constants";
+import { getServerDictionary } from "@/lib/i18n/server";
+import { formatTierReason } from "@/lib/i18n/format";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -18,6 +20,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "moduleId and a valid skill are required" }, { status: 400 });
   }
 
+  const dict = await getServerDictionary();
   const result = await selectPracticeSet(session.user.id, moduleId, skill, count);
-  return NextResponse.json(result);
+  return NextResponse.json({
+    ...result,
+    tierReason: formatTierReason(dict, result.tierReason),
+  });
 }

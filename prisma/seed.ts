@@ -74,6 +74,7 @@ async function main() {
         tierId: item.tier,
         type: item.type,
         topic: item.topic,
+        passageId: item.passageId ?? null,
         passageText: item.passageText,
         promptText: item.promptText,
         optionsJson: item.options ? JSON.stringify(item.options) : null,

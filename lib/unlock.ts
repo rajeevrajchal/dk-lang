@@ -105,6 +105,16 @@ export async function getModuleDashboardState(userId: string): Promise<ModuleDas
   return results;
 }
 
+// "Current module": the lowest-numbered non-oral module that's unlocked for
+// practice but not yet fully passed in-app. Falls back to the last module if
+// everything is passed.
+export function pickCurrentModuleId(moduleStates: ModuleDashboardState[]): number {
+  const current =
+    moduleStates.find((m) => !m.isOralOnly && m.practiceUnlocked && !m.inAppFullyPassed) ??
+    moduleStates[moduleStates.length - 1];
+  return current.moduleId;
+}
+
 // Called when a mock modultest/PD3 ExamSession is completed. Sets the
 // in-app signal only — never touches officialPassed.
 export async function applyInAppExamResult(

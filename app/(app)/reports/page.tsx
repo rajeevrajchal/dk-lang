@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 interface ReportCard {
   id: string;
@@ -16,25 +17,12 @@ interface ReportCard {
   extractionConfidence: number | null;
 }
 
-const STATUS_LABEL: Record<ReportCard["status"], string> = {
-  PENDING_EXTRACTION: "Behandler...",
-  PENDING_CONFIRMATION: "Afventer din bekræftelse",
-  CONFIRMED: "Bekræftet",
-  REJECTED: "Afvist",
-};
-
 function disciplinesForModule(moduleId: number): string[] {
   return moduleId === 5 ? ["skriftlig", "mundtlig"] : ["mundtlig", "laesning", "skrivning"];
 }
 
-const DISCIPLINE_LABEL: Record<string, string> = {
-  mundtlig: "Mundtlig",
-  laesning: "Læsning",
-  skrivning: "Skrivning",
-  skriftlig: "Skriftlig",
-};
-
-function ConfirmForm({ card, onDone }: { card: ReportCard; onDone: () => void }) {
+function ConfirmForm({ card, dict, onDone }: { card: ReportCard; dict: Dictionary; onDone: () => void }) {
+  const t = dict.reports.confirmForm;
   const [sprogcenter, setSprogcenter] = useState(card.extractedSprogcenter ?? "");
   const [moduleId, setModuleId] = useState(card.extractedModule ?? 2);
   const [date, setDate] = useState(
@@ -57,10 +45,10 @@ function ConfirmForm({ card, onDone }: { card: ReportCard; onDone: () => void })
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sprogcenter, module: moduleId, date, results }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "Kunne ikke gemme");
+      if (!res.ok) throw new Error((await res.json()).error || t.saveFailed);
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Fejl");
+      setError(e instanceof Error ? e.message : t.genericError);
     } finally {
       setSaving(false);
     }
@@ -70,23 +58,23 @@ function ConfirmForm({ card, onDone }: { card: ReportCard; onDone: () => void })
     <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
       <p className="text-xs text-slate-500">
         {card.extractionConfidence && card.extractionConfidence > 0
-          ? `Automatisk udtrukket felter (tillid: ${Math.round(card.extractionConfidence * 100)}%). Ret dem, hvis noget er forkert.`
-          : "Ingen automatisk genkendelse tilgængelig — udfyld felterne ud fra dit resultatbevis."}
+          ? t.autoExtracted(Math.round(card.extractionConfidence * 100))
+          : t.noAutoExtraction}
       </p>
 
       <div>
-        <label className="block text-xs font-medium text-slate-600">Sprogcenter</label>
+        <label className="block text-xs font-medium text-slate-600">{t.sprogcenterLabel}</label>
         <input
           value={sprogcenter}
           onChange={(e) => setSprogcenter(e.target.value)}
-          placeholder="fx A2B, Clavis, Praxis"
+          placeholder={t.sprogcenterPlaceholder}
           className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
         />
       </div>
 
       <div className="flex gap-4">
         <div>
-          <label className="block text-xs font-medium text-slate-600">Modul</label>
+          <label className="block text-xs font-medium text-slate-600">{t.modulLabel}</label>
           <select
             value={moduleId}
             onChange={(e) => {
@@ -97,13 +85,13 @@ function ConfirmForm({ card, onDone }: { card: ReportCard; onDone: () => void })
           >
             {[1, 2, 3, 4, 5].map((m) => (
               <option key={m} value={m}>
-                Modul {m}
+                {t.moduleOption(m)}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600">Dato</label>
+          <label className="block text-xs font-medium text-slate-600">{t.dateLabel}</label>
           <input
             type="date"
             value={date}
@@ -114,11 +102,11 @@ function ConfirmForm({ card, onDone }: { card: ReportCard; onDone: () => void })
       </div>
 
       <div>
-        <p className="text-xs font-medium text-slate-600 mb-1">Resultat pr. disciplin</p>
+        <p className="text-xs font-medium text-slate-600 mb-1">{t.resultPerDiscipline}</p>
         <div className="space-y-2">
           {disciplines.map((d) => (
             <div key={d} className="flex items-center justify-between">
-              <span className="text-sm">{DISCIPLINE_LABEL[d]}</span>
+              <span className="text-sm">{dict.reports.disciplineLabels[d]}</span>
               <div className="flex gap-2">
                 {(["pass", "fail"] as const).map((v) => (
                   <button
@@ -132,7 +120,7 @@ function ConfirmForm({ card, onDone }: { card: ReportCard; onDone: () => void })
                         : "border-slate-200"
                     }`}
                   >
-                    {v === "pass" ? "Bestået" : "Ikke bestået"}
+                    {v === "pass" ? t.pass : t.fail}
                   </button>
                 ))}
               </div>
@@ -148,13 +136,14 @@ function ConfirmForm({ card, onDone }: { card: ReportCard; onDone: () => void })
         onClick={submit}
         className="rounded-md bg-slate-900 text-white text-sm font-medium px-4 py-2 disabled:opacity-40"
       >
-        {saving ? "Gemmer..." : "Bekræft og gem"}
+        {saving ? t.saving : t.confirmAndSave}
       </button>
     </div>
   );
 }
 
 export default function ReportsPage() {
+  const { dict } = useI18n();
   const [cards, setCards] = useState<ReportCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -180,10 +169,10 @@ export default function ReportsPage() {
       const form = new FormData();
       form.append("file", file);
       const res = await fetch("/api/reports/upload", { method: "POST", body: form });
-      if (!res.ok) throw new Error((await res.json()).error || "Upload fejlede");
+      if (!res.ok) throw new Error((await res.json()).error || dict.reports.confirmForm.uploadFailed);
       await load();
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Upload fejlede");
+      setUploadError(err instanceof Error ? err.message : dict.reports.confirmForm.uploadFailed);
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -192,18 +181,9 @@ export default function ReportsPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 sm:p-8 space-y-6">
-      <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">
-        &larr; Dashboard
-      </Link>
-
       <div>
-        <h1 className="text-xl font-semibold">Verificerede resultater</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Upload et resultatbevis eller diplom fra dit sprogcenter (A2B, Clavis, Praxis m.fl.), efter du
-          har taget den rigtige modultest eller PD3. Appen udtrækker felterne til gennemsyn — intet
-          gemmes, før du har bekræftet det. Appen udsteder eller certificerer aldrig en bestået prøve;
-          den registrerer kun, hvad dit dokument siger.
-        </p>
+        <h1 className="text-xl font-semibold">{dict.reports.title}</h1>
+        <p className="mt-1 text-sm text-slate-600">{dict.reports.subtitle}</p>
       </div>
 
       <label className="block rounded-xl border-2 border-dashed border-slate-300 p-8 text-center cursor-pointer hover:border-slate-400">
@@ -215,22 +195,22 @@ export default function ReportsPage() {
           disabled={uploading}
         />
         <span className="text-sm text-slate-600">
-          {uploading ? "Uploader..." : "Klik for at uploade PDF, PNG eller JPEG (maks 15 MB)"}
+          {uploading ? dict.reports.uploadPromptUploading : dict.reports.uploadPromptIdle}
         </span>
       </label>
       {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
 
       {loading ? (
-        <p className="text-sm text-slate-400">Indlæser...</p>
+        <p className="text-sm text-slate-400">{dict.reports.loadingLabel}</p>
       ) : cards.length === 0 ? (
-        <p className="text-sm text-slate-400">Ingen resultatbeviser uploadet endnu.</p>
+        <p className="text-sm text-slate-400">{dict.reports.noReportsYet}</p>
       ) : (
         <ul className="space-y-4">
           {cards.map((card) => (
             <li key={card.id} className="rounded-xl border border-slate-200 bg-white p-5">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">
-                  {new Date(card.uploadedAt).toLocaleDateString("da-DK")}
+                  {new Date(card.uploadedAt).toLocaleDateString("en-GB")}
                 </span>
                 <span
                   className={`text-xs font-medium rounded-full px-3 py-1 ${
@@ -241,19 +221,19 @@ export default function ReportsPage() {
                         : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  {STATUS_LABEL[card.status]}
+                  {dict.reports.statusLabels[card.status]}
                 </span>
               </div>
 
               {card.status === "CONFIRMED" && (
                 <p className="mt-2 text-sm text-slate-600">
-                  {card.extractedSprogcenter} &middot; Modul {card.extractedModule} &middot;{" "}
-                  {card.extractedDate && new Date(card.extractedDate).toLocaleDateString("da-DK")}
+                  {card.extractedSprogcenter} · {dict.reports.confirmForm.moduleOption(card.extractedModule ?? 0)} ·{" "}
+                  {card.extractedDate && new Date(card.extractedDate).toLocaleDateString("en-GB")}
                 </p>
               )}
 
               {card.status === "PENDING_CONFIRMATION" && (
-                <ConfirmForm card={card} onDone={load} />
+                <ConfirmForm card={card} dict={dict} onDone={load} />
               )}
             </li>
           ))}

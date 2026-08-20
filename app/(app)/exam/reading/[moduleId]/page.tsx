@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, use as usePromise } from "react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { TranslatablePassage } from "@/components/TranslatablePassage";
 
 interface ExamItem {
   id: string;
@@ -9,6 +11,7 @@ interface ExamItem {
   type: "MULTIPLE_CHOICE" | "TRUE_FALSE" | "GAP_FILL" | "MATCHING";
   topic: string;
   passageText: string | null;
+  passageId: string | null;
   promptText: string;
   optionsJson: string | null;
 }
@@ -20,6 +23,7 @@ function formatTime(seconds: number) {
 }
 
 export default function ExamReadingPage({ params }: { params: Promise<{ moduleId: string }> }) {
+  const { dict, translateHelperDefault } = useI18n();
   const { moduleId } = usePromise(params);
   const moduleIdNum = Number(moduleId);
 
@@ -96,21 +100,16 @@ export default function ExamReadingPage({ params }: { params: Promise<{ moduleId
     return (
       <div className="max-w-2xl mx-auto p-8">
         <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">
-          &larr; Dashboard
+          {dict.common.backToDashboard}
         </Link>
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-8">
-          <h1 className="text-xl font-semibold">Mock modultest &mdash; Læsning, Modul {moduleId}</h1>
-          <p className="mt-3 text-sm text-slate-600">
-            12 spørgsmål, 12 minutter. Ingen ordbog eller hjælpemidler &mdash; ligesom den rigtige
-            modultest. Dette er en intern øvelsestest og ikke en officiel eksamen; et bestået resultat
-            her låser næste moduls øvelsesindhold op i appen, men erstatter ikke den rigtige modultest
-            hos dit sprogcenter.
-          </p>
+          <h1 className="text-xl font-semibold">{dict.exam.introTitle(moduleIdNum)}</h1>
+          <p className="mt-3 text-sm text-slate-600">{dict.exam.introBody}</p>
           <button
             onClick={start}
             className="mt-6 rounded-md bg-slate-900 text-white text-sm font-medium px-5 py-2.5"
           >
-            Start test
+            {dict.exam.startTest}
           </button>
         </div>
       </div>
@@ -121,21 +120,16 @@ export default function ExamReadingPage({ params }: { params: Promise<{ moduleId
     return (
       <div className="max-w-2xl mx-auto p-8">
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
-          <h1 className="text-xl font-semibold">{result.passed ? "Bestået" : "Ikke bestået"}</h1>
+          <h1 className="text-xl font-semibold">{result.passed ? dict.exam.passedTitle : dict.exam.notPassedTitle}</h1>
           <p className="mt-2 text-slate-600">
-            {result.correct} af {result.total} rigtige ({Math.round(result.score * 100)}%).
-            Grænse for bestået: 70%.
+            {dict.exam.resultLine(result.correct, result.total, Math.round(result.score * 100))}
           </p>
-          {result.passed && (
-            <p className="mt-2 text-sm text-emerald-700">
-              Godt gået &mdash; dette låser øvelsesindhold i næste modul op i appen (in-app-signal).
-            </p>
-          )}
+          {result.passed && <p className="mt-2 text-sm text-emerald-700">{dict.exam.passedNote}</p>}
           <Link
             href="/dashboard"
             className="mt-6 inline-block rounded-md bg-slate-900 text-white text-sm font-medium px-5 py-2.5"
           >
-            Tilbage til dashboard
+            {dict.exam.backToDashboard}
           </Link>
         </div>
       </div>
@@ -149,9 +143,7 @@ export default function ExamReadingPage({ params }: { params: Promise<{ moduleId
   return (
     <div className="max-w-2xl mx-auto p-6 sm:p-8">
       <div className="flex items-center justify-between text-sm mb-4">
-        <span className="text-slate-500">
-          Spørgsmål {index + 1} af {items.length}
-        </span>
+        <span className="text-slate-500">{dict.exam.question(index + 1, items.length)}</span>
         <span className={`font-mono font-medium ${secondsLeft < 60 ? "text-red-600" : "text-slate-700"}`}>
           {formatTime(secondsLeft)}
         </span>
@@ -159,7 +151,11 @@ export default function ExamReadingPage({ params }: { params: Promise<{ moduleId
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         {item.passageText && (
-          <p className="mb-5 leading-relaxed text-slate-800 whitespace-pre-line">{item.passageText}</p>
+          <TranslatablePassage
+            passageText={item.passageText}
+            passageId={item.passageId}
+            defaultOn={translateHelperDefault}
+          />
         )}
         <p className="mb-4 font-medium">{item.promptText}</p>
 
@@ -183,7 +179,7 @@ export default function ExamReadingPage({ params }: { params: Promise<{ moduleId
 
         {item.type === "TRUE_FALSE" && (
           <div className="flex gap-3">
-            {["Sandt", "Falsk"].map((opt) => (
+            {(["Sandt", "Falsk"] as const).map((opt) => (
               <button
                 key={opt}
                 onClick={() => setResponses((r) => ({ ...r, [item.id]: opt }))}
@@ -193,7 +189,7 @@ export default function ExamReadingPage({ params }: { params: Promise<{ moduleId
                     : "border-slate-200 hover:border-slate-400"
                 }`}
               >
-                {opt}
+                {opt === "Sandt" ? dict.practice.trueLabel : dict.practice.falseLabel}
               </button>
             ))}
           </div>
@@ -204,7 +200,7 @@ export default function ExamReadingPage({ params }: { params: Promise<{ moduleId
           onClick={submitCurrentAndAdvance}
           className="mt-5 rounded-md bg-emerald-600 text-white text-sm font-medium px-4 py-2 disabled:opacity-40"
         >
-          {index + 1 < items.length ? "Næste" : "Aflever"}
+          {index + 1 < items.length ? dict.exam.next : dict.exam.submit}
         </button>
       </div>
     </div>

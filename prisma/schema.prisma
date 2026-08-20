@@ -133,6 +133,7 @@ model Item {
   tierId      Int
   type        String // MULTIPLE_CHOICE | TRUE_FALSE | GAP_FILL | MATCHING
   topic       String // ARBEJDE | UDDANNELSE | HVERDAGSLIV | MEDBORGERSKAB
+  passageId   String? // stable key shared by items on the same passage (see lib/content-gen)
   passageText String? // reading passage / listening transcript, if any
   audioUrl    String? // pre-generated TTS audio for LISTENING items
   promptText  String

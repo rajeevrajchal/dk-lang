@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, use as usePromise } from "react";
 import Link from "next/link";
-import { TOPIC_LABELS_DA } from "@/lib/constants";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { TranslatablePassage } from "@/components/TranslatablePassage";
 
 interface PracticeItem {
   id: string;
@@ -10,6 +11,7 @@ interface PracticeItem {
   type: "MULTIPLE_CHOICE" | "TRUE_FALSE" | "GAP_FILL" | "MATCHING";
   topic: string;
   passageText: string | null;
+  passageId: string | null;
   promptText: string;
   optionsJson: string | null;
   constructs: { id: string; code: string; name: string }[];
@@ -26,6 +28,7 @@ function AnswerInput({
   onSubmit: (response: string | string[]) => void;
   disabled: boolean;
 }) {
+  const { dict } = useI18n();
   const [selected, setSelected] = useState<string | null>(null);
   const [matches, setMatches] = useState<Record<number, number | null>>({});
 
@@ -57,7 +60,7 @@ function AnswerInput({
           onClick={() => selected && onSubmit(selected)}
           className="mt-3 rounded-md bg-emerald-600 text-white text-sm font-medium px-4 py-2 disabled:opacity-40"
         >
-          Svar
+          {dict.practice.answerButton}
         </button>
       </div>
     );
@@ -73,7 +76,7 @@ function AnswerInput({
             onClick={() => onSubmit(opt)}
             className="rounded-md border border-slate-200 px-6 py-2 text-sm hover:border-slate-400 disabled:opacity-60"
           >
-            {opt}
+            {opt === "Sandt" ? dict.practice.trueLabel : dict.practice.falseLabel}
           </button>
         ))}
       </div>
@@ -100,7 +103,7 @@ function AnswerInput({
               }
               className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             >
-              <option value="">Vælg...</option>
+              <option value="">{dict.practice.chooseEllipsis}</option>
               {options.right.map((rightLabel, j) => (
                 <option key={j} value={j}>
                   {rightLabel}
@@ -116,7 +119,7 @@ function AnswerInput({
           }
           className="mt-2 rounded-md bg-emerald-600 text-white text-sm font-medium px-4 py-2 disabled:opacity-40"
         >
-          Svar
+          {dict.practice.answerButton}
         </button>
       </div>
     );
@@ -130,6 +133,7 @@ export default function ReadingPracticePage({
 }: {
   params: Promise<{ moduleId: string }>;
 }) {
+  const { dict, translateHelperDefault } = useI18n();
   const { moduleId } = usePromise(params);
   const moduleIdNum = Number(moduleId);
 
@@ -177,29 +181,27 @@ export default function ReadingPracticePage({
   }
 
   if (!items || !tierInfo) {
-    return <div className="p-8 text-sm text-slate-500">Indlæser øvelser...</div>;
+    return <div className="p-8 text-sm text-slate-500">{dict.practice.loadingExercises}</div>;
   }
 
   if (index >= items.length) {
     return (
       <div className="max-w-2xl mx-auto p-8">
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
-          <h1 className="text-xl font-semibold">Øvelse gennemført</h1>
-          <p className="mt-2 text-slate-600">
-            Du fik {score.correct} ud af {score.total} rigtige.
-          </p>
+          <h1 className="text-xl font-semibold">{dict.practice.exerciseComplete}</h1>
+          <p className="mt-2 text-slate-600">{dict.practice.scoreLine(score.correct, score.total)}</p>
           <div className="mt-6 flex justify-center gap-3">
             <button
               onClick={loadSet}
               className="rounded-md bg-slate-900 text-white text-sm font-medium px-4 py-2"
             >
-              Ny runde
+              {dict.practice.newRound}
             </button>
             <Link
               href="/dashboard"
               className="rounded-md border border-slate-300 text-sm font-medium px-4 py-2"
             >
-              Tilbage til dashboard
+              {dict.practice.backToDashboard}
             </Link>
           </div>
         </div>
@@ -213,17 +215,17 @@ export default function ReadingPracticePage({
     <div className="max-w-2xl mx-auto p-6 sm:p-8">
       <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
         <Link href="/dashboard" className="hover:underline">
-          &larr; Dashboard
+          {dict.common.backToDashboard}
         </Link>
         <span>
-          Spørgsmål {index + 1} af {items.length} &middot; Point: {score.correct}/{score.total}
+          {dict.practice.question(index + 1, items.length)} · {dict.practice.points(score.correct, score.total)}
         </span>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
         <span className="rounded-full bg-slate-900 text-white px-2.5 py-1">Tier {item.tierId}</span>
         <span className="rounded-full bg-slate-100 text-slate-700 px-2.5 py-1">
-          {TOPIC_LABELS_DA[item.topic as keyof typeof TOPIC_LABELS_DA] ?? item.topic}
+          {dict.enums.topics[item.topic] ?? item.topic}
         </span>
         {item.constructs.map((c) => (
           <span key={c.id} className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-500">
@@ -236,7 +238,11 @@ export default function ReadingPracticePage({
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         {item.passageText && (
-          <p className="mb-5 leading-relaxed text-slate-800 whitespace-pre-line">{item.passageText}</p>
+          <TranslatablePassage
+            passageText={item.passageText}
+            passageId={item.passageId}
+            defaultOn={translateHelperDefault}
+          />
         )}
         <p className="mb-4 font-medium">{item.promptText}</p>
 
@@ -248,13 +254,13 @@ export default function ReadingPracticePage({
               feedback.isCorrect ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"
             }`}
           >
-            <p className="font-medium">{feedback.isCorrect ? "Rigtigt!" : "Forkert."}</p>
+            <p className="font-medium">{feedback.isCorrect ? dict.practice.correctFeedback : dict.practice.incorrectFeedback}</p>
             {feedback.explanation && <p className="mt-1">{feedback.explanation}</p>}
             <button
               onClick={handleNext}
               className="mt-3 rounded-md bg-slate-900 text-white text-sm font-medium px-4 py-2"
             >
-              {index + 1 < items.length ? "Næste" : "Se resultat"}
+              {index + 1 < items.length ? dict.practice.next : dict.practice.seeResult}
             </button>
           </div>
         )}

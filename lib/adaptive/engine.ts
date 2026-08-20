@@ -73,21 +73,27 @@ export async function getConstructStats(
   });
 }
 
+// Reason a tier was chosen, as a key + params rather than a baked-in
+// sentence, so callers can render it in whatever locale is active (see
+// lib/i18n/format.ts's formatTierReason).
+export type TierReason =
+  | { key: "noAttemptsStartTier2" }
+  | { key: "heldAtTier"; tier: number; construct: string; pct: number }
+  | { key: "establishingData"; tier: number }
+  | { key: "tierNotSolid"; tier: number; threshold: number }
+  | { key: "allTiersSolid" };
+
 // The tier the learner should be practicing right now for this module/skill.
 export async function determineCurrentTier(
   userId: string,
   moduleId: number,
   skill: Skill
-): Promise<{ tier: number; reason: string }> {
+): Promise<{ tier: number; reason: TierReason }> {
   const stats = await getConstructStats(userId, skill, moduleId);
   const hasAnyAttempts = stats.some((s) => s.totalCount > 0);
 
   if (!hasAnyAttempts) {
-    return {
-      tier: DEFAULT_STARTING_TIER,
-      reason:
-        "Ingen tidligere forsøg — starter på Tier 2, da du allerede har prøvet den rigtige modultest.",
-    };
+    return { tier: DEFAULT_STARTING_TIER, reason: { key: "noAttemptsStartTier2" } };
   }
 
   for (let tier = 1; tier <= MAX_TIER; tier++) {
@@ -100,9 +106,12 @@ export async function determineCurrentTier(
     if (failing) {
       return {
         tier,
-        reason: `Fastholdt på Tier ${tier}: '${failing.name}' er på ${Math.round(
-          (failing.accuracy ?? 0) * 100
-        )}% nøjagtighed.`,
+        reason: {
+          key: "heldAtTier",
+          tier,
+          construct: failing.name,
+          pct: Math.round((failing.accuracy ?? 0) * 100),
+        },
       };
     }
 
@@ -115,19 +124,19 @@ export async function determineCurrentTier(
       // untouched Tier 1 as a reason to fall back to it. At or above the
       // floor, absence of data is itself the reason to be here.
       if (tier < DEFAULT_STARTING_TIER) continue;
-      return { tier, reason: `Stadig ved at etablere data for Tier ${tier}.` };
+      return { tier, reason: { key: "establishingData", tier } };
     }
 
     const solid = attempted.every((s) => (s.accuracy ?? 0) >= ADVANCE_THRESHOLD);
     if (!solid) {
       return {
         tier,
-        reason: `Tier ${tier} er endnu ikke solidt (under ${Math.round(ADVANCE_THRESHOLD * 100)}% på alle konstruktioner).`,
+        reason: { key: "tierNotSolid", tier, threshold: Math.round(ADVANCE_THRESHOLD * 100) },
       };
     }
   }
 
-  return { tier: MAX_TIER, reason: "Alle tiers solide — arbejder på det højeste niveau." };
+  return { tier: MAX_TIER, reason: { key: "allTiersSolid" } };
 }
 
 // Names the single weakest construct with enough data to be meaningful —
@@ -153,6 +162,7 @@ interface PracticeItem {
   type: string;
   topic: string;
   passageText: string | null;
+  passageId: string | null;
   promptText: string;
   optionsJson: string | null;
   constructs: { id: string; code: string; name: string }[];
@@ -166,7 +176,7 @@ export async function selectPracticeSet(
   moduleId: number,
   skill: Skill,
   count = 8
-): Promise<{ items: PracticeItem[]; currentTier: number; tierReason: string }> {
+): Promise<{ items: PracticeItem[]; currentTier: number; tierReason: TierReason }> {
   const { tier: currentTier, reason: tierReason } = await determineCurrentTier(
     userId,
     moduleId,
@@ -249,6 +259,7 @@ export async function selectPracticeSet(
         type: item.type,
         topic: item.topic,
         passageText: item.passageText,
+        passageId: item.passageId,
         promptText: item.promptText,
         optionsJson: item.optionsJson,
         constructs: item.itemConstructs.map((ic) => ({

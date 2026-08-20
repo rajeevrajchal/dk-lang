@@ -65,6 +65,7 @@ export async function POST(req: Request) {
       type: item.type,
       topic: item.topic,
       passageText: item.passageText,
+      passageId: item.passageId,
       promptText: item.promptText,
       optionsJson: item.optionsJson,
     })),

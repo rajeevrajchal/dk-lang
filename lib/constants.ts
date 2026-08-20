@@ -27,16 +27,5 @@ export type ReportCardStatusCode = (typeof REPORT_CARD_STATUSES)[number];
 export const MODULTEST_DISCIPLINES = ["mundtlig", "laesning", "skrivning"] as const;
 export const PD3_DISCIPLINES = ["skriftlig", "mundtlig"] as const;
 
-export const SKILL_LABELS_DA: Record<Skill, string> = {
-  READING: "Læsning",
-  LISTENING: "Lytning",
-  WRITING: "Skrivning",
-  SPEAKING: "Mundtlig",
-};
-
-export const TOPIC_LABELS_DA: Record<Topic, string> = {
-  ARBEJDE: "Arbejde",
-  UDDANNELSE: "Uddannelse",
-  HVERDAGSLIV: "Hverdagsliv",
-  MEDBORGERSKAB: "Medborgerskab",
-};
+// Display labels for these enums are locale-aware — see
+// lib/i18n/dictionaries/*.ts's `enums.skills` / `enums.topics`.
