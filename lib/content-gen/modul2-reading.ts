@@ -12,6 +12,12 @@ import type { GeneratedReadingItem } from "./types";
 // Each passage deliberately isolates 1-2 target constructs so per-construct
 // accuracy tracking stays meaningful (a learner missing the "fordi" gap-fill
 // tells you something specific, not just "reading is weak").
+//
+// `passageId` is a stable, hand-assigned key shared by every item built on
+// the same passage (including its gap-fill variant, which drops one word).
+// It survives `db:seed`/`db:reset` re-runs, unlike `Item.id` (a fresh
+// cuid() every time) — see lib/content-gen/modul2-glossary.ts, which is
+// keyed on it for the word/paragraph translation helper.
 
 export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
   // ---------------------------------------------------------------------
@@ -22,6 +28,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "ARBEJDE",
     constructs: ["present-tense"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t1-arbejde-peter-hospital",
     passageText:
       "Peter arbejder på et hospital i Odense. Han er sygeplejerske. Han starter på arbejde klokken syv om morgenen. Om dagen hjælper han patienterne, og han taler med lægerne. Klokken tolv holder Peter pause og spiser frokost i kantinen. Peter er glad for sit arbejde. Det er hårdt, men det er også spændende.",
     promptText: "Hvor arbejder Peter?",
@@ -34,6 +41,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "ARBEJDE",
     constructs: ["present-tense"],
     type: "TRUE_FALSE",
+    passageId: "m2-t1-arbejde-peter-hospital",
     passageText:
       "Peter arbejder på et hospital i Odense. Han er sygeplejerske. Han starter på arbejde klokken syv om morgenen. Om dagen hjælper han patienterne, og han taler med lægerne. Klokken tolv holder Peter pause og spiser frokost i kantinen. Peter er glad for sit arbejde. Det er hårdt, men det er også spændende.",
     promptText: "Peter spiser frokost klokken tolv.",
@@ -46,6 +54,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "ARBEJDE",
     constructs: ["coordination:og-men-eller"],
     type: "GAP_FILL",
+    passageId: "m2-t1-arbejde-peter-hospital",
     passageText:
       "Peter arbejder på et hospital i Odense. Han er sygeplejerske. Han starter på arbejde klokken syv om morgenen. Om dagen hjælper han patienterne, og han taler med lægerne. Klokken tolv holder Peter pause og spiser frokost i kantinen. Peter er glad for sit arbejde. Det er hårdt, ___ det er også spændende.",
     promptText: "Udfyld det manglende ord.",
@@ -59,6 +68,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "UDDANNELSE",
     constructs: ["present-tense"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t1-uddannelse-maria-sprogskole",
     passageText:
       "Maria går på sprogskole tre gange om ugen. Hun læser dansk om morgenen, og hun laver lektier om aftenen. I klassen er der elever fra mange lande. Læreren taler langsomt, og eleverne øver sig sammen. Sprogskolen er sjov, men den er også svær.",
     promptText: "Hvor mange gange om ugen går Maria på sprogskole?",
@@ -71,6 +81,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "UDDANNELSE",
     constructs: ["present-tense"],
     type: "TRUE_FALSE",
+    passageId: "m2-t1-uddannelse-maria-sprogskole",
     passageText:
       "Maria går på sprogskole tre gange om ugen. Hun læser dansk om morgenen, og hun laver lektier om aftenen. I klassen er der elever fra mange lande. Læreren taler langsomt, og eleverne øver sig sammen. Sprogskolen er sjov, men den er også svær.",
     promptText: "Læreren taler hurtigt.",
@@ -83,6 +94,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "UDDANNELSE",
     constructs: ["coordination:og-men-eller"],
     type: "GAP_FILL",
+    passageId: "m2-t1-uddannelse-maria-sprogskole",
     passageText:
       "Maria går på sprogskole tre gange om ugen. Hun læser dansk om morgenen, og hun laver lektier om aftenen. I klassen er der elever fra mange lande. Læreren taler langsomt, og eleverne øver sig sammen. Sprogskolen er sjov, ___ den er også svær.",
     promptText: "Udfyld det manglende ord.",
@@ -96,6 +108,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "HVERDAGSLIV",
     constructs: ["present-tense"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t1-hverdagsliv-familien-nielsen",
     passageText:
       "Familien Nielsen bor i en lejlighed i København. Om morgenen står de tidligt op, og de spiser morgenmad sammen. Børnene cykler i skole, og forældrene tager bussen på arbejde. Om aftenen laver de mad, og de ser fjernsyn sammen. Weekenden bruger familien i parken eller hjemme.",
     promptText: "Hvordan kommer børnene i skole?",
@@ -108,6 +121,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "HVERDAGSLIV",
     constructs: ["present-tense"],
     type: "TRUE_FALSE",
+    passageId: "m2-t1-hverdagsliv-familien-nielsen",
     passageText:
       "Familien Nielsen bor i en lejlighed i København. Om morgenen står de tidligt op, og de spiser morgenmad sammen. Børnene cykler i skole, og forældrene tager bussen på arbejde. Om aftenen laver de mad, og de ser fjernsyn sammen. Weekenden bruger familien i parken eller hjemme.",
     promptText: "Familien Nielsen bor i et hus.",
@@ -120,6 +134,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "HVERDAGSLIV",
     constructs: ["coordination:og-men-eller"],
     type: "MATCHING",
+    passageId: "m2-t1-hverdagsliv-familien-nielsen",
     passageText:
       "Familien Nielsen bor i en lejlighed i København. Om morgenen står de tidligt op, og de spiser morgenmad sammen. Børnene cykler i skole, og forældrene tager bussen på arbejde. Om aftenen laver de mad, og de ser fjernsyn sammen. Weekenden bruger familien i parken eller hjemme.",
     promptText: "Match personen med, hvordan de kommer af sted.",
@@ -133,6 +148,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "MEDBORGERSKAB",
     constructs: ["present-tense"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t1-medborgerskab-folketinget",
     passageText:
       "I Danmark er der valg til Folketinget hvert fjerde år. Alle borgere over atten år har stemmeret. Mange danskere følger med i nyhederne, og de taler om politik med familie og venner. Stemmeret er en vigtig ret i et demokrati.",
     promptText: "Hvor ofte er der valg til Folketinget?",
@@ -145,6 +161,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "MEDBORGERSKAB",
     constructs: ["present-tense"],
     type: "TRUE_FALSE",
+    passageId: "m2-t1-medborgerskab-folketinget",
     passageText:
       "I Danmark er der valg til Folketinget hvert fjerde år. Alle borgere over atten år har stemmeret. Mange danskere følger med i nyhederne, og de taler om politik med familie og venner. Stemmeret er en vigtig ret i et demokrati.",
     promptText: "Man skal være atten år for at have stemmeret.",
@@ -157,6 +174,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "MEDBORGERSKAB",
     constructs: ["coordination:og-men-eller"],
     type: "GAP_FILL",
+    passageId: "m2-t1-medborgerskab-folketinget",
     passageText:
       "I Danmark er der valg til Folketinget hvert fjerde år. Alle borgere over atten år har stemmeret. Mange danskere følger med i nyhederne, ___ de taler om politik med familie og venner. Stemmeret er en vigtig ret i et demokrati.",
     promptText: "Udfyld det manglende ord.",
@@ -173,6 +191,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "ARBEJDE",
     constructs: ["subordinate-clause:fordi"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t2-arbejde-peter-jobskift",
     passageText:
       "Sidste år skiftede Peter job, fordi han ville arbejde tættere på sit hjem. Han søgte en stilling på et hospital i sin egen by, og han fik jobbet efter en samtale. I den nye stilling arbejdede han med de samme opgaver som før, men transporttiden blev meget kortere. Peter var glad for skiftet, fordi han nu havde mere tid til familien.",
     promptText: "Hvorfor skiftede Peter job?",
@@ -190,6 +209,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "ARBEJDE",
     constructs: ["past-tense"],
     type: "TRUE_FALSE",
+    passageId: "m2-t2-arbejde-peter-jobskift",
     passageText:
       "Sidste år skiftede Peter job, fordi han ville arbejde tættere på sit hjem. Han søgte en stilling på et hospital i sin egen by, og han fik jobbet efter en samtale. I den nye stilling arbejdede han med de samme opgaver som før, men transporttiden blev meget kortere. Peter var glad for skiftet, fordi han nu havde mere tid til familien.",
     promptText: "Peter fik jobbet efter en samtale.",
@@ -202,6 +222,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "ARBEJDE",
     constructs: ["subordinate-clause:fordi"],
     type: "GAP_FILL",
+    passageId: "m2-t2-arbejde-peter-jobskift",
     passageText:
       "Sidste år skiftede Peter job, fordi han ville arbejde tættere på sit hjem. Han søgte en stilling på et hospital i sin egen by, og han fik jobbet efter en samtale. I den nye stilling arbejdede han med de samme opgaver som før, men transporttiden blev meget kortere. Peter var glad for skiftet, ___ han nu havde mere tid til familien.",
     promptText: "Udfyld det manglende ord.",
@@ -215,6 +236,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "UDDANNELSE",
     constructs: ["subordinate-clause:at"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t2-uddannelse-maria-modultest",
     passageText:
       "Maria vil gerne bestå modultesten, og hun håber, at hun kan læse bedre dansk om et halvt år. Hendes lærer siger, at Maria skal øve sig hver dag for at blive bedre. Maria tror, at hun kan nå sit mål, hvis hun arbejder hårdt. Hun skal snart til en ny test.",
     promptText: "Hvad håber Maria?",
@@ -232,6 +254,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "UDDANNELSE",
     constructs: ["modal-verb"],
     type: "TRUE_FALSE",
+    passageId: "m2-t2-uddannelse-maria-modultest",
     passageText:
       "Maria vil gerne bestå modultesten, og hun håber, at hun kan læse bedre dansk om et halvt år. Hendes lærer siger, at Maria skal øve sig hver dag for at blive bedre. Maria tror, at hun kan nå sit mål, hvis hun arbejder hårdt. Hun skal snart til en ny test.",
     promptText: "Læreren siger, at Maria ikke skal øve sig.",
@@ -244,6 +267,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "UDDANNELSE",
     constructs: ["subordinate-clause:at"],
     type: "GAP_FILL",
+    passageId: "m2-t2-uddannelse-maria-modultest",
     passageText:
       "Maria vil gerne bestå modultesten, og hun håber, at hun kan læse bedre dansk om et halvt år. Hendes lærer siger, ___ Maria skal øve sig hver dag for at blive bedre. Maria tror, at hun kan nå sit mål, hvis hun arbejder hårdt. Hun skal snart til en ny test.",
     promptText: "Udfyld det manglende ord.",
@@ -257,6 +281,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "HVERDAGSLIV",
     constructs: ["past-tense"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t2-hverdagsliv-familien-flytter",
     passageText:
       "Familien Nielsen boede før i en lille lejlighed. Køkkenet var meget lille, og når de lavede mad sammen, stod de tæt op ad hinanden. De flyttede sidste sommer til en større lejlighed. Nu, når de spiser aftensmad, sidder de alle ved et stort bord. Børnene var glade for de nye værelser.",
     promptText: "Hvornår flyttede familien Nielsen?",
@@ -269,6 +294,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "HVERDAGSLIV",
     constructs: ["past-tense"],
     type: "TRUE_FALSE",
+    passageId: "m2-t2-hverdagsliv-familien-flytter",
     passageText:
       "Familien Nielsen boede før i en lille lejlighed. Køkkenet var meget lille, og når de lavede mad sammen, stod de tæt op ad hinanden. De flyttede sidste sommer til en større lejlighed. Nu, når de spiser aftensmad, sidder de alle ved et stort bord. Børnene var glade for de nye værelser.",
     promptText: "Det gamle køkken var stort.",
@@ -281,6 +307,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "HVERDAGSLIV",
     constructs: ["subordinate-clause:naar"],
     type: "GAP_FILL",
+    passageId: "m2-t2-hverdagsliv-familien-flytter",
     passageText:
       "Familien Nielsen boede før i en lille lejlighed. Køkkenet var meget lille, og når de lavede mad sammen, stod de tæt op ad hinanden. De flyttede sidste sommer til en større lejlighed. Nu, ___ de spiser aftensmad, sidder de alle ved et stort bord. Børnene var glade for de nye værelser.",
     promptText: "Udfyld det manglende ord.",
@@ -294,6 +321,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "MEDBORGERSKAB",
     constructs: ["subordinate-clause:fordi"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t2-medborgerskab-skat",
     passageText:
       "Alle borgere i Danmark skal betale skat, fordi skatten betaler for skoler, hospitaler og veje. Man må gerne sige sin mening offentligt, fordi Danmark har ytringsfrihed. Nye borgere skal lære om det danske samfund, og de bør deltage i lokale valg, når de har mulighed for det. Mange mener, at medborgerskab handler om at tage ansvar.",
     promptText: "Hvorfor skal borgere betale skat?",
@@ -311,6 +339,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "MEDBORGERSKAB",
     constructs: ["modal-verb"],
     type: "TRUE_FALSE",
+    passageId: "m2-t2-medborgerskab-skat",
     passageText:
       "Alle borgere i Danmark skal betale skat, fordi skatten betaler for skoler, hospitaler og veje. Man må gerne sige sin mening offentligt, fordi Danmark har ytringsfrihed. Nye borgere skal lære om det danske samfund, og de bør deltage i lokale valg, når de har mulighed for det. Mange mener, at medborgerskab handler om at tage ansvar.",
     promptText: "Man må ikke sige sin mening offentligt i Danmark.",
@@ -323,6 +352,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "MEDBORGERSKAB",
     constructs: ["modal-verb"],
     type: "GAP_FILL",
+    passageId: "m2-t2-medborgerskab-skat",
     passageText:
       "Alle borgere i Danmark skal betale skat, fordi skatten betaler for skoler, hospitaler og veje. Man må gerne sige sin mening offentligt, fordi Danmark har ytringsfrihed. Nye borgere ___ lære om det danske samfund, og de bør deltage i lokale valg, når de har mulighed for det.",
     promptText: "Udfyld det manglende ord.",
@@ -335,6 +365,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "MEDBORGERSKAB",
     constructs: ["subordinate-clause:fordi", "subordinate-clause:naar"],
     type: "MATCHING",
+    passageId: "m2-t2-medborgerskab-skat",
     passageText:
       "Alle borgere i Danmark skal betale skat, fordi skatten betaler for skoler, hospitaler og veje. Man må gerne sige sin mening offentligt, fordi Danmark har ytringsfrihed. Nye borgere skal lære om det danske samfund, og de bør deltage i lokale valg, når de har mulighed for det. Mange mener, at medborgerskab handler om at tage ansvar.",
     promptText: "Match konnektoren med dens funktion.",
@@ -351,6 +382,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "ARBEJDE",
     constructs: ["passive-voice"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t3-arbejde-hospital-passiv",
     passageText:
       "På hospitalet bliver patienterne undersøgt af en læge, før de bliver indlagt. Reglerne for hygiejne overholdes strengt af alt personale, fordi risikoen for infektioner ellers stiger. Der er for få sygeplejersker i øjeblikket, og derfor bliver mange vagter dækket af vikarer. Ledelsen har derfor besluttet at ansætte flere fastansatte i det næste år.",
     promptText: "Hvad sker der, før patienterne bliver indlagt?",
@@ -363,6 +395,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "ARBEJDE",
     constructs: ["connector:derfor"],
     type: "TRUE_FALSE",
+    passageId: "m2-t3-arbejde-hospital-passiv",
     passageText:
       "På hospitalet bliver patienterne undersøgt af en læge, før de bliver indlagt. Reglerne for hygiejne overholdes strengt af alt personale, fordi risikoen for infektioner ellers stiger. Der er for få sygeplejersker i øjeblikket, og derfor bliver mange vagter dækket af vikarer. Ledelsen har derfor besluttet at ansætte flere fastansatte i det næste år.",
     promptText: "Der er nok sygeplejersker på hospitalet i øjeblikket.",
@@ -375,6 +408,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "ARBEJDE",
     constructs: ["connector:derfor"],
     type: "GAP_FILL",
+    passageId: "m2-t3-arbejde-hospital-passiv",
     passageText:
       "På hospitalet bliver patienterne undersøgt af en læge, før de bliver indlagt. Reglerne for hygiejne overholdes strengt af alt personale, fordi risikoen for infektioner ellers stiger. Der er for få sygeplejersker i øjeblikket, og ___ bliver mange vagter dækket af vikarer. Ledelsen har derfor besluttet at ansætte flere fastansatte i det næste år.",
     promptText: "Udfyld det manglende ord.",
@@ -387,6 +421,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "ARBEJDE",
     constructs: ["connector:derfor", "subordinate-clause:fordi"],
     type: "MATCHING",
+    passageId: "m2-t3-arbejde-hospital-passiv",
     passageText:
       "På hospitalet bliver patienterne undersøgt af en læge, før de bliver indlagt. Reglerne for hygiejne overholdes strengt af alt personale, fordi risikoen for infektioner ellers stiger. Der er for få sygeplejersker i øjeblikket, og derfor bliver mange vagter dækket af vikarer. Ledelsen har derfor besluttet at ansætte flere fastansatte i det næste år.",
     promptText: "Match konnektoren med dens funktion.",
@@ -400,6 +435,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "UDDANNELSE",
     constructs: ["multiple-subordinate-clauses"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t3-uddannelse-maria-grammatik",
     passageText:
       "Selvom Maria synes, at grammatik er svær, øver hun sig hver dag, fordi hun ved, at det hjælper hende til at blive bedre. Hendes lærer forklarer, at man lærer mest, når man både lytter og taler. Selvom nogle elever er nervøse for at tale foran klassen, siger læreren, at det er den bedste måde at lære på.",
     promptText: "Hvorfor øver Maria sig hver dag, selvom grammatik er svær?",
@@ -417,6 +453,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "UDDANNELSE",
     constructs: ["multiple-subordinate-clauses"],
     type: "TRUE_FALSE",
+    passageId: "m2-t3-uddannelse-maria-grammatik",
     passageText:
       "Selvom Maria synes, at grammatik er svær, øver hun sig hver dag, fordi hun ved, at det hjælper hende til at blive bedre. Hendes lærer forklarer, at man lærer mest, når man både lytter og taler. Selvom nogle elever er nervøse for at tale foran klassen, siger læreren, at det er den bedste måde at lære på.",
     promptText: "Ifølge læreren lærer man mest, når man kun lytter.",
@@ -429,6 +466,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "UDDANNELSE",
     constructs: ["connector:selvom"],
     type: "GAP_FILL",
+    passageId: "m2-t3-uddannelse-maria-grammatik",
     passageText:
       "Selvom Maria synes, at grammatik er svær, øver hun sig hver dag, fordi hun ved, at det hjælper hende til at blive bedre. Hendes lærer forklarer, at man lærer mest, når man både lytter og taler. ___ nogle elever er nervøse for at tale foran klassen, siger læreren, at det er den bedste måde at lære på.",
     promptText: "Udfyld det manglende ord.",
@@ -442,6 +480,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "HVERDAGSLIV",
     constructs: ["passive-voice"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t3-hverdagsliv-lejlighed-flytning",
     passageText:
       "Den nye lejlighed bliver malet af et malerfirma, før familien flytter ind. Møblerne bliver kørt derhen af et flyttefirma i næste uge. Det hele bliver dyrere, end familien havde regnet med. De er dog glade for den nye lejlighed, fordi den ligger tæt på børnenes skole.",
     promptText: "Hvem maler den nye lejlighed?",
@@ -454,6 +493,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "HVERDAGSLIV",
     constructs: ["connector:dog"],
     type: "TRUE_FALSE",
+    passageId: "m2-t3-hverdagsliv-lejlighed-flytning",
     passageText:
       "Den nye lejlighed bliver malet af et malerfirma, før familien flytter ind. Møblerne bliver kørt derhen af et flyttefirma i næste uge. Det hele bliver dyrere, end familien havde regnet med. De er dog glade for den nye lejlighed, fordi den ligger tæt på børnenes skole.",
     promptText: "Flytningen bliver billigere, end familien havde regnet med.",
@@ -466,6 +506,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "HVERDAGSLIV",
     constructs: ["connector:dog"],
     type: "GAP_FILL",
+    passageId: "m2-t3-hverdagsliv-lejlighed-flytning",
     passageText:
       "Den nye lejlighed bliver malet af et malerfirma, før familien flytter ind. Møblerne bliver kørt derhen af et flyttefirma i næste uge. Det hele bliver dyrere, end familien havde regnet med. De er ___ glade for den nye lejlighed, fordi den ligger tæt på børnenes skole.",
     promptText: "Udfyld det manglende ord.",
@@ -479,6 +520,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "MEDBORGERSKAB",
     constructs: ["multiple-subordinate-clauses"],
     type: "MULTIPLE_CHOICE",
+    passageId: "m2-t3-medborgerskab-nye-borgere",
     passageText:
       "Selvom mange nye borgere synes, at det danske system er svært at forstå i starten, bliver de fleste bedre til det, når de har boet i landet i nogle år. Kommunen tilbyder kurser, hvor man kan lære om rettigheder og pligter, fordi det er vigtigt, at alle forstår, hvordan samfundet fungerer. Selvom kurserne er frivillige, deltager mange, fordi de gerne vil forstå deres nye hjemland bedre.",
     promptText: "Hvad tilbyder kommunen?",
@@ -496,6 +538,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "MEDBORGERSKAB",
     constructs: ["connector:selvom"],
     type: "TRUE_FALSE",
+    passageId: "m2-t3-medborgerskab-nye-borgere",
     passageText:
       "Selvom mange nye borgere synes, at det danske system er svært at forstå i starten, bliver de fleste bedre til det, når de har boet i landet i nogle år. Kommunen tilbyder kurser, hvor man kan lære om rettigheder og pligter, fordi det er vigtigt, at alle forstår, hvordan samfundet fungerer. Selvom kurserne er frivillige, deltager mange, fordi de gerne vil forstå deres nye hjemland bedre.",
     promptText: "Kurserne er obligatoriske.",
@@ -508,6 +551,7 @@ export const MODUL2_READING_ITEMS: GeneratedReadingItem[] = [
     topic: "MEDBORGERSKAB",
     constructs: ["connector:selvom"],
     type: "GAP_FILL",
+    passageId: "m2-t3-medborgerskab-nye-borgere",
     passageText:
       "Selvom mange nye borgere synes, at det danske system er svært at forstå i starten, bliver de fleste bedre til det, når de har boet i landet i nogle år. Kommunen tilbyder kurser, hvor man kan lære om rettigheder og pligter, fordi det er vigtigt, at alle forstår, hvordan samfundet fungerer. ___ kurserne er frivillige, deltager mange, fordi de gerne vil forstå deres nye hjemland bedre.",
     promptText: "Udfyld det manglende ord.",

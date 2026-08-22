@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
+import { getLocale, getTranslateHelperDefault } from "@/lib/i18n/server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,14 +20,22 @@ export const metadata: Metadata = {
   description: "Danskuddannelse 3 (Modul 1-5) og PD3 eksamensforberedelse",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const [locale, translateHelperDefault] = await Promise.all([
+    getLocale(),
+    getTranslateHelperDefault(),
+  ]);
+
   return (
     <html
-      lang="da"
+      lang={locale}
+      data-theme="light"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
-        <Providers>{children}</Providers>
+        <LocaleProvider initialLocale={locale} initialTranslateHelperDefault={translateHelperDefault}>
+          <Providers>{children}</Providers>
+        </LocaleProvider>
       </body>
     </html>
   );

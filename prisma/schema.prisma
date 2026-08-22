@@ -37,6 +37,7 @@ model User {
   examSessions      ExamSession[]
   moduleSkillStatus ModuleSkillStatus[]
   reportCards       ReportCard[]
+  exerciseAttempts  ExerciseAttempt[]
 }
 
 model Account {
@@ -133,6 +134,7 @@ model Item {
   tierId      Int
   type        String // MULTIPLE_CHOICE | TRUE_FALSE | GAP_FILL | MATCHING
   topic       String // ARBEJDE | UDDANNELSE | HVERDAGSLIV | MEDBORGERSKAB
+  passageId   String? // stable key shared by items on the same passage (see lib/content-gen)
   passageText String? // reading passage / listening transcript, if any
   audioUrl    String? // pre-generated TTS audio for LISTENING items
   promptText  String
@@ -264,6 +266,9 @@ model ExamSession {
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   module   Module    @relation(fields: [moduleId], references: [id])
   attempts Attempt[]
+  // Populated for the opgave-format mock test; the older item-based mock
+  // populates `attempts` instead. A session uses one or the other.
+  exerciseAttempts ExerciseAttempt[]
 }
 
 // ---------------------------------------------------------------------------
@@ -294,6 +299,71 @@ model ModuleSkillStatus {
   module Module @relation(fields: [moduleId], references: [id])
 
   @@unique([userId, moduleId, skill])
+}
+
+// ---------------------------------------------------------------------------
+// Modultest-style exercises ("opgaver").
+//
+// Separate from Attempt on purpose. Attempt records ONE Item answer and feeds
+// the construct/SRS engine. ExerciseAttempt records a whole opgave — a
+// Læsning Opgave 1 with six sub-answers is one row here — and exists to drive
+// exercise history: which variants the learner has already sat, so the
+// selector never serves the same content twice while still repeating formats.
+// See lib/exercises/registry.ts.
+// ---------------------------------------------------------------------------
+
+model ExerciseAttempt {
+  id        String @id @default(cuid())
+  userId    String
+  moduleId  Int
+  category  String // READING | WRITING | SPEAKING | LISTENING
+  taskType  String // e.g. "reading_task_1_matching"
+  variantId String // e.g. "r1-bolig" — stable across reseeds
+  topic     String
+
+  status String @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED | ABANDONED
+
+  // Set when this opgave is one part of a timed mock modultest rather than a
+  // standalone practice exercise. orderIndex is its position in that test
+  // (Opgave 1..4 then the writing task), and feedback is withheld until the
+  // whole session is submitted — see app/api/mock-test.
+  examSessionId String?
+  orderIndex    Int?
+
+  // Set only for LLM-generated exercises: the whole variant, answer key
+  // included. It lives here because generation is per-attempt — the key has to
+  // survive from /next until the learner submits, and it must never be sent to
+  // the browser. Authored exercises leave this null and are looked up by
+  // variantId in the registry instead.
+  generated     Boolean @default(false)
+  variantJson   String?
+
+  // Cached word-by-word / sentence-by-sentence breakdown of this opgave's
+  // Danish text, generated on demand after the learner has answered. Cached
+  // because it is expensive and the text never changes once served.
+  explanationJson String?
+
+  // Conversation state for a speaking opgave: which stage, what has been
+  // covered, and the transcript so far. The app owns this — the examiner is
+  // asked for one turn at a time and told where the conversation is, rather
+  // than being handed the whole history to improvise from.
+  speakingStateJson String?
+
+  responseJson String? // learner's raw answers
+  // Null for writing/speaking, which have no objectively correct answer.
+  score        Int?
+  total        Int?
+  mistakes     Int?
+  wordCount    Int? // writing tasks only
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examSession ExamSession? @relation(fields: [examSessionId], references: [id])
+
+  @@index([userId, moduleId, category])
+  @@index([examSessionId])
 }
 
 // ---------------------------------------------------------------------------

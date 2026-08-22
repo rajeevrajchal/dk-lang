@@ -3,8 +3,11 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 
 function LoginForm() {
+  const { dict } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -30,7 +33,7 @@ function LoginForm() {
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "Could not create account");
+          throw new Error(data.error || dict.login.errorCreateAccount);
         }
       }
 
@@ -41,25 +44,26 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        throw new Error("Invalid email or password");
+        throw new Error(dict.login.errorInvalid);
       }
 
       router.push(callbackUrl);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : dict.login.errorGeneric);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+    <div className="relative min-h-screen flex items-center justify-center bg-slate-50 px-4">
+      <div className="absolute top-4 right-4">
+        <LocaleSwitcher />
+      </div>
       <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-        <h1 className="text-xl font-semibold text-slate-900">Dansk Modultest Prep</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Modul 1–5 &middot; PD3 exam prep
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.appName}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.login.subtitle}</p>
 
         <div className="mt-6 flex rounded-lg bg-slate-100 p-1 text-sm">
           <button
@@ -69,7 +73,7 @@ function LoginForm() {
             }`}
             onClick={() => setMode("login")}
           >
-            Log ind
+            {dict.login.loginTab}
           </button>
           <button
             type="button"
@@ -78,14 +82,14 @@ function LoginForm() {
             }`}
             onClick={() => setMode("register")}
           >
-            Opret konto
+            {dict.login.registerTab}
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {mode === "register" && (
             <div>
-              <label className="block text-sm font-medium text-slate-700">Navn</label>
+              <label className="block text-sm font-medium text-slate-700">{dict.login.nameLabel}</label>
               <input
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
                 value={name}
@@ -94,7 +98,7 @@ function LoginForm() {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-slate-700">Email</label>
+            <label className="block text-sm font-medium text-slate-700">{dict.login.emailLabel}</label>
             <input
               type="email"
               required
@@ -104,7 +108,7 @@ function LoginForm() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Adgangskode</label>
+            <label className="block text-sm font-medium text-slate-700">{dict.login.passwordLabel}</label>
             <input
               type="password"
               required
@@ -122,7 +126,7 @@ function LoginForm() {
             disabled={loading}
             className="w-full rounded-md bg-slate-900 text-white text-sm font-medium py-2 hover:bg-slate-800 disabled:opacity-50"
           >
-            {loading ? "..." : mode === "login" ? "Log ind" : "Opret konto"}
+            {loading ? dict.login.submitting : mode === "login" ? dict.login.submitLogin : dict.login.submitRegister}
           </button>
         </form>
       </div>

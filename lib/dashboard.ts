@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/db";
 import { getConstructStats, getWeakestConstruct, determineCurrentTier } from "@/lib/adaptive/engine";
-import { getModuleDashboardState, type ModuleDashboardState } from "@/lib/unlock";
-import { SKILLS, SKILL_LABELS_DA, type Skill } from "@/lib/constants";
+import { getModuleDashboardState, pickCurrentModuleId, type ModuleDashboardState } from "@/lib/unlock";
+import { SKILLS, type Skill } from "@/lib/constants";
 import { MODULE_BY_ID } from "@/lib/curriculum/modules";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 export interface SkillStatus {
   skill: Skill;
@@ -38,7 +39,7 @@ export interface DashboardData {
 // docs/module-map.md).
 const CONTENT_READY: { moduleId: number; skill: Skill }[] = [{ moduleId: 2, skill: "READING" }];
 
-function hasContent(moduleId: number, skill: Skill) {
+export function hasContent(moduleId: number, skill: Skill) {
   return CONTENT_READY.some((c) => c.moduleId === moduleId && c.skill === skill);
 }
 
@@ -49,24 +50,18 @@ async function getVerifiedReportCards(userId: string) {
   });
 }
 
-export async function getDashboardData(userId: string): Promise<DashboardData> {
-  const moduleStates = await getModuleDashboardState(userId);
-
-  // "Current module": the lowest-numbered non-oral module that's unlocked
-  // for practice but not yet fully passed in-app. Falls back to the last
-  // module if everything is passed.
-  const currentModuleState =
-    moduleStates.find((m) => !m.isOralOnly && m.practiceUnlocked && !m.inAppFullyPassed) ??
-    moduleStates[moduleStates.length - 1];
-  const currentModuleId = currentModuleState.moduleId;
-
-  const skillStatuses: SkillStatus[] = await Promise.all(
+export async function getSkillStatusesForModule(
+  userId: string,
+  moduleId: number,
+  dict: Dictionary
+): Promise<SkillStatus[]> {
+  return Promise.all(
     SKILLS.map(async (skill): Promise<SkillStatus> => {
-      const ready = hasContent(currentModuleId, skill);
+      const ready = hasContent(moduleId, skill);
       if (!ready) {
         return {
           skill,
-          label: SKILL_LABELS_DA[skill],
+          label: dict.enums.skills[skill],
           hasContent: false,
           accuracy: null,
           attemptCount: 0,
@@ -75,17 +70,17 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
         };
       }
 
-      const stats = await getConstructStats(userId, skill, currentModuleId);
+      const stats = await getConstructStats(userId, skill, moduleId);
       const attempted = stats.filter((s) => s.totalCount > 0);
       const totalCorrect = attempted.reduce((sum, s) => sum + s.correctCount, 0);
       const totalCount = attempted.reduce((sum, s) => sum + s.totalCount, 0);
 
-      const weakest = await getWeakestConstruct(userId, skill, currentModuleId);
-      const { tier } = await determineCurrentTier(userId, currentModuleId, skill);
+      const weakest = await getWeakestConstruct(userId, skill, moduleId);
+      const { tier } = await determineCurrentTier(userId, moduleId, skill);
 
       return {
         skill,
-        label: SKILL_LABELS_DA[skill],
+        label: dict.enums.skills[skill],
         hasContent: true,
         accuracy: totalCount > 0 ? totalCorrect / totalCount : null,
         attemptCount: totalCount,
@@ -96,6 +91,13 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       };
     })
   );
+}
+
+export async function getDashboardData(userId: string, dict: Dictionary): Promise<DashboardData> {
+  const moduleStates = await getModuleDashboardState(userId);
+  const currentModuleId = pickCurrentModuleId(moduleStates);
+
+  const skillStatuses = await getSkillStatusesForModule(userId, currentModuleId, dict);
 
   const recentAttempts = await prisma.attempt.findMany({
     where: { userId },
@@ -109,30 +111,31 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
   if (readingStatus?.hasContent) {
     if (readingStatus.weakestConstruct && readingStatus.weakestConstruct.accuracy < 0.6) {
       nextAction = {
-        label: `Øv læsning: fokuser på '${readingStatus.weakestConstruct.name}' (${Math.round(
-          readingStatus.weakestConstruct.accuracy * 100
-        )}% korrekt)`,
+        label: dict.dashboard.nextAction.focusOn(
+          readingStatus.weakestConstruct.name,
+          Math.round(readingStatus.weakestConstruct.accuracy * 100)
+        ),
         href: `/practice/reading/${currentModuleId}`,
       };
     } else if (readingStatus.attemptCount < 8) {
       nextAction = {
-        label: "10 læseøvelser for at etablere dit udgangspunkt",
+        label: dict.dashboard.nextAction.establishBaseline,
         href: `/practice/reading/${currentModuleId}`,
       };
     } else if ((readingStatus.currentTier ?? 1) >= 3 && (readingStatus.accuracy ?? 0) >= 0.75) {
       nextAction = {
-        label: `Du er klar til en mock modultest i læsning for Modul ${currentModuleId}`,
+        label: dict.dashboard.nextAction.readyForMockTest(currentModuleId),
         href: `/exam/reading/${currentModuleId}`,
       };
     } else {
       nextAction = {
-        label: `Fortsæt læsning på Tier ${readingStatus.currentTier}`,
+        label: dict.dashboard.nextAction.continueTier(readingStatus.currentTier ?? 1),
         href: `/practice/reading/${currentModuleId}`,
       };
     }
   } else {
     nextAction = {
-      label: `Fortsæt læsning i Modul 2 (andre discipliner kommer snart)`,
+      label: dict.dashboard.nextAction.continueModul2,
       href: `/practice/reading/2`,
     };
   }
