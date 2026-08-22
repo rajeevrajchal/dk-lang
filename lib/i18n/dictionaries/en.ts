@@ -236,6 +236,16 @@ export const en = {
     colHow: "How this form works",
     grammarAtPlay: "Grammar in this text",
     openLesson: "Read the rule →",
+    // Post-answer breakdown of an opgave's text
+    explainOpgave: "Why? Explain this text",
+    hideOpgave: "Hide explanation",
+    working: "Reading the text and working through the grammar...",
+    workingNote: "This takes a moment — every sentence and word is being explained.",
+    unavailableTitle: "Explanation not available",
+    unavailableNoKey:
+      "The word-by-word explanation is written on demand and needs an ANTHROPIC_API_KEY to be configured. The answer explanations above are always available.",
+    unavailableGeneric: "Could not produce an explanation for this text.",
+    answerReasons: "Why these answers",
     noExplanation:
       "No detailed explanation has been written for this passage yet. Try the word-level translations by clicking individual words.",
   },

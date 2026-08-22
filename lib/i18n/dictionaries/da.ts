@@ -222,6 +222,15 @@ export const da: Dictionary = {
     colHow: "Sådan fungerer formen",
     grammarAtPlay: "Grammatik i denne tekst",
     openLesson: "Læs reglen →",
+    explainOpgave: "Hvorfor? Forklar teksten",
+    hideOpgave: "Skjul forklaring",
+    working: "Læser teksten og gennemgår grammatikken...",
+    workingNote: "Det tager et øjeblik — hver sætning og hvert ord bliver forklaret.",
+    unavailableTitle: "Forklaring er ikke tilgængelig",
+    unavailableNoKey:
+      "Ord-for-ord-forklaringen bliver skrevet, når du beder om den, og kræver en ANTHROPIC_API_KEY. Begrundelserne for svarene ovenfor er der altid.",
+    unavailableGeneric: "Kunne ikke lave en forklaring til denne tekst.",
+    answerReasons: "Hvorfor disse svar",
     noExplanation:
       "Der er endnu ikke skrevet en detaljeret forklaring til denne tekst. Prøv oversættelserne på ordniveau ved at klikke på de enkelte ord.",
   },

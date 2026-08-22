@@ -235,6 +235,12 @@ export interface PublicExercise {
   isNew: boolean;
   /** True when this exercise was written by the model for this attempt. */
   generated?: boolean;
+  /**
+   * True when this exercise has Danish source text worth explaining. False for
+   * speaking prompts and for writing tasks where the learner supplies the
+   * text — the "explain this text" button is hidden in those cases.
+   */
+  explainable: boolean;
   content: PublicExerciseContent;
 }
 

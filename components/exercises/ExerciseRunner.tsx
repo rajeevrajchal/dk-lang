@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { ExerciseBody, expectedAnswerKeys } from "./renderers";
+import { OpgaveExplain } from "./OpgaveExplain";
 import type {
   ExerciseCategory,
   ExerciseResponse,
@@ -235,6 +236,8 @@ export function ExerciseRunner({
               ) : (
                 <p className="text-sm text-slate-700">{t.speakingDone}</p>
               )}
+
+              {exercise.explainable && <OpgaveExplain attemptId={exercise.attemptId} />}
 
               <button
                 onClick={loadNext}

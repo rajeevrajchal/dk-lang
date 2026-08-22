@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { applyInAppExamResult, EXAM_PASS_THRESHOLD } from "@/lib/unlock";
 import { VARIANT_BY_ID } from "@/lib/exercises/registry";
+import { isExplainable } from "@/lib/exercises/explainable";
 import { gradeExercise } from "@/lib/exercises/grading";
 import { TASK_NUMBER } from "@/lib/exercises/types";
 import type { ExerciseResponse, ExerciseVariant, TaskType } from "@/lib/exercises/types";
@@ -49,6 +50,7 @@ export async function POST(
       topic: attempt.topic,
       title: variant?.title ?? attempt.topic,
       answered: attempt.status === "COMPLETED",
+      explainable: variant ? isExplainable(variant) : false,
       ...result,
     };
   });

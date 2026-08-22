@@ -338,6 +338,11 @@ model ExerciseAttempt {
   generated     Boolean @default(false)
   variantJson   String?
 
+  // Cached word-by-word / sentence-by-sentence breakdown of this opgave's
+  // Danish text, generated on demand after the learner has answered. Cached
+  // because it is expensive and the text never changes once served.
+  explanationJson String?
+
   responseJson String? // learner's raw answers
   // Null for writing/speaking, which have no objectively correct answer.
   score        Int?

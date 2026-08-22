@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { ExerciseBody, expectedAnswerKeys } from "./renderers";
+import { OpgaveExplain } from "./OpgaveExplain";
 import type {
   ExerciseResponse,
   GradedAnswer,
@@ -20,6 +21,7 @@ interface PartResult {
   topic: string;
   title: string;
   answered: boolean;
+  explainable: boolean;
   score: number | null;
   total: number | null;
   mistakes: number | null;
@@ -263,14 +265,14 @@ export function MockTestRunner({
             {t.reviewAnswers}
           </h2>
           <div className="space-y-5">
-            {result.parts
-              .filter((p) => p.answers.length > 0)
-              .map((p) => (
-                <div key={p.attemptId} className="rounded-xl border border-slate-200 bg-white p-5">
-                  <p className="text-sm font-semibold mb-3">
-                    {p.taskNumber != null ? `${te.opgaveLabel(p.taskNumber)} — ` : ""}
-                    {p.title}
-                  </p>
+            {result.parts.map((p) => (
+              <div key={p.attemptId} className="rounded-xl border border-slate-200 bg-white p-5">
+                <p className="text-sm font-semibold mb-3">
+                  {p.taskNumber != null ? `${te.opgaveLabel(p.taskNumber)} — ` : ""}
+                  {p.title}
+                </p>
+
+                {p.answers.length > 0 && (
                   <ul className="space-y-2">
                     {p.answers.map((a) => (
                       <li
@@ -290,8 +292,11 @@ export function MockTestRunner({
                       </li>
                     ))}
                   </ul>
-                </div>
-              ))}
+                )}
+
+                {p.explainable && <OpgaveExplain attemptId={p.attemptId} />}
+              </div>
+            ))}
           </div>
         </section>
 

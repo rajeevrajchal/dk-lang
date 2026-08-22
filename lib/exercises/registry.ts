@@ -4,6 +4,7 @@ import { READING_TASK3_VARIANTS } from "./reading-task3";
 import { READING_TASK4_VARIANTS } from "./reading-task4";
 import { WRITING_VARIANTS } from "./writing";
 import { SPEAKING_VARIANTS } from "./speaking";
+import { isExplainable } from "./explainable";
 import {
   TASK_NUMBER,
   TASK_TYPES_BY_CATEGORY,
@@ -195,6 +196,7 @@ export function toPublicExercise(
     instruction: variant.instruction,
     difficulty: variant.difficulty,
     isNew,
+    explainable: isExplainable(variant),
     content,
   };
 }
