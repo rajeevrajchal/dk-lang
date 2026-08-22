@@ -390,7 +390,135 @@ function Speaking({ content, dict }: RendererProps) {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-slate-500">{t.speakingIntro}</p>
+      {/* Only true for the original prompts. A staged opgave runs a typed
+          conversation, so this line would contradict the UI below it. */}
+      {!c.stages && <p className="text-sm text-slate-500">{t.speakingIntro}</p>}
+
+      {/* Everything in this block is optional. An exercise from before the
+          modultest task patterns existed has none of these fields and renders
+          exactly as it always did, starting at the situation card below. */}
+
+      {c.stages && c.stages.length > 1 && (
+        <ol className="flex flex-wrap gap-2">
+          {c.stages.map((s, i) => (
+            <li
+              key={s.type}
+              className="flex-1 min-w-[45%] rounded-lg border border-slate-200 bg-white p-3"
+            >
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                {t.stageLabel(i + 1)} ·{" "}
+                {s.role === "examiner"
+                  ? t.roleExaminer
+                  : s.role === "partner"
+                    ? t.rolePartner
+                    : t.roleSolo}
+                {s.approxMinutes ? ` · ${t.approxMinutes(s.approxMinutes)}` : ""}
+              </p>
+              <p className="mt-1 text-sm text-slate-700">{s.instruction}</p>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {/* Opgave 1: the keywords are speaking support, laid out around the
+          topic rather than as a numbered list, so it does not read as a
+          checklist to be worked through. */}
+      {c.mindmap && (
+        <div className="rounded-xl border-2 border-slate-300 bg-white p-6 text-center">
+          <p className="text-lg font-semibold text-slate-900">{c.mindmap.title}</p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {c.mindmap.categories.map((cat) => (
+              <span
+                key={cat}
+                className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700"
+              >
+                {cat}
+              </span>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-slate-400">{t.mindmapHint}</p>
+        </div>
+      )}
+
+      {/* Opgave 2: only the candidate's side is shown. Showing the partner's
+          card too would remove the gap and there would be nothing to ask. */}
+      {c.informationGap && (
+        <div className="space-y-3">
+          <div className="rounded-lg bg-slate-100 p-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              {t.sharedContext}
+            </p>
+            <p className="mt-1 text-sm text-slate-700">{c.informationGap.sharedContext}</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className={cardCls}>
+              <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">
+                {t.youKnow}
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {c.informationGap.candidate.holds.map((i) => (
+                  <li key={i.label} className="text-sm text-slate-700">
+                    <span className="text-slate-400">{i.label}: </span>
+                    {i.value}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className={cardCls}>
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">
+                {t.youMustAsk}
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {c.informationGap.candidate.mustFindOut.map((label) => (
+                  <li key={label} className="text-sm text-slate-700">
+                    · {label}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modul 3 Opgave 1: two topics offered, one drawn. */}
+      {c.preparedTopics && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {c.preparedTopics.map((topic, i) => (
+            <div key={topic.title} className={cardCls}>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                {t.topicOption(i + 1)}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{topic.title}</p>
+              <ul className="mt-2 space-y-1">
+                {topic.prompts.map((p) => (
+                  <li key={p} className="text-sm text-slate-600">
+                    · {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modul 3 Opgave 2: four options to compare. */}
+      {c.preferenceOptions && (
+        <div>
+          {c.preferenceTopic && (
+            <p className="mb-3 text-sm font-semibold text-slate-900">{c.preferenceTopic}</p>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {c.preferenceOptions.map((o) => (
+              <div key={o.id} className={cardCls}>
+                <p className="text-sm font-semibold text-slate-900">
+                  {o.id}. {o.label}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">{o.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {c.situation && (
         <div className={cardCls}>

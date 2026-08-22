@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { ExerciseBody, expectedAnswerKeys } from "./renderers";
 import { OpgaveExplain } from "./OpgaveExplain";
+import { SpeakingConversation } from "./SpeakingConversation";
+import type { SpeakingContent } from "@/lib/exercises/types";
 import type {
   ExerciseCategory,
   ExerciseResponse,
@@ -166,6 +168,18 @@ export function ExerciseRunner({
             disabled={!!result}
             dict={dict}
           />
+
+          {/* A speaking opgave with stages gets the turn-by-turn conversation.
+              The original free-form prompts have no stages and keep the plain
+              "Jeg er færdig" flow they always had. */}
+          {!result &&
+            exercise.category === "SPEAKING" &&
+            (exercise.content as SpeakingContent).stages && (
+              <SpeakingConversation
+                attemptId={exercise.attemptId}
+                stages={(exercise.content as SpeakingContent).stages!}
+              />
+            )}
 
           {!result && (
             <div className="flex items-center justify-between gap-3 flex-wrap border-t border-slate-200 pt-5">

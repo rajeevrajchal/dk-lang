@@ -1,5 +1,6 @@
 import type { ExerciseVariant } from "./types";
 import { gradeExercise } from "./grading";
+import { stagesForTaskType } from "./speaking-patterns";
 
 // Semantic validation for generated exercises.
 //
@@ -126,6 +127,97 @@ export function validateVariant(variant: ExerciseVariant): ValidationResult {
     case "speaking": {
       if (c.questions.length < 4) errors.push("fewer than 4 speaking questions");
       if (c.usefulPhrases.length < 4) errors.push("fewer than 4 useful phrases");
+
+      // Everything below only applies to the modultest opgave formats. The
+      // original free-form prompts carry none of these fields and are checked
+      // by the two rules above exactly as before.
+      const expectedStages = stagesForTaskType(variant.taskType);
+      if (expectedStages && !c.stages?.length) {
+        errors.push(`${variant.taskType} must carry its stages`);
+      }
+      if (expectedStages && c.stages && c.stages.length !== expectedStages.length) {
+        errors.push(
+          `${variant.taskType} expects ${expectedStages.length} stage(s), got ${c.stages.length}`
+        );
+      }
+      // A two-phase opgave that does not distinguish its phases is the failure
+      // the source material is clearest about: presenting and being questioned
+      // are different things.
+      if (expectedStages && expectedStages.length > 1 && c.stages) {
+        const types = new Set(c.stages.map((s) => s.type));
+        if (types.size < c.stages.length) {
+          errors.push("stages do not distinguish presentation from follow-up");
+        }
+      }
+
+      if (variant.taskType === "speaking_mindmap") {
+        if (!c.mindmap) errors.push("mindmap task has no mindmap");
+        else {
+          if (!c.mindmap.title?.trim()) errors.push("mindmap has no topic title");
+          if (c.mindmap.categories.length < 4) {
+            errors.push(`mindmap needs at least 4 keyword categories, got ${c.mindmap.categories.length}`);
+          }
+          if (new Set(c.mindmap.categories).size !== c.mindmap.categories.length) {
+            errors.push("mindmap repeats a keyword category");
+          }
+        }
+      }
+
+      if (variant.taskType === "speaking_information_gap") {
+        const g = c.informationGap;
+        if (!g) errors.push("information gap task has no information gap");
+        else {
+          if (!g.sharedContext?.trim()) errors.push("information gap has no shared context");
+          if (g.candidate.holds.length === 0) errors.push("candidate holds no information");
+          if (g.partner.holds.length === 0) errors.push("partner holds no information");
+          if (g.candidate.mustFindOut.length === 0) {
+            errors.push("candidate has nothing to find out — there is no gap");
+          }
+          if (g.partner.mustFindOut.length === 0) {
+            errors.push("partner has nothing to find out — the exchange is one-way");
+          }
+          // The whole point of the format: if both sides know the same things
+          // the candidate has no reason to ask anything.
+          const candidateLabels = new Set(g.candidate.holds.map((i) => i.label.toLowerCase()));
+          const partnerLabels = new Set(g.partner.holds.map((i) => i.label.toLowerCase()));
+          const shared = [...candidateLabels].filter((l) => partnerLabels.has(l));
+          if (shared.length === candidateLabels.size && shared.length === partnerLabels.size) {
+            errors.push("both sides hold identical information — there is no gap to close");
+          }
+          // What the candidate must find out has to actually be held by the
+          // partner, or the task is unanswerable.
+          const missingFromPartner = g.candidate.mustFindOut.filter(
+            (label) => !partnerLabels.has(label.toLowerCase())
+          );
+          if (missingFromPartner.length > 0) {
+            errors.push(
+              `candidate is asked to find out something the partner does not hold: ${missingFromPartner.join(", ")}`
+            );
+          }
+          if (g.requiredQuestions.length === 0) errors.push("no required questions");
+        }
+      }
+
+      if (variant.taskType === "speaking_prepared_topic") {
+        if (!c.preparedTopics || c.preparedTopics.length !== 2) {
+          errors.push(
+            `prepared topic task offers ${c.preparedTopics?.length ?? 0} topics, expected 2 to draw from`
+          );
+        } else if (c.preparedTopics.some((t) => t.prompts.length < 3)) {
+          errors.push("a prepared topic has fewer than 3 prompts to prepare from");
+        }
+      }
+
+      if (variant.taskType === "speaking_picture_preference") {
+        if (!c.preferenceTopic?.trim()) errors.push("preference task has no topic");
+        if (!c.preferenceOptions || c.preferenceOptions.length !== 4) {
+          errors.push(
+            `preference task has ${c.preferenceOptions?.length ?? 0} options, expected exactly 4`
+          );
+        } else if (new Set(c.preferenceOptions.map((o) => o.id)).size !== 4) {
+          errors.push("preference options have duplicate ids");
+        }
+      }
       break;
     }
   }

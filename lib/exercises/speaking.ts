@@ -1,4 +1,5 @@
 import type { ExerciseVariant } from "./types";
+import { stagesForTaskType } from "./speaking-patterns";
 
 // Tale / samtale — DU3 Modul 2 level speaking prompts.
 //
@@ -162,6 +163,240 @@ export const SPEAKING_VARIANTS: ExerciseVariant[] = [
         { danish: "Passer det dig klokken syv?", english: "Does seven o'clock suit you?" },
         { danish: "Vi kan mødes foran biografen.", english: "We can meet in front of the cinema." },
         { danish: "Skal vi spise noget bagefter?", english: "Shall we get something to eat afterwards?" },
+      ],
+    },
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Modultest opgave formats
+//
+// One authored variant per new task type. These matter for more than variety:
+// without them, a learner with no ANTHROPIC_API_KEY would hit a task type that
+// has nothing to fall back to, and speaking would break where it used to work.
+// They also serve as the reference shape for what the generator should produce.
+//
+// The mindmap below uses the topic and keyword categories from the reference
+// material as a worked example of the format. The generator writes others.
+// ---------------------------------------------------------------------------
+
+const MINDMAP_STAGES = stagesForTaskType("speaking_mindmap")!;
+const INFO_GAP_STAGES = stagesForTaskType("speaking_information_gap")!;
+const PREPARED_STAGES = stagesForTaskType("speaking_prepared_topic")!;
+const PREFERENCE_STAGES = stagesForTaskType("speaking_picture_preference")!;
+
+export const SPEAKING_OPGAVE_VARIANTS: ExerciseVariant[] = [
+  {
+    variantId: "s-mindmap-arbejde",
+    category: "SPEAKING",
+    taskType: "speaking_mindmap",
+    moduleId: 2,
+    topic: "Mit arbejde",
+    title: "Opgave 1 — Fortæl om dit arbejde",
+    instruction: MINDMAP_STAGES.map((s) => s.instruction),
+    difficulty: "easy",
+    content: {
+      kind: "speaking",
+      stages: MINDMAP_STAGES,
+      mindmap: {
+        title: "Mit arbejde",
+        categories: [
+          "dage / tid",
+          "transport til arbejde",
+          "arbejdsopgaver",
+          "pauser",
+          "job / arbejdssted",
+          "kollegaer / chef",
+        ],
+      },
+      questions: [
+        "Hvor arbejder du?",
+        "Hvilke dage arbejder du?",
+        "Hvordan kommer du på arbejde?",
+        "Hvad laver du på en almindelig dag?",
+        "Hvem arbejder du sammen med?",
+      ],
+      followUps: [
+        "Hvor længe tager turen?",
+        "Hvornår holder I pause?",
+        "Hvor ofte arbejder du om aftenen?",
+        "Hvad hedder din chef?",
+      ],
+      usefulPhrases: [
+        { danish: "Jeg arbejder på/i ...", english: "I work at/in ..." },
+        { danish: "Jeg møder klokken ... og har fri klokken ...", english: "I start at ... and finish at ..." },
+        { danish: "Jeg tager bussen / cykler / kører i bil.", english: "I take the bus / cycle / drive." },
+        { danish: "Om formiddagen plejer jeg at ...", english: "In the mornings I usually ..." },
+        { danish: "Jeg arbejder sammen med ...", english: "I work together with ..." },
+      ],
+    },
+  },
+
+  {
+    variantId: "s-infogap-cafe",
+    category: "SPEAKING",
+    taskType: "speaking_information_gap",
+    moduleId: 2,
+    topic: "En kollega og hans arbejde",
+    title: "Opgave 2 — I ved ikke det samme",
+    instruction: INFO_GAP_STAGES.map((s) => s.instruction),
+    difficulty: "medium",
+    content: {
+      kind: "speaking",
+      stages: INFO_GAP_STAGES,
+      situation:
+        "Du og din partner taler om Maja, som I begge kender. I ved hver især noget forskelligt om hende.",
+      informationGap: {
+        sharedContext: "Maja er 26 år og bor i Odense. Hun arbejder på en café.",
+        candidate: {
+          holds: [
+            { label: "arbejdstider", value: "Maja arbejder fra klokken 7 til klokken 15." },
+            { label: "transport", value: "Hun cykler til arbejde. Det tager 10 minutter." },
+            { label: "kollegaer", value: "Der er fire andre på caféen." },
+          ],
+          mustFindOut: ["fritid", "familie", "fremtidsplaner"],
+        },
+        partner: {
+          holds: [
+            { label: "fritid", value: "Maja spiller håndbold to gange om ugen." },
+            { label: "familie", value: "Hun har en søster, der bor i Aarhus." },
+            { label: "fremtidsplaner", value: "Hun vil gerne læse til sygeplejerske til næste år." },
+          ],
+          mustFindOut: ["arbejdstider", "transport", "kollegaer"],
+        },
+        requiredQuestions: [
+          "Hvad laver Maja i sin fritid?",
+          "Har Maja nogen søskende?",
+          "Hvad vil Maja gerne lave i fremtiden?",
+        ],
+      },
+      questions: [
+        "Hvad laver Maja i sin fritid?",
+        "Har Maja familie i Danmark?",
+        "Hvad vil hun gerne i fremtiden?",
+        "Hvor ofte gør hun det?",
+      ],
+      followUps: [
+        "Kan du sige det en gang til?",
+        "Hvor mange gange om ugen?",
+        "Hvor bor hendes søster?",
+      ],
+      usefulPhrases: [
+        { danish: "Ved du, hvad/hvor/hvornår ...?", english: "Do you know what/where/when ...?" },
+        { danish: "Kan du fortælle mig noget om ...?", english: "Can you tell me something about ...?" },
+        { danish: "Undskyld, kan du gentage det?", english: "Sorry, can you repeat that?" },
+        { danish: "Hos mig står der, at ...", english: "On my sheet it says that ..." },
+      ],
+    },
+  },
+
+  {
+    variantId: "s-prepared-hverdag",
+    category: "SPEAKING",
+    taskType: "speaking_prepared_topic",
+    moduleId: 3,
+    topic: "Arbejde og uddannelse",
+    title: "Opgave 1 — Træk et emne og fortæl",
+    instruction: PREPARED_STAGES.map((s) => s.instruction),
+    difficulty: "medium",
+    content: {
+      kind: "speaking",
+      stages: PREPARED_STAGES,
+      preparedTopics: [
+        {
+          title: "Et arbejde, jeg gerne vil have",
+          prompts: [
+            "hvilket arbejde",
+            "hvorfor lige det",
+            "hvad skal man kunne",
+            "hvad skal du gøre for at nå det",
+            "hvad ville være svært",
+          ],
+        },
+        {
+          title: "Da jeg begyndte at lære dansk",
+          prompts: [
+            "hvornår og hvor",
+            "hvordan det gik i starten",
+            "hvad der var sværest",
+            "hvad der hjalp dig",
+            "hvordan det går nu",
+          ],
+        },
+      ],
+      questions: [
+        "Vil du fortælle lidt mere om det?",
+        "Kan du give et eksempel?",
+        "Hvorfor er det vigtigt for dig?",
+        "Hvad synes du er det sværeste ved det?",
+      ],
+      followUps: [
+        "Hvad er din erfaring med det?",
+        "Har du prøvet det før?",
+        "Hvad ville du gøre anderledes i dag?",
+      ],
+      usefulPhrases: [
+        { danish: "Det, jeg helst vil, er ...", english: "What I'd most like is ..." },
+        { danish: "For eksempel ...", english: "For example ..." },
+        { danish: "Grunden er, at ...", english: "The reason is that ..." },
+        { danish: "Efter min mening ...", english: "In my opinion ..." },
+        { danish: "Da jeg begyndte, kunne jeg ikke ...", english: "When I started, I couldn't ..." },
+      ],
+    },
+  },
+
+  {
+    variantId: "s-preference-ferie",
+    category: "SPEAKING",
+    taskType: "speaking_picture_preference",
+    moduleId: 3,
+    topic: "Ferieformer",
+    title: "Opgave 2 — Hvilken ferie vil I helst?",
+    instruction: PREFERENCE_STAGES.map((s) => s.instruction),
+    difficulty: "medium",
+    content: {
+      kind: "speaking",
+      stages: PREFERENCE_STAGES,
+      preferenceTopic: "Hvilken slags ferie vil du helst på?",
+      preferenceOptions: [
+        {
+          id: "A",
+          label: "Sommerhus ved stranden",
+          description: "Et lille sommerhus tæt på vandet. Man laver selv mad og går lange ture.",
+        },
+        {
+          id: "B",
+          label: "Storbyferie",
+          description: "Fire dage i en stor by med museer, butikker og restauranter.",
+        },
+        {
+          id: "C",
+          label: "Telttur i naturen",
+          description: "Man sover i telt, bærer selv sin rygsæk og laver mad over bål.",
+        },
+        {
+          id: "D",
+          label: "Hjemme i haven",
+          description: "Ferie derhjemme med tid til familien, haven og korte ture i nærheden.",
+        },
+      ],
+      questions: [
+        "Hvilken vil du helst vælge?",
+        "Hvorfor lige den?",
+        "Hvilken vil du slet ikke vælge?",
+        "Hvad er godt ved den, din partner har valgt?",
+      ],
+      followUps: [
+        "Har du prøvet sådan en ferie?",
+        "Hvad er din erfaring med det?",
+        "Hvad ville din familie helst?",
+      ],
+      usefulPhrases: [
+        { danish: "Jeg vil helst vælge ..., fordi ...", english: "I'd rather choose ..., because ..." },
+        { danish: "Det bedste ved ... er, at ...", english: "The best thing about ... is that ..." },
+        { danish: "Hvad synes du om ...?", english: "What do you think about ...?" },
+        { danish: "Jeg er enig / Det synes jeg ikke.", english: "I agree / I don't think so." },
+        { danish: "Jeg foretrækker ... frem for ...", english: "I prefer ... over ..." },
       ],
     },
   },

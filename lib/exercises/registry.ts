@@ -3,8 +3,9 @@ import { READING_TASK2_VARIANTS } from "./reading-task2";
 import { READING_TASK3_VARIANTS } from "./reading-task3";
 import { READING_TASK4_VARIANTS } from "./reading-task4";
 import { WRITING_VARIANTS } from "./writing";
-import { SPEAKING_VARIANTS } from "./speaking";
+import { SPEAKING_VARIANTS, SPEAKING_OPGAVE_VARIANTS } from "./speaking";
 import { isExplainable } from "./explainable";
+import { speakingTasksForModule } from "./speaking-patterns";
 import {
   TASK_NUMBER,
   TASK_TYPES_BY_CATEGORY,
@@ -22,6 +23,7 @@ export const ALL_VARIANTS: ExerciseVariant[] = [
   ...READING_TASK4_VARIANTS,
   ...WRITING_VARIANTS,
   ...SPEAKING_VARIANTS,
+  ...SPEAKING_OPGAVE_VARIANTS,
 ];
 
 export const VARIANT_BY_ID = new Map(ALL_VARIANTS.map((v) => [v.variantId, v]));
@@ -65,11 +67,15 @@ export function selectNextTaskType(
   category: ExerciseCategory,
   history: HistoryEntry[]
 ): TaskType | null {
-  const orderedTypes = TASK_TYPES_BY_CATEGORY[category].filter(
-    (t) => t.startsWith("listening_") === false
-  );
+  // Speaking is composed per module: Modul 2 runs the mindmap and the
+  // information gap, Modul 3 the prepared topic and the picture preference.
+  // A module with no composition defined falls back to the category-wide list,
+  // which is what every module did before modules were taken into account.
+  const orderedTypes = (
+    (category === "SPEAKING" ? speakingTasksForModule(moduleId) : null) ??
+    TASK_TYPES_BY_CATEGORY[category]
+  ).filter((t) => t.startsWith("listening_") === false);
   if (orderedTypes.length === 0) return null;
-  void moduleId;
 
   const typeLastDoneAt = new Map<string, number>();
   for (const h of history) {
@@ -107,10 +113,14 @@ export function selectNextVariant(
     if (prev === undefined || t > prev) typeLastDoneAt.set(h.taskType, t);
   }
 
-  // Task types that actually have variants authored, in test order.
-  const orderedTypes = TASK_TYPES_BY_CATEGORY[category].filter((t) =>
-    available.some((v) => v.taskType === t)
-  );
+  // Task types that actually have variants authored, in test order. Speaking
+  // consults the module's own composition first, so the authored fallback
+  // serves the same opgaver the generator would — otherwise a learner without
+  // an API key would get Modul 2's general prompts instead of its opgaver.
+  const orderedTypes = (
+    (category === "SPEAKING" ? speakingTasksForModule(moduleId) : null) ??
+    TASK_TYPES_BY_CATEGORY[category]
+  ).filter((t) => available.some((v) => v.taskType === t));
   if (orderedTypes.length === 0) return null;
 
   const nextType = orderedTypes.reduce((best, t) => {

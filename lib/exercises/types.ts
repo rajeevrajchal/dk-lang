@@ -30,10 +30,24 @@ export const TASK_TYPES = [
   "writing_email",
   "writing_message",
   "writing_short_text",
-  // Tale / samtale
+  // Tale / samtale.
+  //
+  // The first three are the original general-purpose prompts and are kept
+  // exactly as they were. The four below them model the actual opgave formats
+  // of the modultest, and are composed per module (see speaking-patterns.ts).
+  //
+  // Note what is NOT here: "presentation followup", "pair interaction" and
+  // "examiner interview" are STAGES inside these tasks, not tasks of their
+  // own — the source material shows them as phases of Opgave 1 and Opgave 2.
+  // Modelling them as task types would have made a two-phase opgave look like
+  // two unrelated exercises.
   "speaking_interview",
   "speaking_topic",
   "speaking_situation",
+  "speaking_mindmap",
+  "speaking_information_gap",
+  "speaking_prepared_topic",
+  "speaking_picture_preference",
   // Lytning — declared so the architecture is ready; no variants exist yet
   // because there is no audio. Text pretending to be audio would not
   // rehearse listening, so none is authored.
@@ -50,7 +64,20 @@ export const TASK_TYPES_BY_CATEGORY: Record<ExerciseCategory, TaskType[]> = {
     "reading_task_4_people_matching",
   ],
   WRITING: ["writing_email", "writing_message", "writing_short_text"],
-  SPEAKING: ["speaking_interview", "speaking_topic", "speaking_situation"],
+  // Every speaking task type the app knows. Which of them a given module
+  // actually uses is decided per module in speaking-patterns.ts — a module is
+  // composed FROM task types rather than being one. This stays the full list
+  // so anything iterating categories (the registry fallback, the authored
+  // pool) keeps behaving as before.
+  SPEAKING: [
+    "speaking_interview",
+    "speaking_topic",
+    "speaking_situation",
+    "speaking_mindmap",
+    "speaking_information_gap",
+    "speaking_prepared_topic",
+    "speaking_picture_preference",
+  ],
   LISTENING: ["listening_multiple_choice", "listening_matching"],
 };
 
@@ -163,7 +190,107 @@ export interface WritingContent {
   mustInclude: string[];
 }
 
-/** Tale — questions to answer aloud. Not auto-scored. */
+// ---------------------------------------------------------------------------
+// Speaking task structure
+//
+// What the candidate is actually being asked to DO, which is what separates
+// one opgave from another. The demand ladder is the difficulty axis that
+// matters at this level: Modul 2 asks what/where/when/who, Modul 3 asks why,
+// for an example, for a preference and for a reason. Harder vocabulary is not
+// what makes Modul 3 harder — the communication requirement is.
+// ---------------------------------------------------------------------------
+
+export const COMMUNICATION_DEMANDS = [
+  "factual", // Hvad? Hvor? Hvornår? Hvem? Hvor ofte?
+  "description", // Hvordan er...? Fortæl om...
+  "elaboration", // Vil du fortælle lidt mere? Kan du give et eksempel?
+  "preference", // Hvad kan du bedst lide? Hvilken vil du vælge?
+  "reasoning", // Hvorfor? Hvad er grunden?
+  "experience", // Hvad er din erfaring med...?
+] as const;
+export type CommunicationDemand = (typeof COMMUNICATION_DEMANDS)[number];
+
+/**
+ * Who the candidate is talking to in a stage. The examiner probes and moves
+ * the conversation on; a partner exchanges information as an equal. Treating
+ * them as the same role is what makes a pair task feel like an interview.
+ */
+export const SPEAKING_ROLES = ["examiner", "partner", "solo"] as const;
+export type SpeakingRole = (typeof SPEAKING_ROLES)[number];
+
+export const SPEAKING_STAGE_TYPES = [
+  "presentation", // candidate speaks, uninterrupted
+  "examiner_followup", // examiner questions about what was just said
+  "information_exchange", // both sides ask to fill gaps in what they hold
+  "pair_discussion", // candidate and partner compare and choose
+  "examiner_interview", // examiner widens out after the pair work
+] as const;
+export type SpeakingStageType = (typeof SPEAKING_STAGE_TYPES)[number];
+
+export interface SpeakingStage {
+  type: SpeakingStageType;
+  role: SpeakingRole;
+  /** What the candidate has to be able to do to satisfy this stage. */
+  communicationDemand: CommunicationDemand;
+  /** Rough guidance shown to the learner; not enforced by a timer. */
+  approxMinutes?: number;
+  /** One line telling the learner what this stage asks of them. */
+  instruction: string;
+}
+
+/** Opgave 1 (Modul 2): a topic plus the keyword categories to speak from. */
+export interface SpeakingMindmap {
+  title: string;
+  /** ~6 short keyword prompts, e.g. "dage / tid", "transport til arbejde". */
+  categories: string[];
+}
+
+export interface InformationItem {
+  /** What this fact is about, e.g. "åbningstider" — used to score coverage. */
+  label: string;
+  /** The fact itself, in Danish. Only the side that holds it can see it. */
+  value: string;
+}
+
+/**
+ * Opgave 2 (Modul 2): the two sides deliberately hold DIFFERENT facts, so the
+ * candidate has an actual reason to ask. If both sides held the same
+ * information there would be no task.
+ */
+export interface InformationGapSpec {
+  sharedContext: string;
+  /** The side the learner plays. */
+  candidate: { holds: InformationItem[]; mustFindOut: string[] };
+  /** The side the app plays. */
+  partner: { holds: InformationItem[]; mustFindOut: string[] };
+  /** Questions the candidate has to get asked to complete the task. */
+  requiredQuestions: string[];
+}
+
+/** Opgave 1 (Modul 3): two topics are offered and one is drawn. */
+export interface PreparedTopic {
+  title: string;
+  /** Prompts to prepare from — the Modul 3 equivalent of the mindmap. */
+  prompts: string[];
+}
+
+/** Opgave 2 (Modul 3): a topic and four options to compare and choose between. */
+export interface PreferenceOption {
+  id: string;
+  label: string;
+  /** Stands in for the picture in the paper test. */
+  description: string;
+}
+
+/**
+ * Tale — not auto-scored.
+ *
+ * Everything below `usefulPhrases` was added for the modultest task patterns
+ * and is OPTIONAL on purpose: every speaking exercise authored or generated
+ * before this existed still satisfies the type, still validates, and still
+ * renders exactly as it did. A renderer shows an extra block only when the
+ * corresponding field is present.
+ */
 export interface SpeakingContent {
   kind: "speaking";
   situation?: string;
@@ -172,6 +299,15 @@ export interface SpeakingContent {
   followUps: string[];
   /** Useful phrases at this level, to prepare with. */
   usefulPhrases: { danish: string; english: string }[];
+
+  /** The phases of the opgave. Absent on the original free-form prompts. */
+  stages?: SpeakingStage[];
+  mindmap?: SpeakingMindmap;
+  informationGap?: InformationGapSpec;
+  /** Two topics offered; the drawn one is chosen at run time. */
+  preparedTopics?: PreparedTopic[];
+  preferenceTopic?: string;
+  preferenceOptions?: PreferenceOption[];
 }
 
 export type ExerciseContent =

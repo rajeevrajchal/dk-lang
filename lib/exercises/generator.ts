@@ -1,6 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import {
+  MindmapSchema,
+  InformationGapSchema,
+  PreparedTopicSchema,
+  PicturePreferenceSchema,
   Task1Schema,
   Task2Schema,
   Task3Schema,
@@ -9,6 +13,7 @@ import {
   SpeakingSchema,
 } from "./schemas";
 import { validateVariant } from "./validate";
+import { demandsForModule, stagesForTaskType } from "./speaking-patterns";
 import type { ExerciseCategory, ExerciseVariant, TaskType } from "./types";
 
 // LLM generation of modultest-style exercises.
@@ -173,6 +178,117 @@ ${
 Spørgsmålene og punkterne skal kunne besvares af en voksen på A2-niveau ud fra sit eget liv. Ingen abstrakte eller holdningsprægede emner.`;
 }
 
+// ---------------------------------------------------------------------------
+// Speaking opgave prompts, assembled in layers
+//
+//   CORE (SYSTEM)  →  MODULE  →  TASK TYPE  →  EXERCISE CONFIG
+//
+// rather than one giant prompt. The module layer sets the communication
+// demand — which is what actually separates Modul 2 from Modul 3 — and the
+// task layer describes the format. Keeping them apart means a new module is a
+// new module layer, not a rewritten prompt.
+// ---------------------------------------------------------------------------
+
+function moduleLayer(moduleId: number): string {
+  const demands = demandsForModule(moduleId)
+    .map((d) => DEMAND_DESCRIPTIONS[d])
+    .join("\n  - ");
+  return `MODUL ${moduleId}.
+Kommunikationskrav på dette modul — eksaminator må stille spørgsmål af disse typer og ikke sværere:
+  - ${demands}`;
+}
+
+const DEMAND_DESCRIPTIONS: Record<string, string> = {
+  factual: "konkrete oplysninger: Hvad? Hvor? Hvornår? Hvem? Hvor ofte?",
+  description: "beskrivelse: Hvordan er...? Fortæl om...",
+  elaboration: "uddybning: Vil du fortælle lidt mere om...? Kan du give et eksempel?",
+  preference: "præference: Hvad kan du bedst lide? Hvilken vil du helst vælge?",
+  reasoning: "begrundelse: Hvorfor? Hvad er grunden til det?",
+  experience: "erfaring: Hvad er din erfaring med...? Har du prøvet det?",
+};
+
+function mindmapPrompt(moduleId: number, topic: string, avoid: string[]): string {
+  return `${moduleLayer(moduleId)}
+
+OPGAVETYPE: Mindmap-præsentation (Opgave 1).
+Kursisten får et emne med en håndfuld nøgleord omkring sig og skal fortælle om emnet. Nøgleordene er STØTTE, ikke spørgsmål — kursisten skal ikke svare på dem ét for ét, og det er ikke en hukommelsesøvelse.
+
+Emne denne gang: ${topic}.
+${avoid.length ? `Undgå disse emner: ${avoid.join(", ")}.` : ""}
+
+Lav:
+- mindmap.title: emnet, formuleret som på prøven, fx "Mit arbejde", "Min bolig", "Min sprogskole".
+- mindmap.categories: 5-6 KORTE nøgleord, ikke sætninger og ikke spørgsmål. To ord adskilt af skråstreg er typisk, fx "dage / tid", "transport til arbejde", "kollegaer / chef", "værelser / m2", "alene / sammen med".
+  Kategorierne skal passe til netop dette emne — et emne om bolig har andre kategorier end et emne om arbejde.
+  Tilsammen skal de dække emnet fra flere sider, så kursisten har noget at tale ud fra i to minutter.
+- questions: 4-6 spørgsmål, eksaminator kan åbne med bagefter. Konkrete, og de skal handle om emnet.
+- followUps: 3-5 opfølgende spørgsmål.
+- usefulPhrases: 4-6 vendinger, kursisten kan bruge, med engelsk betydning.`;
+}
+
+function informationGapPrompt(moduleId: number, topic: string, avoid: string[]): string {
+  return `${moduleLayer(moduleId)}
+
+OPGAVETYPE: Informationsudveksling (Opgave 2).
+To personer ved IKKE det samme. Hver har nogle oplysninger og mangler nogle andre. De skal stille spørgsmål til hinanden for at få det, de mangler. Det er ikke en præsentation.
+
+Emne denne gang: ${topic}.
+${avoid.length ? `Undgå disse emner: ${avoid.join(", ")}.` : ""}
+
+Lav:
+- situation: én-to sætninger om, hvem kursisten er, og hvorfor han/hun spørger.
+- informationGap.sharedContext: det, BEGGE ved på forhånd. Kort.
+- informationGap.candidate.holds: 3-5 oplysninger, KURSISTEN har. Hver med label (hvad oplysningen handler om, fx "åbningstider") og value (selve oplysningen på dansk).
+- informationGap.candidate.mustFindOut: 3-5 labels, kursisten MANGLER.
+- informationGap.partner.holds: 3-5 oplysninger, partneren har.
+- informationGap.partner.mustFindOut: 3-5 labels, partneren mangler.
+- informationGap.requiredQuestions: 3-5 spørgsmål, kursisten er nødt til at stille.
+
+ABSOLUTTE KRAV — opgaven virker ikke uden dem:
+1. Alt i candidate.mustFindOut SKAL findes som en label i partner.holds. Ellers kan spørgsmålet ikke besvares.
+2. Alt i partner.mustFindOut SKAL findes som en label i candidate.holds.
+3. De to sider må IKKE have de samme labels i holds. Hvis begge ved det hele, er der ingen grund til at spørge, og så er der ingen opgave.
+4. Udvekslingen skal gå BEGGE veje — begge parter mangler noget.
+
+- questions, followUps, usefulPhrases: som normalt, men de skal handle om at spørge og svare.`;
+}
+
+function preparedTopicPrompt(moduleId: number, topic: string, avoid: string[]): string {
+  return `${moduleLayer(moduleId)}
+
+OPGAVETYPE: Forberedt emne (Opgave 1).
+Kursisten får TO emner at forberede og trækker det ene. Derefter fortæller han/hun sammenhængende i 1-2 minutter, og eksaminator spørger ind i 3-4 minutter.
+
+Emneområde denne gang: ${topic}.
+${avoid.length ? `Undgå disse emner: ${avoid.join(", ")}.` : ""}
+
+Lav:
+- preparedTopics: PRÆCIS 2 emner. Hvert med title og 4-6 prompts at forberede ud fra.
+  De to emner skal være forskellige nok til, at det gør en forskel, hvilket der trækkes — ikke to varianter af det samme.
+- questions: 4-6 spørgsmål til opfølgningen.
+- followUps: 3-5 spørgsmål, der beder kursisten om at UDDYBE, ikke om nye fakta: "Vil du fortælle lidt mere om...?", "Kan du give et eksempel?", "Hvorfor det?", "Hvad synes du om...?", "Hvad er din erfaring med...?"
+  Formulér dem så de passer til emnet — brug dem ikke ordret.
+- usefulPhrases: 4-6 vendinger til at forklare og begrunde med.`;
+}
+
+function picturePreferencePrompt(moduleId: number, topic: string, avoid: string[]): string {
+  return `${moduleLayer(moduleId)}
+
+OPGAVETYPE: Valg og begrundelse med fire muligheder (Opgave 2).
+Kursisten får ét emne og FIRE muligheder. Først taler kursisten med en partner: de sammenligner mulighederne, spørger hinanden, siger hvad de helst vil vælge, og begrunder det. Bagefter spørger eksaminator ind til kursistens egne erfaringer.
+
+Emne denne gang: ${topic}.
+${avoid.length ? `Undgå disse emner: ${avoid.join(", ")}.` : ""}
+
+Lav:
+- preferenceTopic: emnet, fx "Hvor vil du helst holde ferie?" eller "Hvordan vil du helst komme på arbejde?".
+- preferenceOptions: PRÆCIS 4 muligheder. Hver med id ("A" til "D"), label (kort navn) og description (1-2 sætninger, der beskriver billedet, som det ville se ud på prøven — konkret, så der er noget at sammenligne på).
+  De fire skal være reelt forskellige, så der er noget at vælge imellem og noget at begrunde.
+- questions: 4-6 spørgsmål til pardiskussionen.
+- followUps: 3-5 spørgsmål fra eksaminator bagefter, om kursistens egne erfaringer og grunde.
+- usefulPhrases: 4-6 vendinger til at udtrykke præference og begrundelse med, fx "Jeg vil helst...", "Det bedste ved ... er, at...", "Jeg foretrækker ..., fordi ...".`;
+}
+
 function speakingPrompt(taskType: TaskType, topic: string, avoid: string[]): string {
   const kind =
     taskType === "speaking_interview"
@@ -241,6 +357,39 @@ const TOPICS: Record<string, string[]> = {
   speaking_interview: ["Hverdagsliv", "Arbejde og uddannelse", "Familie", "Fritid", "Mad", "Transport"],
   speaking_topic: ["Bolig", "Din familie", "Din fritid", "Din by"],
   speaking_situation: ["Lave en aftale", "Købe noget", "Spørge om hjælp", "Booke en tid"],
+  // Modul 2 opgaver. The mindmap topics mirror the ones the printed test
+  // uses — work, placement, study, language school, housing, leisure — and the
+  // generator writes the keyword categories to fit whichever it draws.
+  speaking_mindmap: [
+    "Mit arbejde",
+    "Min praktik",
+    "Mit studie",
+    "Min sprogskole",
+    "Min bolig",
+    "Min fritidsaktivitet",
+  ],
+  speaking_information_gap: [
+    "En kollega og hans arbejde",
+    "En vens fritid",
+    "Et kursus på aftenskolen",
+    "En lejlighed, der er til leje",
+    "En fest, I skal til",
+  ],
+  // Modul 3 opgaver.
+  speaking_prepared_topic: [
+    "Arbejde og uddannelse",
+    "Familie og venner",
+    "Sundhed og motion",
+    "At bo i Danmark",
+    "Fritid og interesser",
+  ],
+  speaking_picture_preference: [
+    "Ferieformer",
+    "Transport til arbejde",
+    "Måder at bo på",
+    "Fritidsaktiviteter",
+    "Måder at lære dansk på",
+  ],
 };
 
 function pickTopic(taskType: TaskType, usedTopics: string[]): string {
@@ -421,26 +570,43 @@ export function toVariant(
         },
       };
 
-    default:
+    default: {
+      // Stages come from the app's own task definitions, never from the model
+      // — the format of an opgave is not something to regenerate each time.
+      const stages = stagesForTaskType(taskType) ?? undefined;
+      const instruction = stages
+        ? stages.map((s) => s.instruction)
+        : [
+            "Læs spørgsmålene, og svar højt på dansk.",
+            "Svar med hele sætninger, ikke kun ét ord.",
+            "Prøv at tale i cirka to minutter i alt.",
+          ];
+
       return {
         ...base,
-        instruction: [
-          "Læs spørgsmålene, og svar højt på dansk.",
-          "Svar med hele sætninger, ikke kun ét ord.",
-          "Prøv at tale i cirka to minutter i alt.",
-        ],
+        instruction,
         content: {
           kind: "speaking",
           situation: gen.situation ?? undefined,
           questions: gen.questions,
           followUps: gen.followUps,
           usefulPhrases: gen.usefulPhrases,
+          stages,
+          // Each of these is present only for the task type that generates it;
+          // the rest stay undefined, which is what keeps the original speaking
+          // prompts byte-identical to before.
+          mindmap: gen.mindmap ?? undefined,
+          informationGap: gen.informationGap ?? undefined,
+          preparedTopics: gen.preparedTopics ?? undefined,
+          preferenceTopic: gen.preferenceTopic ?? undefined,
+          preferenceOptions: gen.preferenceOptions ?? undefined,
         },
       };
+    }
   }
 }
 
-function promptFor(taskType: TaskType, topic: string, avoid: string[]): string {
+function promptFor(taskType: TaskType, topic: string, avoid: string[], moduleId: number): string {
   switch (taskType) {
     case "reading_task_1_matching":
       return task1Prompt(topic, avoid);
@@ -454,6 +620,14 @@ function promptFor(taskType: TaskType, topic: string, avoid: string[]): string {
     case "writing_message":
     case "writing_short_text":
       return writingPrompt(taskType, topic, avoid);
+    case "speaking_mindmap":
+      return mindmapPrompt(moduleId, topic, avoid);
+    case "speaking_information_gap":
+      return informationGapPrompt(moduleId, topic, avoid);
+    case "speaking_prepared_topic":
+      return preparedTopicPrompt(moduleId, topic, avoid);
+    case "speaking_picture_preference":
+      return picturePreferencePrompt(moduleId, topic, avoid);
     default:
       return speakingPrompt(taskType, topic, avoid);
   }
@@ -473,6 +647,14 @@ function schemaFor(taskType: TaskType) {
     case "writing_message":
     case "writing_short_text":
       return WritingSchema;
+    case "speaking_mindmap":
+      return MindmapSchema;
+    case "speaking_information_gap":
+      return InformationGapSchema;
+    case "speaking_prepared_topic":
+      return PreparedTopicSchema;
+    case "speaking_picture_preference":
+      return PicturePreferenceSchema;
     default:
       return SpeakingSchema;
   }
@@ -506,7 +688,7 @@ export async function generateExercise(
 
   for (let i = 0; i < attempts; i++) {
     const topic = pickTopic(taskType, usedTopics);
-    let prompt = promptFor(taskType, topic, usedTopics.map(shortTopic));
+    let prompt = promptFor(taskType, topic, usedTopics.map(shortTopic), moduleId);
 
     // On the retry, tell the model exactly what was wrong last time.
     if (problems.length > 0) {

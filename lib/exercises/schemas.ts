@@ -149,6 +149,101 @@ export const SpeakingSchema = z.object({
     .max(5),
 });
 
+// ---------------------------------------------------------------------------
+// Speaking opgave formats
+//
+// These extend SpeakingSchema rather than replacing it: questions, followUps
+// and usefulPhrases stay required, so a generated opgave still satisfies
+// SpeakingContent and still renders in the existing Speaking component even
+// before any new UI is involved.
+//
+// `stages` is deliberately NOT generated. Stages are task structure, which the
+// app owns (speaking-patterns.ts) — asking the model for them would let it
+// invent a different shape of opgave each time.
+// ---------------------------------------------------------------------------
+
+const SpeakingBase = {
+  title: z.string(),
+  questions: z.array(z.string()).min(4).max(6),
+  followUps: z.array(z.string()).min(3).max(5),
+  usefulPhrases: z
+    .array(z.object({ danish: z.string(), english: z.string() }))
+    .min(4)
+    .max(6),
+};
+
+export const MindmapSchema = z.object({
+  ...SpeakingBase,
+  mindmap: z.object({
+    title: z.string(),
+    /** Short keyword prompts, like "dage / tid" — not full questions. */
+    categories: z.array(z.string()).min(5).max(6),
+  }),
+});
+
+export const InformationGapSchema = z.object({
+  ...SpeakingBase,
+  situation: z.string(),
+  informationGap: z.object({
+    sharedContext: z.string(),
+    candidate: z.object({
+      holds: z.array(z.object({ label: z.string(), value: z.string() })).min(3).max(5),
+      mustFindOut: z.array(z.string()).min(3).max(5),
+    }),
+    partner: z.object({
+      holds: z.array(z.object({ label: z.string(), value: z.string() })).min(3).max(5),
+      mustFindOut: z.array(z.string()).min(3).max(5),
+    }),
+    requiredQuestions: z.array(z.string()).min(3).max(5),
+  }),
+});
+
+export const PreparedTopicSchema = z.object({
+  ...SpeakingBase,
+  /** Two topics are offered; one is drawn at run time. */
+  preparedTopics: z
+    .array(
+      z.object({
+        title: z.string(),
+        prompts: z.array(z.string()).min(4).max(6),
+      })
+    )
+    .length(2),
+});
+
+export const PicturePreferenceSchema = z.object({
+  ...SpeakingBase,
+  preferenceTopic: z.string(),
+  preferenceOptions: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        /** Stands in for the picture on the paper test. */
+        description: z.string(),
+      })
+    )
+    .length(4),
+});
+
+/** One examiner or partner turn, requested live during a conversation. */
+export const ExaminerTurnSchema = z.object({
+  /** The question itself, in Danish. */
+  question: z.string(),
+  /** Which coverage target it is aimed at, if any. */
+  target: z.string().nullable(),
+  /** Targets the candidate's last answer actually covered. */
+  coveredByLastAnswer: z.array(z.string()),
+  /** True once this stage has been taken as far as it usefully goes. */
+  stageComplete: z.boolean(),
+});
+
+export type MindmapGenerated = z.infer<typeof MindmapSchema>;
+export type InformationGapGenerated = z.infer<typeof InformationGapSchema>;
+export type PreparedTopicGenerated = z.infer<typeof PreparedTopicSchema>;
+export type PicturePreferenceGenerated = z.infer<typeof PicturePreferenceSchema>;
+export type ExaminerTurnGenerated = z.infer<typeof ExaminerTurnSchema>;
+
 export type Task1Generated = z.infer<typeof Task1Schema>;
 export type Task2Generated = z.infer<typeof Task2Schema>;
 export type Task3Generated = z.infer<typeof Task3Schema>;
