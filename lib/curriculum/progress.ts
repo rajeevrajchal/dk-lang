@@ -1,0 +1,202 @@
+import { DANISH_COURSE, CHAPTER_BY_ID } from "./course";
+import { isAutoCheckable, type CourseChapter, type LessonExercise } from "./course-types";
+
+// Progression through the course: what is done, what is unlocked, what is next.
+//
+// Pure functions over a plain record of lesson results, so the rules can be
+// tested without a database. Persistence is the caller's problem.
+//
+// Mastery is deliberately forgiving. The point of the Class is to teach, not
+// to gate — a learner who got 3 of 5 right has understood enough to move on
+// and will meet the same grammar again in a later chapter anyway (that is what
+// `revisits` is for). Demanding perfection would just trap people.
+
+/** Fraction of auto-checkable exercises that must be right to count as passed. */
+export const MASTERY_THRESHOLD = 0.6;
+
+export interface LessonResult {
+  lessonSlug: string;
+  /** Correct out of the auto-checkable exercises. Null if none were checkable. */
+  score: number | null;
+  total: number | null;
+  completedAt: string;
+}
+
+export type ProgressMap = Record<string, LessonResult>;
+
+export function lessonPassed(result: LessonResult | undefined): boolean {
+  if (!result) return false;
+  // A lesson made only of free-production work counts as done once submitted.
+  if (result.total == null || result.total === 0) return true;
+  return (result.score ?? 0) / result.total >= MASTERY_THRESHOLD;
+}
+
+export function chapterLessonSlugs(chapter: CourseChapter): string[] {
+  return chapter.topics.map((t) => t.lessonSlug);
+}
+
+export function chapterComplete(chapter: CourseChapter, progress: ProgressMap): boolean {
+  return chapterLessonSlugs(chapter).every((slug) => lessonPassed(progress[slug]));
+}
+
+export function chapterProgress(
+  chapter: CourseChapter,
+  progress: ProgressMap
+): { done: number; total: number } {
+  const slugs = chapterLessonSlugs(chapter);
+  return { done: slugs.filter((s) => lessonPassed(progress[s])).length, total: slugs.length };
+}
+
+/**
+ * A chapter is unlocked when every chapter it names as a prerequisite is
+ * complete. Chapter 1 has none, so a brand-new learner always has somewhere
+ * to start.
+ */
+export function chapterUnlocked(chapter: CourseChapter, progress: ProgressMap): boolean {
+  return chapter.prerequisites.every((id) => {
+    const prereq = CHAPTER_BY_ID.get(id);
+    return prereq ? chapterComplete(prereq, progress) : true;
+  });
+}
+
+export type ChapterStatus = "locked" | "available" | "in_progress" | "complete";
+
+export function chapterStatus(chapter: CourseChapter, progress: ProgressMap): ChapterStatus {
+  if (chapterComplete(chapter, progress)) return "complete";
+  if (!chapterUnlocked(chapter, progress)) return "locked";
+  const { done } = chapterProgress(chapter, progress);
+  return done > 0 ? "in_progress" : "available";
+}
+
+/**
+ * The single thing to do next: the first unfinished lesson in the earliest
+ * unlocked chapter. This is what makes the Class able to answer "what should I
+ * learn next?" rather than presenting a menu.
+ */
+export function nextUp(
+  progress: ProgressMap
+): { chapter: CourseChapter; lessonSlug: string } | null {
+  for (const chapter of DANISH_COURSE.chapters) {
+    if (!chapterUnlocked(chapter, progress)) continue;
+    const slug = chapterLessonSlugs(chapter).find((s) => !lessonPassed(progress[s]));
+    if (slug) return { chapter, lessonSlug: slug };
+  }
+  return null;
+}
+
+/** Which prerequisites are still missing, for explaining a locked chapter. */
+export function missingPrerequisites(
+  chapter: CourseChapter,
+  progress: ProgressMap
+): CourseChapter[] {
+  return chapter.prerequisites
+    .map((id) => CHAPTER_BY_ID.get(id))
+    .filter((c): c is CourseChapter => !!c && !chapterComplete(c, progress));
+}
+
+/**
+ * How ready the learner is for a PD3 module: the share of the chapters that
+ * support it which are complete. A milestone, not a gate — the Practice Zone
+ * keeps its own unlock rules (lib/unlock.ts), which this does not touch.
+ */
+export function moduleReadiness(
+  moduleId: number,
+  progress: ProgressMap
+): { complete: number; total: number; ratio: number } {
+  const chapters = DANISH_COURSE.chapters.filter((c) => c.supportsModules.includes(moduleId));
+  const complete = chapters.filter((c) => chapterComplete(c, progress)).length;
+  return {
+    complete,
+    total: chapters.length,
+    ratio: chapters.length === 0 ? 0 : complete / chapters.length,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Grading the exercise ladder
+// ---------------------------------------------------------------------------
+
+function normalise(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/[.,!?;:]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+export interface ExerciseCheck {
+  id: string;
+  /** Null when the exercise has no single right answer — the learner judges. */
+  correct: boolean | null;
+  expected?: string;
+  explanation?: string;
+}
+
+/**
+ * Checks one exercise. The top five rungs of the ladder have right answers;
+ * free production and communication do not, and return null rather than a
+ * fabricated verdict.
+ */
+export function gradeLessonExercise(
+  exercise: LessonExercise,
+  response: string
+): ExerciseCheck {
+  const base = { id: exercise.id, explanation: exercise.explanation };
+  if (!isAutoCheckable(exercise.kind)) return { ...base, correct: null };
+
+  switch (exercise.kind) {
+    case "recognition": {
+      const words = exercise.sentence.split(/\s+/);
+      return {
+        ...base,
+        correct: response === String(exercise.answerIndex),
+        expected: words[exercise.answerIndex],
+      };
+    }
+    case "selection":
+      return {
+        ...base,
+        correct: normalise(response) === normalise(exercise.answer),
+        expected: exercise.answer,
+      };
+    case "matching": {
+      // Response is "left→right" pairs joined by "|", order-insensitive.
+      const given = new Set(response.split("|").map(normalise).filter(Boolean));
+      const want = exercise.pairs.map((p) => normalise(`${p.left}→${p.right}`));
+      return {
+        ...base,
+        correct: want.length === given.size && want.every((w) => given.has(w)),
+        expected: exercise.pairs.map((p) => `${p.left} → ${p.right}`).join(", "),
+      };
+    }
+    case "ordering":
+      return {
+        ...base,
+        correct: normalise(response) === normalise(exercise.answer.join(" ")),
+        expected: exercise.answer.join(" "),
+      };
+    case "controlled_production":
+      return {
+        ...base,
+        correct: exercise.acceptedAnswers.some((a) => normalise(a) === normalise(response)),
+        expected: exercise.acceptedAnswers[0],
+      };
+    default:
+      return { ...base, correct: null };
+  }
+}
+
+/** Grades a whole lesson's exercises. */
+export function gradeLesson(
+  exercises: LessonExercise[],
+  responses: Record<string, string>
+): { checks: ExerciseCheck[]; score: number | null; total: number | null } {
+  const checks = exercises.map((e) => gradeLessonExercise(e, responses[e.id] ?? ""));
+  const checkable = checks.filter((c) => c.correct !== null);
+  if (checkable.length === 0) return { checks, score: null, total: null };
+  return {
+    checks,
+    score: checkable.filter((c) => c.correct).length,
+    total: checkable.length,
+  };
+}

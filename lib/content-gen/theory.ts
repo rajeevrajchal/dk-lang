@@ -15,6 +15,8 @@
 // item bank, but you can't read the passages without them, so they're taught.
 // Those carry `constructCodes: []`.
 
+import type { LessonExercise } from "@/lib/curriculum/course-types";
+
 export interface TheoryExample {
   danish: string;
   english: string;
@@ -42,6 +44,27 @@ export interface TheoryLesson {
   summary: string;
   sections: TheorySection[];
   pitfalls: string[]; // common mistakes, stated as the mistake + the fix
+
+  // ---------------------------------------------------------------------
+  // Course fields.
+  //
+  // All optional. The twelve lessons below were written before the course
+  // existed and set none of them; they keep working untouched, both at their
+  // own /theory/[slug] route and inside a chapter. A lesson gains objectives
+  // and exercises by having them added here, not by being rewritten.
+  // ---------------------------------------------------------------------
+
+  /** "After this lesson you can ..." — stated before the teaching starts. */
+  learningObjectives?: string[];
+  /** The one-line takeaway, shown at the end as "what you should know". */
+  canDo?: string;
+  /**
+   * A short plain-language opening for a reader who does not yet know the
+   * grammar words. Rendered before `summary` when present.
+   */
+  primer?: string;
+  /** Practice attached to the lesson, in ladder order. */
+  exercises?: LessonExercise[];
 }
 
 export const THEORY_LESSONS: TheoryLesson[] = [

@@ -38,6 +38,7 @@ model User {
   moduleSkillStatus ModuleSkillStatus[]
   reportCards       ReportCard[]
   exerciseAttempts  ExerciseAttempt[]
+  lessonProgress    LessonProgress[]
 }
 
 model Account {
@@ -299,6 +300,39 @@ model ModuleSkillStatus {
   module Module @relation(fields: [moduleId], references: [id])
 
   @@unique([userId, moduleId, skill])
+}
+
+// ---------------------------------------------------------------------------
+// Class course progress.
+//
+// One row per learner per lesson. Separate from Attempt and ExerciseAttempt
+// because the Class and the Practice Zone answer different questions: this
+// records "have I been taught this and did I follow it", not "can I perform
+// it under test conditions". Keyed by lesson slug rather than an id, so a
+// lesson keeps its progress when the curriculum is re-ordered around it.
+// ---------------------------------------------------------------------------
+
+model LessonProgress {
+  id         String @id @default(cuid())
+  userId     String
+  lessonSlug String
+  // Chapter it was taken in, for reporting. Nullable: a lesson can be opened
+  // directly from the older /theory route, outside any chapter.
+  chapterId  String?
+
+  // Correct out of the auto-checkable exercises. Null when a lesson has none.
+  score Int?
+  total Int?
+  // Raw answers, so a learner can see what they wrote last time.
+  responsesJson String?
+
+  completedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonSlug])
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------

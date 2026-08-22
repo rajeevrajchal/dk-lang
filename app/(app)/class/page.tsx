@@ -16,6 +16,21 @@ export default async function ClassPage() {
         <p className="mt-1 text-sm text-slate-600">{dict.class.subtitle}</p>
       </div>
 
+      <Link
+        href="/class/course"
+        className="block rounded-xl border-2 border-slate-900 bg-white p-5 hover:bg-slate-50"
+      >
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="font-medium">{dict.course.title}</p>
+            <p className="mt-1 text-sm text-slate-600">{dict.course.subtitle}</p>
+          </div>
+          <span className="text-xs font-medium rounded-md bg-slate-900 text-white px-3 py-1.5 whitespace-nowrap">
+            {dict.course.startHere}
+          </span>
+        </div>
+      </Link>
+
       <div className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
         {moduleStates.map((m) => {
           const copy = dict.moduleCopy[m.moduleId];
