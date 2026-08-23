@@ -95,7 +95,17 @@ async function main() {
       // confirmed working.
     });
 
-    console.log(`  linked  ${user.email} -> ${supabaseUserId}${found ? " (existing identity)" : ""}`);
+    console.log(
+      `  linked  ${user.email} -> ${supabaseUserId}${found ? " (existing identity)" : ""}`
+    );
+    if (!found) {
+      // Worth saying out loud. The account exists and is confirmed, but has NO
+      // password — bcrypt hashes cannot be imported into Supabase Auth, so the
+      // one from the old database is gone. Trying it produces
+      // "invalid_credentials", which reads as a wrong password rather than an
+      // absent one.
+      console.log(`          no password set — their old one does NOT carry over`);
+    }
 
     if (invite) {
       const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
@@ -105,9 +115,17 @@ async function main() {
     }
   }
 
+  console.log(`\nDone. Users keep their ids, so every attempt, note and lesson is intact.`);
   console.log(
-    `\nDone. Users keep their ids, so every attempt, note and lesson is intact.` +
-      (invite ? "" : "\nRun again with --invite to email password resets.")
+    `\nNONE of them can sign in with their old password: bcrypt hashes cannot be\n` +
+      `imported into Supabase Auth. Give each of them a way back in:\n\n` +
+      `  npx tsx scripts/auth-link.ts password  <email> '<password>'   set one directly\n` +
+      `  npx tsx scripts/auth-link.ts recovery  <email>                reset link, no email sent\n` +
+      (invite
+        ? ``
+        : `  npx tsx scripts/migrate-users-to-supabase-auth.ts --invite    email reset links\n\n` +
+          `The --invite route uses Supabase's built-in SMTP, which allows only a few\n` +
+          `messages an hour; auth-link.ts never sends an email and is not limited.\n`)
   );
 }
 

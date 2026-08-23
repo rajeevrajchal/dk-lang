@@ -420,3 +420,28 @@ Check it took effect:
 curl -s "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/settings" \
   -H "apikey: $NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" | grep -o '"google":[a-z]*'
 ```
+
+
+## Old passwords do not carry over
+
+Worth stating plainly, because the symptom is misleading.
+
+Accounts created before this migration stored a bcrypt hash in
+`User.passwordHash`. **Bcrypt hashes cannot be imported into Supabase Auth.**
+So a migrated account exists and is confirmed but has no password, and trying
+the old one returns:
+
+```json
+{"error_code":"invalid_credentials","msg":"Invalid login credentials"}
+```
+
+which reads as "wrong password" when it actually means "no password". Give each
+migrated learner a way in:
+
+```bash
+npx tsx scripts/auth-link.ts password <email> '<password>'   # direct, no email
+npx tsx scripts/auth-link.ts recovery <email>                # reset link, no email
+```
+
+Signing in with Google works regardless: `lib/auth/identity.ts` links an
+identity to the existing row by email, so the learner keeps everything.
