@@ -6,7 +6,7 @@ import { TranslateHelperToggle } from "@/components/TranslateHelperToggle";
 import { LevelSection } from "@/components/profile/LevelSection";
 import { InterestsPicker } from "@/components/reading/InterestsPicker";
 import { parseInterests } from "@/lib/reading/interests";
-import { prisma } from "@/lib/db";
+import { users } from "@/lib/repositories";
 
 // Settings is where facts about the learner live: who they are, what level
 // they are at, and which real tests they have sat. The learning areas read
@@ -15,13 +15,10 @@ import { prisma } from "@/lib/db";
 export default async function SettingsPage() {
   const session = await auth();
   const dict = await getServerDictionary();
-  const [level, officialResults, profile] = await Promise.all([
+  const [level, officialResults, interestsJson] = await Promise.all([
     getUserLevel(session!.user.id),
     listOfficialTestResults(session!.user.id),
-    prisma.userProfile.findUnique({
-      where: { userId: session!.user.id },
-      select: { interestsJson: true },
-    }),
+    users.getInterestsJson(session!.user.id),
   ]);
 
   return (
@@ -48,7 +45,7 @@ export default async function SettingsPage() {
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
           {dict.reading.yourInterests}
         </h2>
-        <InterestsPicker initial={parseInterests(profile?.interestsJson)} />
+        <InterestsPicker initial={parseInterests(interestsJson)} />
       </section>
 
       <section>

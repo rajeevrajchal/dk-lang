@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { reading } from "@/lib/repositories";
 import { readingText } from "@/lib/reading/registry";
 
 // What the learner has read, saved and marked.
@@ -27,10 +27,7 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const rows = await prisma.readingProgress.findMany({
-    where: { userId: session.user.id },
-  });
-  return NextResponse.json(rows);
+  return NextResponse.json(await reading.listProgress(session.user.id));
 }
 
 export async function POST(req: Request) {
@@ -49,32 +46,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unknown text" }, { status: 404 });
   }
 
-  const userId = session.user.id;
-  const existing = await prisma.readingProgress.findUnique({
-    where: { userId_textId: { userId, textId } },
-  });
-
-  const row = await prisma.readingProgress.upsert({
-    where: { userId_textId: { userId, textId } },
-    update: {
-      // A text already finished stays finished — re-reading it is not undoing
-      // it, and OPENED arrives on every visit.
-      ...(status === "COMPLETED"
-        ? { status: "COMPLETED", completedAt: existing?.completedAt ?? new Date() }
-        : {}),
-      ...(bookmarked !== undefined ? { bookmarked } : {}),
-      ...(mark !== undefined ? { mark } : {}),
-      ...(addSeconds ? { readSeconds: { increment: addSeconds } } : {}),
-    },
-    create: {
-      userId,
-      textId,
-      status: status ?? "OPENED",
-      completedAt: status === "COMPLETED" ? new Date() : null,
-      bookmarked: bookmarked ?? false,
-      mark: mark ?? null,
-      readSeconds: addSeconds ?? 0,
-    },
+  // The upsert rules — a completed text staying completed, seconds
+  // accumulating rather than replacing — live in the repository, so any other
+  // caller gets them too.
+  const row = await reading.upsertProgress(session.user.id, textId, {
+    status,
+    bookmarked,
+    mark,
+    addSeconds,
   });
 
   return NextResponse.json(row);

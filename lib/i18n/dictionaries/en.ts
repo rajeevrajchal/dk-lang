@@ -37,6 +37,8 @@ export const en = {
     errorInvalid: "Invalid email or password",
     errorGeneric: "Something went wrong",
     errorCreateAccount: "Could not create account",
+    google: "Continue with Google",
+    or: "or",
   },
 
   dashboard: {

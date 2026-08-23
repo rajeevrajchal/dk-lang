@@ -5,6 +5,8 @@ CREATE TABLE "User" (
     "passwordHash" TEXT,
     "name" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "supabaseUserId" TEXT,
+    "authProvider" TEXT NOT NULL DEFAULT 'credentials',
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -387,6 +389,9 @@ CREATE TABLE "ReadingExplanation" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_supabaseUserId_key" ON "User"("supabaseUserId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Account_provider_providerAccountId_key" ON "Account"("provider", "providerAccountId");

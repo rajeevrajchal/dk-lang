@@ -5,12 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { GoogleSignIn } from "@/components/auth/GoogleSignIn";
 
 function LoginForm() {
   const { dict } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  // /auth/callback redirects here with ?error=... when Google sign-in fails.
+  const oauthError = searchParams.get("error");
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -64,6 +67,14 @@ function LoginForm() {
       <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-slate-200 p-8">
         <h1 className="text-xl font-semibold text-slate-900">{dict.appName}</h1>
         <p className="mt-1 text-sm text-slate-500">{dict.login.subtitle}</p>
+
+        {oauthError && (
+          <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            {oauthError}
+          </p>
+        )}
+
+        <GoogleSignIn callbackUrl={callbackUrl} />
 
         <div className="mt-6 flex rounded-lg bg-slate-100 p-1 text-sm">
           <button

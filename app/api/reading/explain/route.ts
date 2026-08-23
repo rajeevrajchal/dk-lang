@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { reading } from "@/lib/repositories";
 import { readingText } from "@/lib/reading/registry";
 import {
   answerFromText,
@@ -84,9 +84,7 @@ export async function POST(req: Request) {
   };
 
   if (!question) {
-    const cached = await prisma.readingExplanation.findUnique({
-      where: { textId_scopeKind_scopeId_level_depth: cacheKey },
-    });
+    const cached = await reading.findCachedExplanation(cacheKey);
     if (cached) {
       return NextResponse.json({ ...JSON.parse(cached.json), source: "cache" });
     }
@@ -119,12 +117,7 @@ export async function POST(req: Request) {
   }
 
   if (!question) {
-    // upsert rather than create: two learners can race on the same sentence.
-    await prisma.readingExplanation.upsert({
-      where: { textId_scopeKind_scopeId_level_depth: cacheKey },
-      update: { json: JSON.stringify(outcome.explanation) },
-      create: { ...cacheKey, json: JSON.stringify(outcome.explanation) },
-    });
+    await reading.cacheExplanation(cacheKey, JSON.stringify(outcome.explanation));
   }
 
   return NextResponse.json({ ...outcome.explanation, source: "generated" });

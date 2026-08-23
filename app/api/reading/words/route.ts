@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { vocabulary } from "@/lib/repositories";
 
 // The learner's own vocabulary.
 //
@@ -37,10 +37,7 @@ export async function GET(req: Request) {
   const sourceTextId = new URL(req.url).searchParams.get("textId");
 
   return NextResponse.json(
-    await prisma.savedWord.findMany({
-      where: { userId: session.user.id, ...(sourceTextId ? { sourceTextId } : {}) },
-      orderBy: { createdAt: "desc" },
-    })
+    await vocabulary.listSavedWords(session.user.id, sourceTextId ?? undefined)
   );
 }
 
@@ -54,42 +51,9 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
-  const data = parsed.data;
-  const userId = session.user.id;
-
-  // If this word is also in the seeded bank, point at it rather than letting
-  // the two drift apart.
-  const bankEntry = await prisma.vocabItem.findFirst({
-    where: { danish: data.lemma ?? data.danish },
-    select: { id: true },
-  });
-
-  const word = await prisma.savedWord.upsert({
-    where: { userId_danish: { userId, danish: data.danish } },
-    // Saving the same word again from a different text refreshes what we know
-    // about it, but never wipes a note the learner wrote.
-    update: {
-      translation: data.translation,
-      lemma: data.lemma ?? undefined,
-      partOfSpeech: data.partOfSpeech ?? undefined,
-      contextSentence: data.contextSentence ?? undefined,
-      grammarNote: data.grammarNote ?? undefined,
-      ...(data.note ? { note: data.note } : {}),
-    },
-    create: {
-      userId,
-      kind: data.kind,
-      danish: data.danish,
-      lemma: data.lemma ?? null,
-      translation: data.translation,
-      partOfSpeech: data.partOfSpeech ?? null,
-      contextSentence: data.contextSentence ?? null,
-      grammarNote: data.grammarNote ?? null,
-      sourceTextId: data.sourceTextId ?? null,
-      note: data.note ?? null,
-      vocabItemId: bankEntry?.id ?? null,
-    },
-  });
+  // Linking to the seeded VocabItem bank, and refreshing without wiping the
+  // learner's own note, both live in the repository.
+  const word = await vocabulary.saveWord(session.user.id, parsed.data);
 
   return NextResponse.json(word);
 }
@@ -106,20 +70,12 @@ export async function PATCH(req: Request) {
   }
   const { id, note, learned } = parsed.data;
 
-  const existing = await prisma.savedWord.findUnique({ where: { id } });
-  if (!existing || existing.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return NextResponse.json(
-    await prisma.savedWord.update({
-      where: { id },
-      data: {
-        ...(note !== undefined ? { note } : {}),
-        ...(learned !== undefined ? { learned } : {}),
-      },
-    })
-  );
+  const updated = await vocabulary.updateSavedWord(session.user.id, id, {
+    ...(note !== undefined ? { note } : {}),
+    ...(learned !== undefined ? { learned } : {}),
+  });
+  if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(updated);
 }
 
 export async function DELETE(req: Request) {
@@ -130,11 +86,7 @@ export async function DELETE(req: Request) {
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
 
-  const existing = await prisma.savedWord.findUnique({ where: { id } });
-  if (!existing || existing.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  await prisma.savedWord.delete({ where: { id } });
+  const deleted = await vocabulary.deleteSavedWord(session.user.id, id);
+  if (!deleted) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

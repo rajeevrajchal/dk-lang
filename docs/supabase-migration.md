@@ -1,23 +1,20 @@
 # Migrating to Supabase
 
-Status of this change set, and what you need to do to run it.
+What this change set does, and what you need to do to run it.
 
-## What is done (this PR)
+## What is done
 
-**Phase 1 of 6: the database moves from SQLite to Supabase PostgreSQL.**
+| Phase | Status |
+| --- | --- |
+| 1. SQLite → Supabase PostgreSQL | ✅ written, **not yet applied to a database** |
+| 2. Repository layer | ✅ `lib/repositories/*`; no UI component touches the ORM |
+| 3. Supabase Auth + Google OAuth | ✅ alongside the existing email/password sign-in |
+| 4. Vercel AI SDK, Anthropic + OpenAI | ✅ the vendor SDK is gone from the codebase |
+| 5. Row Level Security | ✅ `supabase/rls.sql` — read §"RLS is containment" below |
+| 6. Verified against a live project | ❌ needs the database password |
 
-- `prisma/schema.prisma` targets `postgresql`, with a pooled `DATABASE_URL` for
-  the app and a direct `DIRECT_URL` for migrations.
-- The ten SQLite migrations are replaced by one PostgreSQL baseline,
-  `prisma/migrations/00000000000000_init`. They could not be kept: they are
-  SQLite DDL (`PRAGMA`, table-rebuild `ALTER`s) and will not run on Postgres.
-  The baseline is generated from the same schema and produces an identical
-  database — verified with `prisma migrate diff`, which reports no drift.
-- `prisma/data-migration/{export,import}.ts` move the existing rows across.
-- `.env.example` documents every variable the finished migration needs.
-
-**Not done yet** — see "Remaining phases" below. This PR is infrastructure
-only: no application code changed, and all 182 tests still pass.
+All 196 tests pass (182 existing, unchanged, plus 14 for the AI layer), the
+production build is clean, and no application behaviour changed.
 
 ## What you need to do
 
@@ -142,19 +139,156 @@ own migration), and this change set's job is to move infrastructure without
 altering behaviour. It is worth doing as its own PR, where the blast radius is
 visible and testable on its own.
 
-## Remaining phases
+## Still to do
 
-| Phase | Work |
-| --- | --- |
-| 2 | `lib/repositories/*` — a data-access seam so the 4 server components and 26 API routes stop calling the ORM directly |
-| 3 | `lib/supabase/{client,server,admin}`, `@supabase/ssr` cookie sessions, Google OAuth, `/auth/callback`. `auth()` keeps its current signature so all 43 call sites are untouched |
-| 4 | Vercel AI SDK: `lib/ai/registry.ts` with Anthropic and OpenAI, rewriting the 4 direct-SDK call sites to `generateObject`/`streamObject` with their existing Zod schemas |
-| 5 | RLS policies |
-| 6 | End-to-end verification against the live project |
+- **Apply it.** Nothing here has run against a real database yet (see the
+  checklist above).
+- **Finish the repository migration.** The four server components and the whole
+  reading domain go through `lib/repositories/*`. The older exercise, exam and
+  report routes still call Prisma directly — they are already a server
+  boundary, so this is tidiness rather than a correctness gap, but it should be
+  finished for consistency.
+- **Promote the enum-shaped columns**, as its own PR (see above).
+- **Consider RLS as the primary control**, if the app ever grows browser→
+  Supabase data access.
 
-Phase 4 has one complication worth flagging early: all four AI call sites use
-Anthropic-specific options (`thinking: {type:"adaptive"}`, `output_config.effort`)
-and one deliberately streams because a 64k-token pass would otherwise hit the
-HTTP timeout. The provider abstraction has to pass those through for Anthropic
-and degrade cleanly for OpenAI, rather than pretending the providers are
-interchangeable.
+---
+
+# Authentication
+
+Two ways in, one session shape.
+
+## Setting up Google
+
+1. Google Cloud Console → **APIs & Services → Credentials** → OAuth client ID
+   (Web application).
+2. Authorised redirect URI:
+   `https://<project-ref>.supabase.co/auth/v1/callback`
+3. Supabase → **Authentication → Providers → Google**: paste the client ID and
+   secret. The secret lives in Supabase; the app never sees it.
+4. Supabase → **Authentication → URL Configuration → Redirect URLs**: add
+   `http://localhost:3000/auth/callback` and your deployed equivalent.
+
+## Why existing accounts keep working
+
+Supabase issues UUIDs in `auth.users`. `User.id` is a cuid that fifteen foreign
+keys and thousands of rows already point at. Rewriting it would mean rewriting
+all of them.
+
+So the two are **mapped, not merged**: `User.supabaseUserId` holds the UUID.
+On a first Google sign-in, `lib/auth/identity.ts` looks for an account with the
+same email and links it — the learner keeps their cuid and every attempt, note
+and lesson hanging off it. Their password still works too; nothing is removed.
+
+Linking on email is only safe because Supabase issues a Google identity after
+Google has verified the address. `resolveSupabaseUser` refuses an unverified
+one, because linking on an unverified address would be an account takeover.
+
+## How `auth()` stayed the same
+
+43 files import `auth()` and 54 read `session.user.id`. None of them changed.
+
+`lib/auth/index.ts` checks Supabase first, falls back to the NextAuth session,
+and returns the same `{ user: { id, email, name } }` either way. `user.id` is
+always the application cuid, never a Supabase UUID.
+
+Two details worth knowing:
+
+- It calls `getUser()`, not `getSession()`. `getUser()` revalidates the token
+  with Supabase; `getSession()` trusts a cookie the browser could have edited.
+- A Supabase outage falls through to NextAuth rather than logging out everyone
+  with a password. But Next.js control-flow errors (`DYNAMIC_SERVER_USAGE`,
+  redirects) are re-thrown — swallowing those breaks the framework's
+  static/dynamic detection.
+
+`proxy.ts` refreshes the Supabase session on every request. That is not
+optional: access tokens are short-lived, and middleware is the only place a
+refreshed token can be written back as a cookie. It deliberately does not touch
+the database — it runs on every request and Prisma has no place at the edge.
+
+---
+
+# The AI layer
+
+## Why it changed
+
+Four files each constructed their own Anthropic client, named their own model
+and set their own thinking budget. The provider was a fact about the codebase
+rather than a setting.
+
+Now `lib/ai/registry.ts` is the only module that knows a vendor exists.
+Everything else asks for a **task** and gets a model:
+
+| Task | Effort | Tokens | Why |
+| --- | --- | ---: | --- |
+| `exercise-generation` | high | 16 000 | write a whole opgave with its answer key |
+| `exercise-explanation` | high | 64 000 | sentence-and-word pass over a long text |
+| `examiner-turn` | medium | 2 000 | one spoken turn |
+| `reading-explanation` | low | 900 | gloss one word |
+| `reading-explanation-deep` | medium | 2 000 | the same, after "more grammar" |
+
+Those numbers are product decisions, not tuning. The 900-token cap is what
+stops a word click becoming a lecture — a request that cannot run long cannot
+lecture.
+
+## Providers are not interchangeable, and the code says so
+
+Anthropic has extended thinking with a **token budget**; OpenAI has a
+**reasoning effort** enum. The registry maps a shared `effort` onto each,
+which is the closest honest translation rather than an equivalence:
+
+- Anthropic gets `providerOptions.anthropic.thinking` with a budget that leaves
+  room for the answer — `maxOutputTokens` covers thinking *and* text, so
+  spending it all on thinking leaves nothing to answer with.
+- OpenAI gets `providerOptions.openai.reasoningEffort`.
+- A low-effort task gets no thinking at all: extended thinking on a 900-token
+  gloss is latency the learner pays for and gets nothing back from.
+
+## Choosing a provider
+
+```
+AI_PROVIDER=anthropic     # or openai; falls back if that key is missing
+ANTHROPIC_API_KEY=...
+OPENAI_API_KEY=...
+```
+
+With **no** key, `aiAvailable()` is false and every feature degrades to its
+authored fallback. That property is load-bearing for the reading library, whose
+glossed words, sentence structure and translations all come from authored data.
+
+## Retries
+
+`lib/ai/generate.ts` classifies failures so callers do not have to know vendor
+error types. A missing key, a rejected key or a malformed request comes back
+`retryable: false`, and the exercise generator stops instead of burning its
+second attempt on a certainty.
+
+---
+
+# RLS is containment, not the primary control
+
+Worth being blunt about, because the opposite is easy to assume.
+
+**Prisma connects as the table owner, so the policies in `supabase/rls.sql` do
+not constrain the application's own queries.** What enforces "you only see your
+own rows" is the `userId` scoping in `lib/repositories/*` — which is why every
+function there takes `userId` as its first argument, and why repository
+deletes use `deleteMany({ where: { id, userId } })` rather than
+`delete({ where: { id } })`: someone else's id then matches nothing instead of
+deleting their row.
+
+So what is RLS for? Supabase exposes every table over PostgREST to anyone
+holding the publishable key, which by design ships to the browser. Without RLS
+that key is a read/write handle on every learner's data. With it, the key
+reaches nothing unless a policy allows it.
+
+`FORCE ROW LEVEL SECURITY` is deliberately left commented out in the SQL: it
+would apply the policies to the owner too, and lock Prisma out of its own
+database. Turning it on is the first step if the app ever moves to connecting
+as a restricted role.
+
+Run it after the migration:
+
+```bash
+psql "$DIRECT_URL" -f supabase/rls.sql
+```

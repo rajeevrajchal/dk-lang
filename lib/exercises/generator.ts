@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { generateStructured } from "@/lib/ai/generate";
+import { aiAvailable } from "@/lib/ai/registry";
 import {
   MindmapSchema,
   InformationGapSchema,
@@ -25,17 +25,8 @@ import type { ExerciseCategory, ExerciseVariant, TaskType } from "./types";
 // fails too the caller falls back to the hand-authored pool, so the app keeps
 // working without an API key or when the API is down.
 
-const MODEL = "claude-opus-5";
-
-let cachedClient: Anthropic | null = null;
-function getClient(): Anthropic | null {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-  if (!cachedClient) cachedClient = new Anthropic();
-  return cachedClient;
-}
-
 export function llmGenerationAvailable(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY;
+  return aiAvailable();
 }
 
 // ---------------------------------------------------------------------------
@@ -440,29 +431,20 @@ const READING_INSTRUCTIONS: Record<string, (title: string) => string[]> = {
   ],
 };
 
-async function callModel<T>(
+/**
+ * One generation attempt.
+ *
+ * Returns null rather than throwing, because the caller retries and then falls
+ * back to the authored pool — a failure here is a normal branch, not an
+ * exception. Which model runs this, how hard it thinks and how many tokens it
+ * gets are all decided by the "exercise-generation" task in lib/ai/registry.ts.
+ */
+async function callModel(
   system: string,
   prompt: string,
-  format: ReturnType<typeof zodOutputFormat<never>>
-): Promise<T | null> {
-  const client = getClient();
-  if (!client) return null;
-
-  const message = await client.messages.parse(
-    {
-      model: MODEL,
-      max_tokens: 16000,
-      thinking: { type: "adaptive" },
-      output_config: { effort: "high", format },
-      system,
-      messages: [{ role: "user", content: prompt }],
-    },
-    // A single web request is waiting on this; don't hang for the SDK default.
-    { timeout: 180_000 }
-  );
-
-  if (message.stop_reason === "refusal") return null;
-  return (message.parsed_output ?? null) as T | null;
+  schema: Parameters<typeof generateStructured>[0]["schema"]
+): Promise<{ object: unknown | null; reason?: string; retryable: boolean }> {
+  return generateStructured({ task: "exercise-generation", schema, system, prompt });
 }
 
 /**
@@ -679,11 +661,13 @@ export async function generateExercise(
   attempts = 2
 ): Promise<GenerationOutcome> {
   if (!llmGenerationAvailable()) {
-    return { variant: null, reason: "no ANTHROPIC_API_KEY set" };
+    return {
+      variant: null,
+      reason: "no AI provider configured (set ANTHROPIC_API_KEY or OPENAI_API_KEY)",
+    };
   }
 
   const schema = schemaFor(taskType);
-  const format = zodOutputFormat(schema) as ReturnType<typeof zodOutputFormat<never>>;
   const problems: string[] = [];
 
   for (let i = 0; i < attempts; i++) {
@@ -698,13 +682,17 @@ export async function generateExercise(
     }
 
     try {
-      const gen = await callModel<unknown>(SYSTEM, prompt, format);
-      if (!gen) {
-        problems.push("modellen returnerede intet brugbart svar");
+      const call = await callModel(SYSTEM, prompt, schema);
+      if (!call.object) {
+        problems.push(call.reason ?? "modellen returnerede intet brugbart svar");
+        // A missing key, a rejected key or a malformed request will not fix
+        // itself on the second attempt — stop and let the caller fall back to
+        // the authored pool rather than burning the retry on a certainty.
+        if (!call.retryable) break;
         continue;
       }
 
-      const variant = toVariant(taskType, category, moduleId, topic, gen);
+      const variant = toVariant(taskType, category, moduleId, topic, call.object);
       const check = validateVariant(variant);
       if (check.ok) return { variant };
 
@@ -715,18 +703,13 @@ export async function generateExercise(
         check.errors.join("; ")
       );
     } catch (err) {
-      const msg =
-        err instanceof Anthropic.APIError
-          ? `API error ${err.status}: ${err.message}`
-          : err instanceof Error
-            ? err.message
-            : "unknown error";
+      // Transport and provider failures are classified inside the AI layer and
+      // come back on the outcome above, so anything reaching here is a throw
+      // from toVariant or validateVariant — a shape the mapper did not expect.
+      // Worth retrying: the next generation may well be well-formed.
+      const msg = err instanceof Error ? err.message : "unknown error";
       console.warn(`[exercise-gen] ${taskType} attempt ${i + 1} threw:`, msg);
       problems.push(msg);
-      // A bad request or auth failure won't fix itself on retry.
-      if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.BadRequestError) {
-        break;
-      }
     }
   }
 

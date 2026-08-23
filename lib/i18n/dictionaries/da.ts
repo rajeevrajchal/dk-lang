@@ -33,6 +33,8 @@ export const da: Dictionary = {
     errorInvalid: "Forkert email eller adgangskode",
     errorGeneric: "Der skete en fejl",
     errorCreateAccount: "Kunne ikke oprette konto",
+    google: "Fortsæt med Google",
+    or: "eller",
   },
 
   dashboard: {

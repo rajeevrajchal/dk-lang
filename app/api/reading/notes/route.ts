@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { reading } from "@/lib/repositories";
 
 // Notes the learner wrote while reading.
 //
@@ -25,12 +25,7 @@ export async function GET(req: Request) {
   }
   const textId = new URL(req.url).searchParams.get("textId");
 
-  return NextResponse.json(
-    await prisma.readingNote.findMany({
-      where: { userId: session.user.id, ...(textId ? { textId } : {}) },
-      orderBy: { createdAt: "desc" },
-    })
-  );
+  return NextResponse.json(await reading.listNotes(session.user.id, textId ?? undefined));
 }
 
 export async function POST(req: Request) {
@@ -46,15 +41,12 @@ export async function POST(req: Request) {
   const d = parsed.data;
 
   return NextResponse.json(
-    await prisma.readingNote.create({
-      data: {
-        userId: session.user.id,
-        textId: d.textId,
-        anchorKind: d.anchorKind,
-        anchorId: d.anchorId ?? null,
-        quote: d.quote ?? null,
-        body: d.body,
-      },
+    await reading.createNote(session.user.id, {
+      textId: d.textId,
+      anchorKind: d.anchorKind,
+      anchorId: d.anchorId ?? null,
+      quote: d.quote ?? null,
+      body: d.body,
     })
   );
 }
@@ -67,11 +59,9 @@ export async function DELETE(req: Request) {
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
 
-  const existing = await prisma.readingNote.findUnique({ where: { id } });
-  if (!existing || existing.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  await prisma.readingNote.delete({ where: { id } });
+  // Scoped by userId inside the repository, so somebody else's note id simply
+  // matches nothing rather than being deleted.
+  const deleted = await reading.deleteNote(session.user.id, id);
+  if (!deleted) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
