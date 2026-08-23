@@ -162,6 +162,59 @@ export type LessonExercise =
   | CommunicationExercise;
 
 // ---------------------------------------------------------------------------
+// Lesson kinds
+//
+// Everything written before this existed is a grammar lesson, so that is the
+// default and nothing has to be relabelled. The kind decides which sections a
+// lesson renders — a reading lesson leads with its text, a writing lesson
+// leads with a worked example and its structure — not what a lesson is allowed
+// to contain. A grammar lesson can still carry a text, and usually should.
+// ---------------------------------------------------------------------------
+
+export const LESSON_KINDS = [
+  "grammar", // a rule, explained and practised
+  "reading", // a text, understood
+  "writing", // a text type, taken apart and then produced
+  "vocabulary", // words grouped by situation
+  "review", // old grammar met again in new company
+] as const;
+export type LessonKind = (typeof LESSON_KINDS)[number];
+
+// ---------------------------------------------------------------------------
+// Writing lessons
+//
+// A writing lesson teaches a text type by showing one, naming its parts, and
+// then handing the learner progressively less of it — which is why the model
+// is a list of labelled parts rather than a prompt and a word count.
+// ---------------------------------------------------------------------------
+
+/** One labelled move in a text: the greeting, the reason, the request. */
+export interface WritingPart {
+  /** What this part is for, e.g. "Greeting", "Reason for writing". */
+  label: string;
+  /** The line(s) from the worked example that do this job. */
+  danish: string;
+  english: string;
+  /** Why it is phrased this way, and what else could go here. */
+  note?: string;
+  /** Phrases that do the same job, for the learner to reuse. */
+  alternatives?: string[];
+}
+
+export interface WritingModel {
+  /** The situation the example answers. */
+  situation: string;
+  /** The finished text, so the learner sees the whole before the parts. */
+  example: string;
+  /** The same text, taken apart. Order is the order it is written in. */
+  parts: WritingPart[];
+  /** The skeleton to write into, with the parts named but empty. */
+  template?: string;
+  /** What a good attempt contains — the learner checks their own work. */
+  checklist: string[];
+}
+
+// ---------------------------------------------------------------------------
 // Curriculum hierarchy
 // ---------------------------------------------------------------------------
 

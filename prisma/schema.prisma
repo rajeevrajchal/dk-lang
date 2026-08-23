@@ -41,6 +41,10 @@ model User {
   lessonProgress    LessonProgress[]
   profile           UserProfile?
   officialResults   OfficialTestResult[]
+  readingProgress   ReadingProgress[]
+  savedWords        SavedWord[]
+  readingNotes      ReadingNote[]
+  readingHighlights ReadingHighlight[]
 }
 
 model Account {
@@ -464,7 +468,13 @@ model UserProfile {
   levelSetAt  DateTime?
 
   onboardedAt DateTime?
-  updatedAt   DateTime @updatedAt
+
+  // Reading interests, as a JSON array of ReadingTopic codes. On the profile
+  // because it is a fact about the learner, not about any one text — and a
+  // list this small does not earn a join table.
+  interestsJson String?
+
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -498,4 +508,157 @@ model OfficialTestResult {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Reading library
+//
+// Extensive reading: a learner working through Danish texts, looking things
+// up, saving what is useful. Separate from LessonProgress (was I taught this?)
+// and ExerciseAttempt (can I perform this?) because it answers a third
+// question — how much Danish have I actually read, and what did I take from
+// it. See docs/reading-module.md.
+// ---------------------------------------------------------------------------
+
+model ReadingProgress {
+  id     String @id @default(cuid())
+  userId String
+  // ReadingText.id — a content id, not a foreign key: the library is code.
+  textId String
+
+  // OPENED the first time it is rendered, COMPLETED when the learner says so.
+  // Reaching the bottom of the page is not evidence of having read anything.
+  status String @default("OPENED") // OPENED | COMPLETED
+
+  bookmarked Boolean @default(false)
+  // INTERESTING | USEFUL | DIFFICULT | WANT_TO_LEARN. One mark, replaceable —
+  // this feeds recommendations, and a text that is five things is no signal.
+  mark String?
+
+  // Seconds with the text open, accumulated. Rounded and coarse on purpose:
+  // useful as "you have read for 20 minutes this week", not as analytics.
+  readSeconds Int @default(0)
+
+  openedAt    DateTime  @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, textId])
+  @@index([userId])
+}
+
+// A word or expression the learner kept.
+//
+// This is the learner's own vocabulary, which is a different thing from the
+// seeded VocabItem bank (module-scoped content, currently empty). Where a
+// saved word does correspond to a bank entry, vocabItemId links them rather
+// than duplicating — one vocabulary, two sources.
+model SavedWord {
+  id     String @id @default(cuid())
+  userId String
+
+  // WORD or PHRASE. Danish is learned in chunks as much as in words, and a
+  // learner who can only save single words ends up unable to produce the
+  // sentences they can translate.
+  kind String @default("WORD")
+
+  // The form that was saved, e.g. "tager" or "tage bussen".
+  danish String
+  // Dictionary form, when known.
+  lemma       String?
+  translation String
+  partOfSpeech String?
+  // The sentence it was saved from — a word without its context is a flashcard.
+  contextSentence String?
+  // Grammar note carried over from the gloss.
+  grammarNote String?
+
+  // Where it came from, so the learner can go back and re-read it.
+  sourceTextId String?
+
+  note    String?
+  learned Boolean @default(false)
+
+  // Set when this matches an entry in the seeded bank.
+  vocabItemId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The same word saved twice from two texts is one entry, not two.
+  @@unique([userId, danish])
+  @@index([userId])
+}
+
+// A note the learner wrote while reading, attached to whatever they had
+// selected. The anchor is content-addressed (paragraph index, sentence index,
+// or the word itself) rather than a character offset, so editing a text does
+// not silently move every note in it.
+model ReadingNote {
+  id     String @id @default(cuid())
+  userId String
+  textId String
+
+  anchorKind String // TEXT | PARAGRAPH | SENTENCE | WORD
+  // Paragraph/sentence index as a string, or the word surface. Null for TEXT.
+  anchorId String?
+  // What was selected, stored so the note still reads correctly on its own.
+  quote String?
+
+  body String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, textId])
+}
+
+// A highlighted sentence. Deliberately sentence-granular for the first
+// version: character ranges would need to survive content edits, and the
+// learner's actual need — "mark this bit" — is met by the sentence.
+model ReadingHighlight {
+  id     String @id @default(cuid())
+  userId String
+  textId String
+
+  sentenceIndex Int
+  // YELLOW vocabulary · BLUE grammar · GREEN useful phrase · RED not understood
+  color String @default("YELLOW")
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, textId, sentenceIndex])
+  @@index([userId, textId])
+}
+
+// Cache for generated explanations.
+//
+// Not per-user: the explanation of a sentence is a fact about the sentence, so
+// one learner asking pays for it and everyone benefits. Keyed by the scope
+// asked about plus the level it was pitched at, since the same sentence gets a
+// different answer for a beginner than for a PD3 candidate.
+model ReadingExplanation {
+  id     String @id @default(cuid())
+  textId String
+
+  scopeKind String // WORD | PHRASE | SENTENCE | PARAGRAPH | TEXT
+  // Sentence/paragraph index, or the selected text itself.
+  scopeId String
+  // Reading level the explanation was written for.
+  level Int
+  // DEFAULT for the short answer, DEEP when the learner asked for more.
+  depth String @default("DEFAULT")
+
+  json      String
+  createdAt DateTime @default(now())
+
+  @@unique([textId, scopeKind, scopeId, level, depth])
 }

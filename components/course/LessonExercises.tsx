@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import type { LessonExercise } from "@/lib/curriculum/course-types";
 import type { ExerciseCheck } from "@/lib/curriculum/progress";
+import { buildMistake } from "@/lib/learning/feedback";
 
 // The practice half of a lesson.
 //
@@ -13,6 +14,10 @@ import type { ExerciseCheck } from "@/lib/curriculum/progress";
 //
 // Grading happens server-side (POST /api/course/progress); this only collects
 // answers and renders the verdict that comes back.
+//
+// A wrong answer is shown the way a teacher would show it: what you wrote,
+// next to what it should have been, and why. "✗" on its own teaches nothing,
+// and the grader already returns everything needed to do better.
 
 const card = "rounded-lg border border-slate-200 bg-white p-4";
 
@@ -219,15 +224,23 @@ export function LessonExercises({
                   {check.correct === true
                     ? `✓ ${t.correctMark}`
                     : check.correct === false
-                      ? `✗ ${t.wrongMark}`
+                      ? `✗ ${t.almostMark}`
                       : t.selfCheckMark}
                 </p>
-                {check.correct === false && check.expected && (
-                  <p className="mt-0.5 text-slate-600">
-                    {t.expectedWas}: <span className="font-medium">{check.expected}</span>
-                  </p>
+
+                {check.correct === false && (
+                  <MistakeContrast
+                    exercise={ex}
+                    response={responses[ex.id]}
+                    expected={check.expected}
+                    expectedLabel={t.expectedWas}
+                    wordOrderHint={t.wordOrderHint}
+                  />
                 )}
-                {check.explanation && <p className="mt-0.5 text-slate-600">{check.explanation}</p>}
+
+                {check.explanation && (
+                  <p className="mt-1.5 text-slate-700 leading-relaxed">{check.explanation}</p>
+                )}
               </div>
             )}
           </div>
@@ -382,6 +395,57 @@ function OrderingInput({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * "You wrote this; it should be this." Shown for a wrong answer on any rung
+ * that has a single right answer — free production and communication get
+ * nothing here, because inventing a "correct" version of an open answer would
+ * be a lie.
+ */
+function MistakeContrast({
+  exercise,
+  response,
+  expected,
+  expectedLabel,
+  wordOrderHint,
+}: {
+  exercise: LessonExercise;
+  response: string | undefined;
+  expected: string | undefined;
+  expectedLabel: string;
+  wordOrderHint: string;
+}) {
+  const mistake = buildMistake(exercise, response, expected);
+
+  // Nothing to contrast — fall back to naming the expected answer, which is
+  // what this did before.
+  if (!mistake) {
+    return expected ? (
+      <p className="mt-0.5 text-slate-600">
+        {expectedLabel}: <span className="font-medium">{expected}</span>
+      </p>
+    ) : null;
+  }
+
+  return (
+    <div className="mt-2 space-y-1">
+      <p className="text-red-800">
+        <span aria-hidden>❌ </span>
+        <span className="line-through decoration-red-300">{mistake.yours}</span>
+      </p>
+      <p className="text-emerald-800">
+        <span aria-hidden>✅ </span>
+        <span className="font-medium">{mistake.correct}</span>
+      </p>
+      {mistake.hint === "word-order" && (
+        <p className="text-slate-500">{wordOrderHint}</p>
+      )}
+      {mistake.hint && mistake.hint !== "word-order" && (
+        <p className="text-slate-500">{mistake.hint}</p>
+      )}
     </div>
   );
 }

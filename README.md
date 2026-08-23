@@ -35,6 +35,13 @@ Built end-to-end, with real seeded content and a passing production build:
 - Auth (email/password) + onboarding + the four-area app shell
 - Grammar course (`/lessons`): 15 chapters, chapter/topic/lesson hierarchy,
   a course sidebar, per-lesson progress and resume-where-you-left-off
+- Reading and writing lessons inside those chapters, with interactive Danish
+  texts you can read word by word, sentence by sentence or whole
+  (`docs/class-curriculum.md`)
+- A reading library (Class → Reading): 12 texts from A1 to PD3 level, filterable
+  by level, type, topic and length, with click-to-explain words and sentences,
+  saved vocabulary, notes and highlights (`docs/reading-module.md`). Answers
+  come from the texts' own glossaries first, so it works without an API key.
 - Skill-first practice (`/class`): reading, speaking and writing, with the
   task types each module actually examines
 - **Modul 2 reading**, tiers 1–3: 38 tagged items (constructs, topic,

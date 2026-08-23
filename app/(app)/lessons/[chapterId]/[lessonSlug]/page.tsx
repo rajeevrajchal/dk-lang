@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CHAPTER_BY_ID, LESSON_BY_SLUG } from "@/lib/curriculum/course";
+import { lessonKind } from "@/lib/content-gen/theory";
 import { LessonExercises } from "@/components/course/LessonExercises";
 import { LessonVisit } from "@/components/lessons/LessonVisit";
+import { InteractiveText } from "@/components/reading/InteractiveText";
+import { WritingModelPanel } from "@/components/writing/WritingModelPanel";
 import { getServerDictionary } from "@/lib/i18n/server";
 
 // A course lesson.
@@ -28,6 +31,7 @@ export default async function CourseLessonPage({
   const dict = await getServerDictionary();
   const t = dict.course;
   const topic = chapter.topics.find((x) => x.lessonSlug === lessonSlug);
+  const kind = lessonKind(lesson);
 
   return (
     <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-6">
@@ -41,7 +45,14 @@ export default async function CourseLessonPage({
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
           {t.chapterLabel(chapter.number)} · {chapter.title}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold">{lesson.title}</h1>
+        <div className="mt-1 flex items-baseline gap-3 flex-wrap">
+          <h1 className="text-2xl font-semibold">{lesson.title}</h1>
+          {kind !== "grammar" && (
+            <span className="text-xs font-medium rounded-full bg-slate-900 text-white px-2.5 py-1">
+              {dict.course.lessonKinds[kind]}
+            </span>
+          )}
+        </div>
         <p className="text-sm text-slate-400">{lesson.danishName}</p>
       </header>
 
@@ -143,6 +154,33 @@ export default async function CourseLessonPage({
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {/* The Danish itself. A reading lesson IS this; a grammar lesson uses it
+          to show the rule working in a real text an hour after teaching it. */}
+      {lesson.texts?.map((text) => (
+        <section key={text.id} className="space-y-3">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+              {dict.reading.title}
+            </h2>
+            <span className="text-xs text-slate-400">
+              {dict.reading.textGenres[text.genre] ?? text.genre}
+            </span>
+          </div>
+          <InteractiveText text={text} />
+        </section>
+      ))}
+
+      {/* For a writing lesson: the worked example, taken apart, before any
+          writing is asked for. */}
+      {lesson.writingModel && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+            {dict.writing.title}
+          </h2>
+          <WritingModelPanel model={lesson.writingModel} />
         </section>
       )}
 
