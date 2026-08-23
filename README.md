@@ -147,6 +147,10 @@ npx prisma migrate dev      # creates dev.db and runs prisma/seed.ts
 npm run dev
 ```
 
+> **Database:** this app now runs on Supabase PostgreSQL rather than SQLite.
+> You need a Supabase project and the two connection strings before the app
+> will start — see `docs/supabase-migration.md` for the setup steps.
+
 Register an account at `/login`, and you land on the dashboard already
 diagnosed into Modul 2 reading at Tier 2 (see `lib/adaptive/engine.ts` for
 why it skips Tier 1 for a learner who's already sat the real exam).
