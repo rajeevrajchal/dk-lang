@@ -1,28 +1,23 @@
-import { notFound } from "next/navigation";
-import { ExerciseRunner } from "@/components/exercises/ExerciseRunner";
-import { llmGenerationAvailable } from "@/lib/exercises/generator";
+import { notFound, redirect } from "next/navigation";
 import { EXERCISE_CATEGORIES, type ExerciseCategory } from "@/lib/exercises/types";
 
-export default async function OpgaverPage({
+// Opgave practice moved under Class, where it sits beside the other two
+// skills instead of being a separate corner of the app. Old links still work.
+export default async function OpgaverRedirect({
   params,
 }: {
   params: Promise<{ moduleId: string; category: string }>;
 }) {
   const { moduleId, category } = await params;
-  const moduleIdNum = Number(moduleId);
   const upper = category.toUpperCase() as ExerciseCategory;
 
-  if (!Number.isFinite(moduleIdNum) || !EXERCISE_CATEGORIES.includes(upper)) {
+  if (!Number.isFinite(Number(moduleId)) || !EXERCISE_CATEGORIES.includes(upper)) {
     notFound();
   }
 
-  // Drives the loading copy only: with generation on, /next takes seconds and
-  // the learner should know why; without it, an authored exercise is instant.
-  return (
-    <ExerciseRunner
-      moduleId={moduleIdNum}
-      category={upper}
-      generationEnabled={llmGenerationAvailable()}
-    />
-  );
+  // Listening has no practice route of its own — it has no content — so it
+  // lands on the Class overview, which says as much.
+  if (upper === "LISTENING") redirect("/class");
+
+  redirect(`/class/${category.toLowerCase()}/${moduleId}/any`);
 }

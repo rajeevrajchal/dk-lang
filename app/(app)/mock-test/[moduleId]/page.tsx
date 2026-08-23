@@ -1,19 +1,12 @@
-import { notFound } from "next/navigation";
-import { MockTestRunner } from "@/components/exercises/MockTestRunner";
-import { llmGenerationAvailable } from "@/lib/exercises/generator";
-import { MODULE_BY_ID } from "@/lib/curriculum/modules";
+import { redirect } from "next/navigation";
 
-export default async function MockTestPage({
+// Mock tests moved into the Mock area. Old links land on the module's mock
+// page, which offers the full test and the individual sections.
+export default async function MockTestRedirect({
   params,
 }: {
   params: Promise<{ moduleId: string }>;
 }) {
   const { moduleId } = await params;
-  const moduleIdNum = Number(moduleId);
-  const mod = MODULE_BY_ID.get(moduleIdNum);
-  if (!mod || mod.isOralOnly) notFound();
-
-  return (
-    <MockTestRunner moduleId={moduleIdNum} generationEnabled={llmGenerationAvailable()} />
-  );
+  redirect(`/mock/${moduleId}`);
 }

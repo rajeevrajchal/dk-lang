@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { ExerciseBody, expectedAnswerKeys } from "./renderers";
 import { OpgaveExplain } from "./OpgaveExplain";
+import { practiceHrefFor, summariseMock } from "@/lib/exercises/mock-summary";
 import type {
   ExerciseResponse,
   GradedAnswer,
@@ -17,6 +18,7 @@ interface PartResult {
   attemptId: string;
   orderIndex: number;
   category: string;
+  taskType: string;
   taskNumber: number | null;
   topic: string;
   title: string;
@@ -51,9 +53,12 @@ function formatTime(seconds: number) {
 export function MockTestRunner({
   moduleId,
   generationEnabled,
+  backHref,
 }: {
   moduleId: number;
   generationEnabled: boolean;
+  /** Where "back" goes. Defaults to the module hub, as it always did. */
+  backHref?: string;
 }) {
   const { dict } = useI18n();
   const t = dict.mockTest;
@@ -142,7 +147,10 @@ export function MockTestRunner({
   if (phase === "intro") {
     return (
       <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-6">
-        <Link href={`/class/${moduleId}`} className="text-sm text-slate-500 hover:underline">
+        <Link
+          href={backHref ?? `/class/${moduleId}`}
+          className="text-sm text-slate-500 hover:underline"
+        >
           {te.backToModule}
         </Link>
         <div className="rounded-xl border-2 border-slate-900 bg-white p-8">
@@ -239,6 +247,12 @@ export function MockTestRunner({
           <p className="mt-2 text-xs text-slate-500 leading-relaxed">{t.writingNotScored}</p>
         </section>
 
+        {/* Strengths and weak areas, read straight off the per-opgave scores
+            above. Each weak area links to the Class practice for exactly that
+            task type — the point of a mock test is to tell you what to go and
+            work on. */}
+        <MockBreakdown parts={result.parts} moduleId={moduleId} />
+
         <section>
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
             {t.perPart}
@@ -302,7 +316,7 @@ export function MockTestRunner({
 
         <div className="flex gap-3 flex-wrap">
           <Link
-            href={`/class/${moduleId}`}
+            href={backHref ?? `/class/${moduleId}`}
             className="rounded-md bg-slate-900 text-white text-sm font-medium px-5 py-2.5"
           >
             {t.backToModule}
@@ -426,5 +440,88 @@ export function MockTestRunner({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * "Strengths / needs practice" for a finished mock test.
+ *
+ * Grouped by task type, so the advice is actionable ("Opgave 3 — missing
+ * words") rather than a single number. Only scored opgaver appear: writing has
+ * no examiner here, so it is not turned into a strength or a weakness.
+ */
+function MockBreakdown({ parts, moduleId }: { parts: PartResult[]; moduleId: number }) {
+  const { dict } = useI18n();
+  const t = dict.mock;
+  const te = dict.exercises;
+  const summary = summariseMock(parts);
+
+  if (summary.all.length === 0) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <p className="text-sm text-slate-500">{t.noBreakdown}</p>
+      </section>
+    );
+  }
+
+  function label(taskType: string) {
+    return te.taskTypeNames[taskType] ?? te.categories[taskType] ?? taskType;
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
+      {summary.overall != null && (
+        <div>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            {t.overall}
+          </p>
+          <p className="mt-1 text-2xl font-semibold">{Math.round(summary.overall * 100)}%</p>
+        </div>
+      )}
+
+      {summary.strengths.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">
+            {t.strengths}
+          </p>
+          <ul className="mt-2 space-y-1">
+            {summary.strengths.map((e) => (
+              <li key={e.taskType} className="text-sm text-slate-700">
+                {label(e.taskType)}{" "}
+                <span className="text-slate-400">
+                  {e.correct}/{e.total}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {summary.needsPractice.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
+            {t.needsPractice}
+          </p>
+          <ul className="mt-2 space-y-1">
+            {summary.needsPractice.map((e) => (
+              <li key={e.taskType} className="text-sm text-slate-700 flex items-baseline gap-2 flex-wrap">
+                <span>
+                  {label(e.taskType)}{" "}
+                  <span className="text-slate-400">
+                    {e.correct}/{e.total}
+                  </span>
+                </span>
+                <Link
+                  href={practiceHrefFor(e, moduleId)}
+                  className="text-xs text-slate-500 underline hover:text-slate-900"
+                >
+                  {dict.class2.title} →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
   );
 }

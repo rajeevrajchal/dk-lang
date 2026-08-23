@@ -1,90 +1,90 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { getModuleDashboardState, pickCurrentModuleId } from "@/lib/unlock";
+import { getUserLevel } from "@/lib/level";
+import { getPracticeActivity } from "@/lib/activity";
 import { getServerDictionary } from "@/lib/i18n/server";
+
+// Class — the practice area.
+//
+// The first question is not "which module?" but "what would you like to
+// practise?". Skill first, module second: a learner comes here wanting to work
+// on their speaking, not wanting to browse Modul 3.
+
+const SKILLS = [
+  { key: "READING", href: "/class/reading", icon: "📖" },
+  { key: "SPEAKING", href: "/class/speaking", icon: "🎤" },
+  { key: "WRITING", href: "/class/writing", icon: "✍️" },
+] as const;
 
 export default async function ClassPage() {
   const session = await auth();
   const dict = await getServerDictionary();
-  const moduleStates = await getModuleDashboardState(session!.user.id);
-  const currentModuleId = pickCurrentModuleId(moduleStates);
+  const t = dict.class2;
+
+  const [level, activity] = await Promise.all([
+    getUserLevel(session!.user.id),
+    getPracticeActivity(session!.user.id),
+  ]);
 
   return (
-    <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-6">
+    <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-8">
       <div>
-        <h1 className="text-xl font-semibold">{dict.class.title}</h1>
-        <p className="mt-1 text-sm text-slate-600">{dict.class.subtitle}</p>
+        <h1 className="text-xl font-semibold">{t.title}</h1>
+        <p className="mt-1 text-sm text-slate-600">{t.subtitle}</p>
       </div>
 
-      <Link
-        href="/class/course"
-        className="block rounded-xl border-2 border-slate-900 bg-white p-5 hover:bg-slate-50"
-      >
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <p className="font-medium">{dict.course.title}</p>
-            <p className="mt-1 text-sm text-slate-600">{dict.course.subtitle}</p>
-          </div>
-          <span className="text-xs font-medium rounded-md bg-slate-900 text-white px-3 py-1.5 whitespace-nowrap">
-            {dict.course.startHere}
-          </span>
+      <section>
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
+          {t.question}
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {SKILLS.map((skill) => {
+            const sessions = activity.find((a) => a.category === skill.key)?.sessions ?? 0;
+            return (
+              <Link
+                key={skill.key}
+                href={skill.href}
+                className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
+              >
+                <span aria-hidden className="text-2xl">
+                  {skill.icon}
+                </span>
+                <p className="mt-3 font-medium">{t.skills[skill.key]}</p>
+                <p className="mt-1 text-xs text-slate-500">{t.skillDescriptions[skill.key]}</p>
+                <p className="mt-3 text-xs text-slate-400">
+                  {sessions > 0
+                    ? dict.dashboard.practiceSessions(sessions)
+                    : dict.dashboard.practiceNever}
+                </p>
+              </Link>
+            );
+          })}
         </div>
-      </Link>
+      </section>
 
-      <div className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
-        {moduleStates.map((m) => {
-          const copy = dict.moduleCopy[m.moduleId];
-          const isCurrent = m.moduleId === currentModuleId;
-          const clickable = m.practiceUnlocked;
-
-          const statusLabel = m.isOralOnly
-            ? dict.class.oralOnly
-            : m.officiallyFullyPassed
-              ? dict.class.officiallyPassed
-              : m.inAppFullyPassed
-                ? dict.class.appReady
-                : m.practiceUnlocked
-                  ? dict.class.unlockedForPractice
-                  : dict.class.lockedStatus;
-
-          const statusClass = m.isOralOnly
-            ? "bg-slate-100 text-slate-500"
-            : m.officiallyFullyPassed
-              ? "bg-emerald-100 text-emerald-800"
-              : m.inAppFullyPassed
-                ? "bg-blue-100 text-blue-800"
-                : m.practiceUnlocked
-                  ? "bg-slate-100 text-slate-700"
-                  : "bg-slate-50 text-slate-400";
-
-          const body = (
-            <div className="p-5 flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="font-medium">{copy.name}</p>
-                  {isCurrent && (
-                    <span className="text-xs font-medium rounded-full bg-slate-900 text-white px-2 py-0.5">
-                      {dict.class.continueBadge}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-slate-500">{copy.cefrGoal}</p>
-              </div>
-              <span className={`text-xs font-medium rounded-full px-3 py-1 ${statusClass}`}>{statusLabel}</span>
-            </div>
-          );
-
-          return clickable ? (
-            <Link key={m.moduleId} href={`/class/${m.moduleId}`} className="block hover:bg-slate-50">
-              {body}
-            </Link>
-          ) : (
-            <div key={m.moduleId} className="opacity-50 cursor-not-allowed">
-              {body}
-            </div>
-          );
-        })}
+      {/* Listening is declared but has no audio — saying so is better than
+          hiding it and letting the learner wonder. */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 opacity-60">
+        <p className="text-sm font-medium">{t.skills.LISTENING}</p>
+        <p className="mt-1 text-xs text-slate-500">{t.skillDescriptions.LISTENING}</p>
       </div>
+
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-slate-600">{t.vsLessons}</p>
+        <Link
+          href="/lessons"
+          className="text-xs font-medium rounded-md border border-slate-300 bg-white px-3 py-1.5 whitespace-nowrap"
+        >
+          {dict.nav.lessons} →
+        </Link>
+      </div>
+
+      {level.currentModule && (
+        <p className="text-xs text-slate-400">
+          {dict.dashboard.yourLevel}: {level.education === "DU3" ? "PD3" : level.education} ·{" "}
+          {t.moduleLabel(level.currentModule)}
+        </p>
+      )}
     </div>
   );
 }

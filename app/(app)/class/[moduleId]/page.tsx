@@ -8,6 +8,12 @@ import { categoryHasContent } from "@/lib/exercises/registry";
 import { EXERCISE_CATEGORIES } from "@/lib/exercises/types";
 import { getServerDictionary } from "@/lib/i18n/server";
 
+// The per-module hub inside Class.
+//
+// Kept from before the restructure so every link that pointed at
+// /class/[moduleId] still lands somewhere sensible, and because "everything
+// for Modul 2 in one place" is genuinely useful next to the skill-first
+// route. Its links now point at the new Class and Mock areas.
 export default async function ClassModulePage({
   params,
 }: {
@@ -141,7 +147,7 @@ export default async function ClassModulePage({
                 return available ? (
                   <Link
                     key={cat}
-                    href={`/opgaver/${moduleIdNum}/${cat.toLowerCase()}`}
+                    href={`/class/${cat.toLowerCase()}/${moduleIdNum}`}
                     className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
                   >
                     {body}
@@ -192,7 +198,7 @@ export default async function ClassModulePage({
               </h2>
               {hasContent(moduleIdNum, "READING") && (
                 <Link
-                  href={`/mock-test/${moduleIdNum}`}
+                  href={`/mock/${moduleIdNum}`}
                   className="text-sm font-medium rounded-md bg-slate-900 text-white px-4 py-2"
                 >
                   {dict.class.startTest}
