@@ -32,8 +32,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       data-theme="light"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
-        <LocaleProvider initialLocale={locale} initialTranslateHelperDefault={translateHelperDefault}>
+      <body className="h-screen flex flex-col bg-slate-50 text-slate-900">
+        <LocaleProvider
+          initialLocale={locale}
+          initialTranslateHelperDefault={translateHelperDefault}
+        >
           <Providers>{children}</Providers>
         </LocaleProvider>
       </body>

@@ -53,12 +53,17 @@ export function LessonSidebar({
   const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
 
   return (
-    <aside className="w-64 shrink-0 border-r border-slate-200 bg-white overflow-y-auto">
+    <aside className="h-screen w-64 shrink-0 border-r border-slate-200 bg-white overflow-y-auto">
       <div className="p-5 border-b border-slate-100">
-        <Link href="/lessons" className="text-sm font-semibold text-slate-900 hover:underline">
+        <Link
+          href="/lessons"
+          className="text-sm font-semibold text-slate-900 hover:underline"
+        >
           {t.courseTitle}
         </Link>
-        <p className="mt-2 text-xs text-slate-500">{t.sidebarProgress(completed, total)}</p>
+        <p className="mt-2 text-xs text-slate-500">
+          {t.sidebarProgress(completed, total)}
+        </p>
         <div className="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
           <div className="h-full bg-slate-900" style={{ width: `${pct}%` }} />
         </div>
@@ -85,7 +90,10 @@ export function LessonSidebar({
                   className="flex items-start gap-2 rounded-md px-2.5 py-2 text-sm text-slate-400"
                   title={t.lockedHint}
                 >
-                  <span aria-hidden className="w-4 shrink-0 text-center text-xs leading-5">
+                  <span
+                    aria-hidden
+                    className="w-4 shrink-0 text-center text-xs leading-5"
+                  >
                     {MARK.locked}
                   </span>
                   <span className="truncate">
@@ -104,7 +112,9 @@ export function LessonSidebar({
                   <span
                     aria-hidden
                     className={`w-4 shrink-0 text-center text-xs leading-5 ${
-                      chapter.status === "complete" ? "text-emerald-600" : "text-slate-400"
+                      chapter.status === "complete"
+                        ? "text-emerald-600"
+                        : "text-slate-400"
                     }`}
                   >
                     {MARK[chapter.status]}
@@ -142,7 +152,13 @@ export function LessonSidebar({
                                   : "text-slate-300"
                             }`}
                           >
-                            {topic.done ? "✓" : current ? "→" : topic.started ? "→" : "○"}
+                            {topic.done
+                              ? "✓"
+                              : current
+                                ? "→"
+                                : topic.started
+                                  ? "→"
+                                  : "○"}
                           </span>
                           <span>{topic.title}</span>
                         </Link>
