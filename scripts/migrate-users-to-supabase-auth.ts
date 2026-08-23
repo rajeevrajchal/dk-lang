@@ -19,7 +19,11 @@
  * Their application row, and therefore every attempt, note and lesson hanging
  * off its id, is untouched either way.
  *
- * Idempotent: a user who already has `supabaseUserId` is skipped.
+ * Idempotent and SELF-HEALING: a user whose `supabaseUserId` points at an
+ * identity that no longer exists is re-linked rather than skipped. Skipping on
+ * the presence of the column alone left two accounts unable to sign in when
+ * their identities were removed — the column was set, so the script declared
+ * them done.
  */
 import { PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
@@ -42,16 +46,28 @@ async function main() {
     select: { id: true, email: true, name: true, supabaseUserId: true },
   });
 
+  // Fetched once rather than per user: listUsers is paginated and this is the
+  // authority on which identities actually exist.
+  const { data: list, error: listError } = await supabase.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+  if (listError) throw new Error(`could not list Supabase users: ${listError.message}`);
+  const existingIds = new Set(list.users.map((u) => u.id));
+
   for (const user of users) {
-    if (user.supabaseUserId) {
+    // A link is only real if the identity behind it still exists. Trusting the
+    // column alone is how two accounts ended up locked out: the column was
+    // set, the identity was gone, and the script skipped them.
+    if (user.supabaseUserId && existingIds.has(user.supabaseUserId)) {
       console.log(`  skip    ${user.email} (already linked)`);
       continue;
     }
+    if (user.supabaseUserId) {
+      console.log(`  repair  ${user.email} (link pointed at a deleted identity)`);
+    }
 
-    // Supabase may already know this address — from a Google sign-in, or a
-    // previous half-finished run of this script.
-    const { data: list } = await supabase.auth.admin.listUsers();
-    const found = list?.users.find((u) => u.email?.toLowerCase() === user.email.toLowerCase());
+    const found = list.users.find((u) => u.email?.toLowerCase() === user.email.toLowerCase());
 
     let supabaseUserId = found?.id;
 
@@ -70,12 +86,13 @@ async function main() {
 
     await prisma.user.update({
       where: { id: user.id },
-      data: {
-        supabaseUserId,
-        // The bcrypt hash is now dead weight: nothing reads it, and leaving it
-        // implies a password that no longer works.
-        passwordHash: null,
-      },
+      data: { supabaseUserId },
+      // The bcrypt hash is deliberately LEFT ALONE. Nothing reads it any more,
+      // but clearing it destroys the only record of the account's original
+      // credential in the same step that creates a replacement which can be
+      // deleted independently — as happened here. Dead weight is cheaper than
+      // an unrecoverable account. Clear it separately once sign-in is
+      // confirmed working.
     });
 
     console.log(`  linked  ${user.email} -> ${supabaseUserId}${found ? " (existing identity)" : ""}`);
