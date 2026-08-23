@@ -4,6 +4,9 @@ import { getUserLevel, listOfficialTestResults } from "@/lib/level";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { TranslateHelperToggle } from "@/components/TranslateHelperToggle";
 import { LevelSection } from "@/components/profile/LevelSection";
+import { InterestsPicker } from "@/components/reading/InterestsPicker";
+import { parseInterests } from "@/lib/reading/interests";
+import { prisma } from "@/lib/db";
 
 // Settings is where facts about the learner live: who they are, what level
 // they are at, and which real tests they have sat. The learning areas read
@@ -12,9 +15,13 @@ import { LevelSection } from "@/components/profile/LevelSection";
 export default async function SettingsPage() {
   const session = await auth();
   const dict = await getServerDictionary();
-  const [level, officialResults] = await Promise.all([
+  const [level, officialResults, profile] = await Promise.all([
     getUserLevel(session!.user.id),
     listOfficialTestResults(session!.user.id),
+    prisma.userProfile.findUnique({
+      where: { userId: session!.user.id },
+      select: { interestsJson: true },
+    }),
   ]);
 
   return (
@@ -36,6 +43,13 @@ export default async function SettingsPage() {
           note: r.note,
         }))}
       />
+
+      <section>
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
+          {dict.reading.yourInterests}
+        </h2>
+        <InterestsPicker initial={parseInterests(profile?.interestsJson)} />
+      </section>
 
       <section>
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">

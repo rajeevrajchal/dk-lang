@@ -18,30 +18,42 @@ import { getServerDictionary } from "@/lib/i18n/server";
 export async function SkillModules({
   category,
   skill,
+  embedded = false,
 }: {
   category: ExerciseCategory;
   /** URL segment: "reading" | "speaking" | "writing". */
   skill: string;
+  /**
+   * Rendered inside another page that has already said what this is. Drops
+   * the back link, the heading and the page padding, keeping only the list.
+   */
+  embedded?: boolean;
 }) {
   const dict = await getServerDictionary();
   const t = dict.class2;
   const generation = llmGenerationAvailable();
 
   return (
-    <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-6">
-      <Link href="/class" className="text-sm text-slate-500 hover:underline">
-        {t.backToClass}
-      </Link>
+    <div className={embedded ? "" : "max-w-3xl mx-auto p-6 sm:p-8 space-y-6"}>
+      {!embedded && (
+        <>
+          <Link href="/class" className="text-sm text-slate-500 hover:underline">
+            {t.backToClass}
+          </Link>
 
-      <div>
-        <h1 className="text-xl font-semibold">{t.skills[category]}</h1>
-        <p className="mt-1 text-sm text-slate-600">{t.skillDescriptions[category]}</p>
-      </div>
+          <div>
+            <h1 className="text-xl font-semibold">{t.skills[category]}</h1>
+            <p className="mt-1 text-sm text-slate-600">{t.skillDescriptions[category]}</p>
+          </div>
+        </>
+      )}
 
       <section>
-        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
-          {t.chooseModule}
-        </h2>
+        {!embedded && (
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
+            {t.chooseModule}
+          </h2>
+        )}
         <div className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
           {MODULES.filter((m) => !m.isOralOnly || category === "SPEAKING").map((mod) => {
             const available = moduleCategoryAvailable(mod.id, category, generation);
