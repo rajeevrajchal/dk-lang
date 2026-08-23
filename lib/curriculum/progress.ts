@@ -1,7 +1,7 @@
 import { DANISH_COURSE, CHAPTER_BY_ID } from "./course";
 import { isAutoCheckable, type CourseChapter, type LessonExercise } from "./course-types";
 
-// Progression through the course: what is done, what is unlocked, what is next.
+// Progression through the course: what is done and what to do next.
 //
 // Pure functions over a plain record of lesson results, so the rules can be
 // tested without a database. Persistence is the caller's problem.
@@ -75,43 +75,38 @@ export function chapterProgress(
 }
 
 /**
- * A chapter is unlocked when every chapter it names as a prerequisite is
- * complete. Chapter 1 has none, so a brand-new learner always has somewhere
- * to start.
+ * Every chapter is open, always.
+ *
+ * `prerequisites` still says what a chapter is built on — that is real, and
+ * `missingPrerequisites` reports it — but it is a recommendation, not a gate.
+ * A learner who wants to look ahead, or go back to Chapter 2 after finishing
+ * Chapter 9, is doing something reasonable and should not be stopped.
  */
-export function chapterUnlocked(chapter: CourseChapter, progress: ProgressMap): boolean {
-  return chapter.prerequisites.every((id) => {
-    const prereq = CHAPTER_BY_ID.get(id);
-    return prereq ? chapterComplete(prereq, progress) : true;
-  });
-}
-
-export type ChapterStatus = "locked" | "available" | "in_progress" | "complete";
+export type ChapterStatus = "available" | "in_progress" | "complete";
 
 export function chapterStatus(chapter: CourseChapter, progress: ProgressMap): ChapterStatus {
   if (chapterComplete(chapter, progress)) return "complete";
-  if (!chapterUnlocked(chapter, progress)) return "locked";
   const { done } = chapterProgress(chapter, progress);
   return done > 0 ? "in_progress" : "available";
 }
 
 /**
- * The single thing to do next: the first unfinished lesson in the earliest
- * unlocked chapter. This is what makes the Class able to answer "what should I
- * learn next?" rather than presenting a menu.
+ * The single thing to do next: the first unfinished lesson in course order.
+ * This is what makes the Class able to answer "what should I learn next?"
+ * rather than presenting a menu — a suggestion, not a restriction.
  */
 export function nextUp(
   progress: ProgressMap
 ): { chapter: CourseChapter; lessonSlug: string } | null {
   for (const chapter of DANISH_COURSE.chapters) {
-    if (!chapterUnlocked(chapter, progress)) continue;
     const slug = chapterLessonSlugs(chapter).find((s) => !lessonPassed(progress[s]));
     if (slug) return { chapter, lessonSlug: slug };
   }
   return null;
 }
 
-/** Which prerequisites are still missing, for explaining a locked chapter. */
+/** Which prerequisites are still missing, for telling a learner what a
+ * chapter builds on. Informational only — nothing is locked. */
 export function missingPrerequisites(
   chapter: CourseChapter,
   progress: ProgressMap

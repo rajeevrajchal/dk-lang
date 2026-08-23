@@ -441,3 +441,23 @@ export function chaptersForModule(moduleId: number): CourseChapter[] {
 export function courseLessonSlugs(): string[] {
   return CHAPTERS.flatMap((c) => c.topics.map((t) => t.lessonSlug));
 }
+
+/**
+ * The lesson that comes after this one in teaching order, with the chapter it
+ * belongs to — regardless of what the learner has finished.
+ *
+ * This is what "jump onwards" at the end of a lesson follows. Progress does
+ * not come into it: the course order is the course order, and a learner who
+ * goes back to an old lesson should still be offered the lesson that follows
+ * it, not dropped somewhere else.
+ */
+export function nextLessonAfter(
+  slug: string
+): { chapter: CourseChapter; lessonSlug: string } | null {
+  const sequence = CHAPTERS.flatMap((chapter) =>
+    chapter.topics.map((topic) => ({ chapter, lessonSlug: topic.lessonSlug }))
+  );
+  const at = sequence.findIndex((step) => step.lessonSlug === slug);
+  if (at === -1) return null;
+  return sequence[at + 1] ?? null;
+}

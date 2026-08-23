@@ -5,7 +5,6 @@ import { loadLessonProgress } from "@/lib/curriculum/lesson-progress";
 import {
   chapterProgress,
   chapterStatus,
-  missingPrerequisites,
   moduleReadiness,
   resumePoint,
 } from "@/lib/curriculum/progress";
@@ -20,7 +19,6 @@ const STATUS_STYLES: Record<string, string> = {
   complete: "bg-emerald-100 text-emerald-800",
   in_progress: "bg-blue-100 text-blue-800",
   available: "bg-slate-100 text-slate-700",
-  locked: "bg-slate-50 text-slate-400",
 };
 
 export default async function LessonsPage() {
@@ -61,8 +59,6 @@ export default async function LessonsPage() {
           {DANISH_COURSE.chapters.map((chapter) => {
             const status = chapterStatus(chapter, progress);
             const { done, total } = chapterProgress(chapter, progress);
-            const missing = missingPrerequisites(chapter, progress);
-            const locked = status === "locked";
 
             const body = (
               <div className="p-5">
@@ -81,9 +77,7 @@ export default async function LessonsPage() {
                       ? t.statusComplete
                       : status === "in_progress"
                         ? t.statusInProgress
-                        : status === "available"
-                          ? t.statusAvailable
-                          : t.statusLocked}
+                        : t.statusAvailable}
                   </span>
                 </div>
                 <p className="mt-1.5 text-sm text-slate-600">{chapter.intro}</p>
@@ -91,23 +85,14 @@ export default async function LessonsPage() {
                   <span>{t.progressOf(done, total)}</span>
                   <span>{t.supportsModules(chapter.supportsModules.join(", "))}</span>
                 </div>
-                {locked && missing.length > 0 && (
-                  <p className="mt-2 text-xs text-amber-700">
-                    {t.lockedBecause(missing.map((c) => t.chapterLabel(c.number)).join(", "))}
-                  </p>
-                )}
               </div>
             );
 
             return (
               <li key={chapter.id}>
-                {locked ? (
-                  <div className="opacity-60">{body}</div>
-                ) : (
-                  <Link href={`/lessons/${chapter.id}`} className="block hover:bg-slate-50">
-                    {body}
-                  </Link>
-                )}
+                <Link href={`/lessons/${chapter.id}`} className="block hover:bg-slate-50">
+                  {body}
+                </Link>
               </li>
             );
           })}

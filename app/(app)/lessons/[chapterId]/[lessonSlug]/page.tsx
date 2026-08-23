@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CHAPTER_BY_ID, LESSON_BY_SLUG } from "@/lib/curriculum/course";
+import { CHAPTER_BY_ID, LESSON_BY_SLUG, nextLessonAfter } from "@/lib/curriculum/course";
 import { lessonKind } from "@/lib/content-gen/theory";
-import { LessonExercises } from "@/components/course/LessonExercises";
+import { LessonExercises, type NextStep } from "@/components/course/LessonExercises";
 import { LessonVisit } from "@/components/lessons/LessonVisit";
 import { InteractiveText } from "@/components/reading/InteractiveText";
 import { WritingModelPanel } from "@/components/writing/WritingModelPanel";
@@ -32,6 +32,17 @@ export default async function CourseLessonPage({
   const t = dict.course;
   const topic = chapter.topics.find((x) => x.lessonSlug === lessonSlug);
   const kind = lessonKind(lesson);
+
+  // Where the "jump onwards" button at the end of the exercises goes. Course
+  // order, not progress — this is the same for everybody, and it is a shortcut,
+  // not a gate: every other chapter stays one click away in the sidebar.
+  const after = nextLessonAfter(lesson.slug);
+  const next: NextStep | null = after
+    ? {
+        href: `/lessons/${after.chapter.id}/${after.lessonSlug}`,
+        newChapter: after.chapter.id !== chapter.id,
+      }
+    : null;
 
   return (
     <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-6">
@@ -185,9 +196,9 @@ export default async function CourseLessonPage({
       )}
 
       {lesson.exercises && lesson.exercises.length > 0 ? (
-        <LessonExercises lessonSlug={lesson.slug} exercises={lesson.exercises} />
+        <LessonExercises lessonSlug={lesson.slug} exercises={lesson.exercises} next={next} />
       ) : (
-        <MarkDoneOnly lessonSlug={lesson.slug} label={t.noExercisesYet} />
+        <MarkDoneOnly lessonSlug={lesson.slug} label={t.noExercisesYet} next={next} />
       )}
 
       {(lesson.canDo || topic?.canDo) && (
@@ -203,11 +214,19 @@ export default async function CourseLessonPage({
 }
 
 /** For lessons that have no exercises yet — reading it through still counts. */
-function MarkDoneOnly({ lessonSlug, label }: { lessonSlug: string; label: string }) {
+function MarkDoneOnly({
+  lessonSlug,
+  label,
+  next,
+}: {
+  lessonSlug: string;
+  label: string;
+  next: NextStep | null;
+}) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
       <p className="text-sm text-slate-600">{label}</p>
-      <LessonExercises lessonSlug={lessonSlug} exercises={[]} />
+      <LessonExercises lessonSlug={lessonSlug} exercises={[]} next={next} />
     </div>
   );
 }

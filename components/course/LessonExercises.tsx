@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import type { LessonExercise } from "@/lib/curriculum/course-types";
 import type { ExerciseCheck } from "@/lib/curriculum/progress";
@@ -15,18 +16,32 @@ import { buildMistake } from "@/lib/learning/feedback";
 // Grading happens server-side (POST /api/course/progress); this only collects
 // answers and renders the verdict that comes back.
 //
+// Once the answers are checked, the way onwards is a single button — the
+// learner should never have to go back up to the sidebar to find what comes
+// next. It is offered whether they passed or not: nothing in the course is
+// gated on a score, so "move on" and "try again" are both always available.
+//
 // A wrong answer is shown the way a teacher would show it: what you wrote,
 // next to what it should have been, and why. "✗" on its own teaches nothing,
 // and the grader already returns everything needed to do better.
 
 const card = "rounded-lg border border-slate-200 bg-white p-4";
 
+/** Where the lesson leads once it is checked. Null at the end of the course. */
+export interface NextStep {
+  href: string;
+  /** False when the next lesson is another topic inside this same chapter. */
+  newChapter: boolean;
+}
+
 export function LessonExercises({
   lessonSlug,
   exercises,
+  next,
 }: {
   lessonSlug: string;
   exercises: LessonExercise[];
+  next?: NextStep | null;
 }) {
   const { dict } = useI18n();
   const t = dict.course;
@@ -263,18 +278,29 @@ export function LessonExercises({
           <p className={`mt-1 text-sm ${passed ? "text-emerald-800" : "text-amber-800"}`}>
             {passed ? t.lessonPassed : t.lessonRetry}
           </p>
-          {!passed && (
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {next ? (
+              <Link
+                href={next.href}
+                className="rounded-md bg-slate-900 text-white text-sm font-medium px-5 py-2.5"
+              >
+                {next.newChapter ? t.jumpToNextChapter : t.jumpToNextLesson}
+              </Link>
+            ) : (
+              <p className="text-sm text-slate-500">{t.courseFinished}</p>
+            )}
             <button
               onClick={() => {
                 setChecks(null);
                 setScore(null);
                 setResponses({});
               }}
-              className="mt-3 rounded-md border border-slate-300 text-sm font-medium px-4 py-2"
+              className="rounded-md border border-slate-300 text-sm font-medium px-4 py-2"
             >
               {t.tryAgain}
             </button>
-          )}
+          </div>
         </div>
       )}
     </section>

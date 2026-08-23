@@ -9,12 +9,12 @@ import {
   chapterForLesson,
   chaptersForModule,
   courseLessonSlugs,
+  nextLessonAfter,
 } from "./course";
 import { EXERCISE_LADDER, isAutoCheckable } from "./course-types";
 import {
   chapterComplete,
   chapterStatus,
-  chapterUnlocked,
   gradeLesson,
   gradeLessonExercise,
   lessonPassed,
@@ -101,9 +101,8 @@ describe("curriculum integrity", () => {
     expect(numbers).toEqual(numbers.map((_, i) => i + 1));
   });
 
-  it("starts with an unlocked chapter so a new learner can begin", () => {
+  it("starts with a chapter that depends on nothing", () => {
     expect(DANISH_COURSE.chapters[0].prerequisites).toEqual([]);
-    expect(chapterUnlocked(DANISH_COURSE.chapters[0], {})).toBe(true);
   });
 
   it("never names a prerequisite that comes later in the course", () => {
@@ -124,6 +123,29 @@ describe("curriculum integrity", () => {
   it("maps a lesson back to its chapter", () => {
     expect(chapterForLesson("present-tense")?.id).toBe("ch-present-tense");
     expect(chapterForLesson("what-is-a-sentence")?.number).toBe(1);
+  });
+
+  it("walks the whole course in order, one lesson at a time", () => {
+    const slugs = courseLessonSlugs();
+    const walked = [slugs[0]];
+    let step = nextLessonAfter(slugs[0]);
+    while (step) {
+      walked.push(step.lessonSlug);
+      step = nextLessonAfter(step.lessonSlug);
+    }
+    expect(walked).toEqual(slugs);
+  });
+
+  it("crosses from the last lesson of a chapter into the next chapter", () => {
+    const first = DANISH_COURSE.chapters[0];
+    const last = first.topics[first.topics.length - 1].lessonSlug;
+    expect(nextLessonAfter(last)?.chapter.id).toBe(DANISH_COURSE.chapters[1].id);
+  });
+
+  it("has nowhere to go after the final lesson, and knows nothing of made-up ones", () => {
+    const slugs = courseLessonSlugs();
+    expect(nextLessonAfter(slugs[slugs.length - 1])).toBeNull();
+    expect(nextLessonAfter("no-such-lesson")).toBeNull();
   });
 
   it("only revisits chapters that came earlier", () => {
@@ -287,10 +309,12 @@ describe("progression", () => {
     expect(lessonPassed({ lessonSlug: "x", score: null, total: null, completedAt: "" })).toBe(true);
   });
 
-  it("keeps a chapter locked until its prerequisites are complete", () => {
-    const pronouns = CHAPTER_BY_ID.get("ch-pronouns")!;
-    expect(chapterUnlocked(pronouns, {})).toBe(false);
-    expect(chapterUnlocked(pronouns, completed("ch-sentence-basics"))).toBe(true);
+  it("never locks a chapter, however little has been done", () => {
+    // Prerequisites are advice about what a chapter builds on, not a gate:
+    // a learner may open any chapter, in any order, at any time.
+    for (const chapter of DANISH_COURSE.chapters) {
+      expect(chapterStatus(chapter, {})).not.toBe("locked");
+    }
   });
 
   it("explains which prerequisite is missing", () => {
@@ -308,7 +332,7 @@ describe("progression", () => {
     const p = completed("ch-sentence-basics");
     expect(chapterStatus(CHAPTER_BY_ID.get("ch-sentence-basics")!, p)).toBe("complete");
     expect(chapterStatus(CHAPTER_BY_ID.get("ch-nouns")!, p)).toBe("available");
-    expect(chapterStatus(CHAPTER_BY_ID.get("ch-subordinate")!, p)).toBe("locked");
+    expect(chapterStatus(CHAPTER_BY_ID.get("ch-subordinate")!, p)).toBe("available");
   });
 
   it("treats a chapter with a half-finished multi-lesson topic as in progress", () => {
