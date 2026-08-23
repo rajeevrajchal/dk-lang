@@ -13,41 +13,10 @@
 import { PrismaClient } from "@prisma/client";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { SNAPSHOT_PATH, TABLE_ORDER } from "./tables";
 
 const prisma = new PrismaClient();
 
-// Insertion order. Anything referenced by a later table must appear earlier.
-export const TABLE_ORDER = [
-  // Content, seeded and independent of any learner.
-  "tier",
-  "module",
-  "construct",
-  "item",
-  "itemConstruct",
-  "vocabItem",
-  // Identity.
-  "user",
-  "account",
-  "session",
-  "verificationToken",
-  "userProfile",
-  // Learner records, in dependency order.
-  "reportCard",
-  "officialTestResult",
-  "examSession",
-  "attempt",
-  "constructAccuracy",
-  "srsState",
-  "vocabSrsState",
-  "moduleSkillStatus",
-  "exerciseAttempt",
-  "lessonProgress",
-  "readingProgress",
-  "savedWord",
-  "readingNote",
-  "readingHighlight",
-  "readingExplanation",
-] as const;
 
 async function main() {
   const out: Record<string, unknown[]> = {};
@@ -64,7 +33,7 @@ async function main() {
     if (rows.length) console.log(`  ${String(rows.length).padStart(5)}  ${table}`);
   }
 
-  const target = resolve(process.cwd(), "prisma/data-migration/snapshot.json");
+  const target = resolve(process.cwd(), SNAPSHOT_PATH);
   mkdirSync(dirname(target), { recursive: true });
   // Dates serialise to ISO strings; the importer turns them back.
   writeFileSync(target, JSON.stringify(out, null, 2));
@@ -73,9 +42,14 @@ async function main() {
   console.log(`\n${total} rows -> ${target}`);
 }
 
-main()
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+// Only when run directly. Importing this module must not export anything —
+// import.ts used to pull TABLE_ORDER from here, which silently ran this and
+// overwrote the snapshot with the contents of the target database.
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+  main()
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

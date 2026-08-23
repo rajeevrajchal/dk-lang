@@ -9,9 +9,9 @@
  * every foreign key in the snapshot still resolves without a remapping table.
  */
 import { PrismaClient } from "@prisma/client";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { TABLE_ORDER } from "./export";
+import { SNAPSHOT_PATH, TABLE_ORDER } from "./tables";
 
 const prisma = new PrismaClient();
 const upsert = process.argv.includes("--upsert");
@@ -38,8 +38,18 @@ function revive(row: Record<string, unknown>): Record<string, unknown> {
 }
 
 async function main() {
-  const path = resolve(process.cwd(), "prisma/data-migration/snapshot.json");
+  const path = resolve(process.cwd(), SNAPSHOT_PATH);
+  if (!existsSync(path)) {
+    throw new Error(
+      `No snapshot at ${SNAPSHOT_PATH}. Run export.ts against the OLD database first.`
+    );
+  }
   const snapshot = JSON.parse(readFileSync(path, "utf8")) as Record<string, Record<string, unknown>[]>;
+
+  const totalRows = Object.values(snapshot).reduce((n, rows) => n + rows.length, 0);
+  if (totalRows === 0) {
+    throw new Error(`Snapshot at ${SNAPSHOT_PATH} is empty — refusing to run.`);
+  }
 
   let total = 0;
 
