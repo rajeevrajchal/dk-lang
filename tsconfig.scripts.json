@@ -1,0 +1,16 @@
+{
+  // The command-line half of the repo: prisma/seed.ts, the data-migration
+  // scripts and scripts/*, all run with tsx from a terminal.
+  //
+  // They are excluded from tsconfig.json because `next build` should not need a
+  // generated Prisma client to type-check code that never ships. They are still
+  // worth checking, just on a machine where `pnpm db:generate` has been run —
+  // hence this second project. `pnpm typecheck:scripts`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["prisma/**/*.ts", "scripts/**/*.ts", "lib/**/*.ts"],
+  "exclude": ["node_modules"]
+}

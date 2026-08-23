@@ -30,5 +30,10 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  // prisma/ and scripts/ are command-line tooling run with tsx, not part of the
+  // app: they need a generated Prisma client and a direct database connection,
+  // neither of which exists on a deploy machine. `next build` type-checking
+  // them made every deployment depend on `prisma generate` having run, for code
+  // that never ships. They are checked on their own with tsconfig.scripts.json.
+  "exclude": ["node_modules", "prisma", "scripts"]
 }
