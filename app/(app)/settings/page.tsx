@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { getUserLevel, listOfficialTestResults } from "@/lib/level";
@@ -71,7 +72,10 @@ export default async function SettingsPage() {
           <form
             action={async () => {
               "use server";
-              await signOut({ redirectTo: "/login" });
+              // signOut clears the Supabase cookies; the redirect is separate
+              // now that there is no NextAuth wrapper to do both.
+              await signOut();
+              redirect("/login");
             }}
           >
             <button className="text-sm text-slate-600 hover:underline">{dict.settings.signOut}</button>

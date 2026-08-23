@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { GoogleSignIn } from "@/components/auth/GoogleSignIn";
@@ -40,11 +40,11 @@ function LoginForm() {
         }
       }
 
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
+      // Signs in against Supabase Auth, which sets the session cookies the
+      // server reads. This is what gives the request a JWT — without one,
+      // every Row Level Security policy denies the query.
+      const supabase = createClient();
+      const result = await supabase.auth.signInWithPassword({ email, password });
 
       if (result?.error) {
         throw new Error(dict.login.errorInvalid);

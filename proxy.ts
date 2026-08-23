@@ -15,13 +15,6 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/register", "/api/register"];
 
-/**
- * NextAuth's session cookie, which is `__Secure-` prefixed over HTTPS. Only
- * its presence is checked here — the signature is verified properly by
- * NextAuth itself once the request reaches a route.
- */
-const NEXTAUTH_COOKIES = ["authjs.session-token", "__Secure-authjs.session-token"];
-
 function supabaseConfigured(): boolean {
   return (
     !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -42,7 +35,7 @@ export default async function proxy(req: NextRequest) {
   // The response has to be created up front so Supabase can attach refreshed
   // cookies to it as it goes.
   let response = NextResponse.next({ request: req });
-  let signedIn = NEXTAUTH_COOKIES.some((name) => !!req.cookies.get(name));
+  let signedIn = false;
 
   if (supabaseConfigured()) {
     const supabase = createServerClient(
@@ -70,8 +63,9 @@ export default async function proxy(req: NextRequest) {
       const { data } = await supabase.auth.getUser();
       if (data.user) signedIn = true;
     } catch {
-      // Supabase unreachable. Fall back to whatever NextAuth says rather than
-      // logging everybody out because a third party is having a bad day.
+      // Supabase unreachable. Treated as signed out: there is no second
+      // session system to fall back to any more, and letting the request
+      // through unauthenticated would be worse than a redirect to /login.
     }
   }
 
