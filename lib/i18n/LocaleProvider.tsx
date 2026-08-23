@@ -2,24 +2,17 @@
 
 import { createContext, useContext, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { LOCALE_COOKIE, TRANSLATE_HELPER_COOKIE, type Locale } from "./config";
-import { getDictionary, type Dictionary } from "./dictionaries";
-
-interface I18nContextValue {
-  locale: Locale;
-  dict: Dictionary;
-  setLocale: (locale: Locale) => void;
-  translateHelperDefault: boolean;
-  setTranslateHelperDefault: (on: boolean) => void;
-}
+import { LOCALE_COOKIE, TRANSLATE_HELPER_COOKIE } from "./config";
+import { getDictionary } from "./dictionaries";
+import type { I18nContextValue, Locale } from "@/types";
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-function setCookie(name: string, value: string) {
+const setCookie = (name: string, value: string) => {
   document.cookie = `${name}=${value}; path=/; max-age=31536000`;
-}
+};
 
-export function LocaleProvider({
+export const LocaleProvider = ({
   initialLocale,
   initialTranslateHelperDefault,
   children,
@@ -27,7 +20,7 @@ export function LocaleProvider({
   initialLocale: Locale;
   initialTranslateHelperDefault: boolean;
   children: React.ReactNode;
-}) {
+}) => {
   const router = useRouter();
   const [locale, setLocaleState] = useState(initialLocale);
   const [translateHelperDefault, setTranslateHelperDefaultState] = useState(
@@ -61,10 +54,10 @@ export function LocaleProvider({
       {children}
     </I18nContext.Provider>
   );
-}
+};
 
-export function useI18n() {
+export const useI18n = () => {
   const ctx = useContext(I18nContext);
   if (!ctx) throw new Error("useI18n must be used within LocaleProvider");
   return ctx;
-}
+};

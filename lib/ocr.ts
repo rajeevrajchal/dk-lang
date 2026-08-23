@@ -8,17 +8,7 @@
 // the flow — see docs/content-validation.md for why extraction confidence
 // is never trusted on its own.
 
-export interface ExtractedReportCard {
-  sprogcenter: string | null;
-  module: number | null;
-  date: string | null; // ISO date string
-  // discipline key -> pass/fail. Keys are "mundtlig" | "laesning" |
-  // "skrivning" for a Modul 2-4 modultest, or "skriftlig" | "mundtlig" for
-  // PD3 (Modul 5).
-  results: Record<string, "pass" | "fail">;
-  confidence: number; // 0-1, always 0 for the manual fallback
-  rawText: string | null;
-}
+import type { ExtractedReportCard } from "@/types";
 
 const EMPTY_EXTRACTION: ExtractedReportCard = {
   sprogcenter: null,
@@ -29,10 +19,10 @@ const EMPTY_EXTRACTION: ExtractedReportCard = {
   rawText: null,
 };
 
-async function extractWithAnthropicVision(
+const extractWithAnthropicVision = async (
   _fileBytes: Uint8Array,
   _mimeType: string
-): Promise<ExtractedReportCard> {
+): Promise<ExtractedReportCard> => {
   // Real implementation would send the file to a vision-capable model with
   // a strict extraction prompt (sprogcenter name, module number, date,
   // pass/fail per discipline) and parse a structured response. Left
@@ -40,14 +30,14 @@ async function extractWithAnthropicVision(
   // environment — but the interface below is what app code depends on, so
   // wiring a real provider later is a drop-in change to this one function.
   throw new Error("Anthropic vision OCR provider is not configured.");
-}
+};
 
-export async function extractReportCard(
+export const extractReportCard = async (
   // Bytes rather than a path: the file lives in Supabase Storage, so there is
   // no local path to read. Callers hand over what they already have in memory.
   fileBytes: Uint8Array,
   mimeType: string
-): Promise<ExtractedReportCard> {
+): Promise<ExtractedReportCard> => {
   const provider = process.env.OCR_PROVIDER;
 
   if (provider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
@@ -62,4 +52,4 @@ export async function extractReportCard(
   }
 
   return EMPTY_EXTRACTION;
-}
+};

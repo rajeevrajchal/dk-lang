@@ -1,4 +1,4 @@
-import type { Dictionary } from "./en";
+import type { Dictionary } from "@/types";
 
 export const da: Dictionary = {
   appName: "Dansk Modultest Prep",

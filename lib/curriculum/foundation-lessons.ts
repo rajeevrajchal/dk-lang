@@ -1,4 +1,4 @@
-import type { TheoryLesson } from "@/lib/content-gen/theory";
+import type { TheoryLesson } from "@/types";
 
 // The foundation lessons — written for someone who has never studied Danish
 // and may never have studied grammar in any language.

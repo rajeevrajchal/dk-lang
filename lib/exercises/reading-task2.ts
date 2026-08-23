@@ -1,4 +1,4 @@
-import type { ExerciseVariant } from "./types";
+import type { ExerciseVariant } from "@/types";
 
 // Læsning, Opgave 2 — find the one sentence per section that does not belong.
 //

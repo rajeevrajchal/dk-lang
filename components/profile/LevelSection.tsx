@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import type { OfficialResultRow } from "@/types";
 
 // Level and official results, in Settings, where a fact about the learner
 // belongs — not scattered through the learning areas.
@@ -12,18 +13,7 @@ import { useI18n } from "@/lib/i18n/LocaleProvider";
 // what the learner says they are, the results are the tests they actually sat.
 // Nothing on this screen reads a practice score.
 
-export interface OfficialResultRow {
-  id: string;
-  testType: string;
-  education: string | null;
-  module: number | null;
-  result: string | null;
-  takenAt: string | null;
-  source: string;
-  note: string | null;
-}
-
-export function LevelSection({
+export const LevelSection = ({
   education,
   currentModule,
   levelSource,
@@ -33,7 +23,7 @@ export function LevelSection({
   currentModule: number | null;
   levelSource: string | null;
   results: OfficialResultRow[];
-}) {
+}) => {
   const router = useRouter();
   const { dict } = useI18n();
   const t = dict.level;
@@ -49,7 +39,7 @@ export function LevelSection({
   const [outcome, setOutcome] = useState<string | null>("PASSED");
   const [takenAt, setTakenAt] = useState("");
 
-  async function saveLevel() {
+  const saveLevel = async () => {
     setSaving(true);
     await fetch("/api/profile/level", {
       method: "POST",
@@ -59,9 +49,9 @@ export function LevelSection({
     setSaving(false);
     setEditing(false);
     router.refresh();
-  }
+  };
 
-  async function addResult() {
+  const addResult = async () => {
     setSaving(true);
     await fetch("/api/profile/official-results", {
       method: "POST",
@@ -77,12 +67,12 @@ export function LevelSection({
     setSaving(false);
     setAdding(false);
     router.refresh();
-  }
+  };
 
-  async function removeResult(id: string) {
+  const removeResult = async (id: string) => {
     await fetch(`/api/profile/official-results?id=${id}`, { method: "DELETE" });
     router.refresh();
-  }
+  };
 
   const levelText =
     education || currentModule
@@ -339,4 +329,4 @@ export function LevelSection({
       </section>
     </>
   );
-}
+};

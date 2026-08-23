@@ -6,8 +6,8 @@ import {
   moduleCategoryAvailable,
   selectableTaskTypes,
 } from "@/lib/exercises/registry";
-import type { ExerciseCategory } from "@/lib/exercises/types";
 import { getServerDictionary } from "@/lib/i18n/server";
+import type { ExerciseCategory } from "@/types";
 
 // "Which module do you want to practise?" — one component, three skills.
 //
@@ -15,7 +15,7 @@ import { getServerDictionary } from "@/lib/i18n/server";
 // authored variant exists, or the module declares a task composition the
 // generator can write for. Offering a module with neither would be a dead end.
 
-export async function SkillModules({
+export const SkillModules = async ({
   category,
   skill,
   embedded = false,
@@ -28,7 +28,7 @@ export async function SkillModules({
    * the back link, the heading and the page padding, keeping only the list.
    */
   embedded?: boolean;
-}) {
+}) => {
   const dict = await getServerDictionary();
   const t = dict.class2;
   const generation = llmGenerationAvailable();
@@ -99,4 +99,4 @@ export async function SkillModules({
       </section>
     </div>
   );
-}
+};

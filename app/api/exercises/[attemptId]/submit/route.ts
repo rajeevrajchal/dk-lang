@@ -4,16 +4,16 @@ import { auth } from "@/lib/auth";
 import { exercises } from "@/lib/repositories";
 import { VARIANT_BY_ID } from "@/lib/exercises/registry";
 import { gradeExercise } from "@/lib/exercises/grading";
-import type { ExerciseVariant } from "@/lib/exercises/types";
+import type { ExerciseVariant } from "@/types";
 
 const SubmitSchema = z.object({
   response: z.record(z.string(), z.string()),
 });
 
-export async function POST(
+export const POST = async (
   req: Request,
   { params }: { params: Promise<{ attemptId: string }> }
-) {
+) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -71,4 +71,4 @@ export async function POST(
   }
 
   return NextResponse.json(result);
-}
+};

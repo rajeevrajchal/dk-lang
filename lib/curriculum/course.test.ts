@@ -11,18 +11,9 @@ import {
   courseLessonSlugs,
   nextLessonAfter,
 } from "./course";
-import { EXERCISE_LADDER, isAutoCheckable } from "./course-types";
-import {
-  chapterComplete,
-  chapterStatus,
-  gradeLesson,
-  gradeLessonExercise,
-  lessonPassed,
-  missingPrerequisites,
-  moduleReadiness,
-  nextUp,
-  type ProgressMap,
-} from "./progress";
+import { EXERCISE_LADDER, isAutoCheckable } from "./course-constants";
+import { chapterComplete, chapterStatus, gradeLesson, gradeLessonExercise, lessonPassed, missingPrerequisites, moduleReadiness, nextUp } from "./progress";
+import type { ProgressMap } from "@/types";
 
 const done = (slug: string, score = 5, total = 5) => ({
   lessonSlug: slug,
@@ -32,13 +23,13 @@ const done = (slug: string, score = 5, total = 5) => ({
 });
 
 /** Marks every lesson of the named chapters as passed. */
-function completed(...chapterIds: string[]): ProgressMap {
+const completed = (...chapterIds: string[]): ProgressMap => {
   const p: ProgressMap = {};
   for (const id of chapterIds) {
     for (const t of CHAPTER_BY_ID.get(id)!.topics) p[t.lessonSlug] = done(t.lessonSlug);
   }
   return p;
-}
+};
 
 // ---------------------------------------------------------------------------
 // Backward compatibility — nothing that worked before may break

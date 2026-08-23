@@ -16,7 +16,7 @@ const ConfirmSchema = z.object({
 // The learner reviews/edits whatever lib/ocr.ts extracted (or fills it in
 // entirely by hand if extraction was empty) and only this confirm step
 // writes it to the record — no OCR output is ever saved silently.
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -73,4 +73,4 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   return NextResponse.json({ ok: true, changes });
-}
+};

@@ -10,11 +10,11 @@ import { getServerDictionary } from "@/lib/i18n/server";
 //
 // Both are simulations — the difference is length, not how much help you get.
 
-export default async function MockModulePage({
+const MockModulePage = async ({
   params,
 }: {
   params: Promise<{ moduleId: string }>;
-}) {
+}) => {
   const { moduleId } = await params;
   const moduleIdNum = Number(moduleId);
   const mod = MODULE_BY_ID.get(moduleIdNum);
@@ -99,4 +99,6 @@ export default async function MockModulePage({
       <p className="text-xs text-slate-400">{dict.mockTest.disclaimer}</p>
     </div>
   );
-}
+};
+
+export default MockModulePage;

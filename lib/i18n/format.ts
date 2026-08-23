@@ -1,7 +1,6 @@
-import type { TierReason } from "@/lib/adaptive/engine";
-import type { Dictionary } from "./dictionaries";
+import type { Dictionary, TierReason } from "@/types";
 
-export function formatTierReason(dict: Dictionary, reason: TierReason): string {
+export const formatTierReason = (dict: Dictionary, reason: TierReason): string => {
   const t = dict.practice.tierReasons;
   switch (reason.key) {
     case "noAttemptsStartTier2":
@@ -15,4 +14,4 @@ export function formatTierReason(dict: Dictionary, reason: TierReason): string {
     case "allTiersSolid":
       return t.allTiersSolid();
   }
-}
+};

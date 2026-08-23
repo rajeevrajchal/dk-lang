@@ -1,4 +1,4 @@
-import type { ExerciseVariant } from "./types";
+import type { ExerciseVariant } from "@/types";
 
 // Læsning, Opgave 4 — decide which of three people each question is about.
 //

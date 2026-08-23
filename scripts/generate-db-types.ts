@@ -33,7 +33,7 @@ interface Field {
   optionalOnInsert: boolean;
 }
 
-function parseModels(schema: string): Map<string, Field[]> {
+const parseModels = (schema: string): Map<string, Field[]> => {
   const models = new Map<string, Field[]>();
 
   for (const match of schema.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)) {
@@ -68,9 +68,9 @@ function parseModels(schema: string): Map<string, Field[]> {
   }
 
   return models;
-}
+};
 
-function renderRow(fields: Field[], mode: "Row" | "Insert" | "Update"): string {
+const renderRow = (fields: Field[], mode: "Row" | "Insert" | "Update"): string => {
   return fields
     .map((f) => {
       const optional = mode === "Update" || (mode === "Insert" && f.optionalOnInsert);
@@ -78,9 +78,9 @@ function renderRow(fields: Field[], mode: "Row" | "Insert" | "Update"): string {
       return `          ${f.name}${optional ? "?" : ""}: ${f.tsType}${nullable};`;
     })
     .join("\n");
-}
+};
 
-function main() {
+const main = () => {
   const schema = readFileSync("prisma/schema.prisma", "utf8");
   const models = parseModels(schema);
 
@@ -184,6 +184,6 @@ export type Updates<T extends keyof Database["public"]["Tables"]> =
 
   writeFileSync("lib/supabase/database.types.ts", out);
   console.log(`${models.size} tables -> lib/supabase/database.types.ts`);
-}
+};
 
 main();

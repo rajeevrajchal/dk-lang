@@ -3,9 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import type { LessonExercise } from "@/lib/curriculum/course-types";
-import type { ExerciseCheck } from "@/lib/curriculum/progress";
 import { buildMistake } from "@/lib/learning/feedback";
+import type { ExerciseCheck, LessonExercise, NextStep } from "@/types";
 
 // The practice half of a lesson.
 //
@@ -27,14 +26,7 @@ import { buildMistake } from "@/lib/learning/feedback";
 
 const card = "rounded-lg border border-slate-200 bg-white p-4";
 
-/** Where the lesson leads once it is checked. Null at the end of the course. */
-export interface NextStep {
-  href: string;
-  /** False when the next lesson is another topic inside this same chapter. */
-  newChapter: boolean;
-}
-
-export function LessonExercises({
+export const LessonExercises = ({
   lessonSlug,
   exercises,
   next,
@@ -42,7 +34,7 @@ export function LessonExercises({
   lessonSlug: string;
   exercises: LessonExercise[];
   next?: NextStep | null;
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.course;
 
@@ -53,7 +45,7 @@ export function LessonExercises({
 
   const set = (id: string, value: string) => setResponses((r) => ({ ...r, [id]: value }));
 
-  async function submit() {
+  const submit = async () => {
     setBusy(true);
     try {
       const res = await fetch("/api/course/progress", {
@@ -70,7 +62,7 @@ export function LessonExercises({
     } finally {
       setBusy(false);
     }
-  }
+  };
 
   const passed =
     score?.total == null || score.total === 0
@@ -305,9 +297,9 @@ export function LessonExercises({
       )}
     </section>
   );
-}
+};
 
-function MatchingInput({
+const MatchingInput = ({
   pairs,
   disabled,
   onChange,
@@ -315,13 +307,13 @@ function MatchingInput({
   pairs: { left: string; right: string }[];
   disabled: boolean;
   onChange: (v: string) => void;
-}) {
+}) => {
   const [picked, setPicked] = useState<Record<string, string>>({});
   // Right-hand options are shuffled once, deterministically by content, so the
   // answer isn't simply "match them in order".
   const rights = [...pairs.map((p) => p.right)].sort((a, b) => a.localeCompare(b));
 
-  function choose(left: string, right: string) {
+  const choose = (left: string, right: string) => {
     const next = { ...picked, [left]: right };
     setPicked(next);
     onChange(
@@ -329,7 +321,7 @@ function MatchingInput({
         .map(([l, r]) => `${l}→${r}`)
         .join("|")
     );
-  }
+  };
 
   return (
     <div className="space-y-2">
@@ -353,9 +345,9 @@ function MatchingInput({
       ))}
     </div>
   );
-}
+};
 
-function OrderingInput({
+const OrderingInput = ({
   scrambled,
   disabled,
   hint,
@@ -367,7 +359,7 @@ function OrderingInput({
   hint: string;
   resetLabel: string;
   onChange: (v: string) => void;
-}) {
+}) => {
   const [built, setBuilt] = useState<string[]>([]);
   const remaining = scrambled.filter(
     (w, i) => !built.some((b, bi) => b === w && bi === built.indexOf(w) && scrambled.indexOf(w) === i)
@@ -384,11 +376,11 @@ function OrderingInput({
   });
   void remaining;
 
-  function add(word: string) {
+  const add = (word: string) => {
     const next = [...built, word];
     setBuilt(next);
     onChange(next.join(" "));
-  }
+  };
 
   return (
     <div>
@@ -423,7 +415,7 @@ function OrderingInput({
       </div>
     </div>
   );
-}
+};
 
 /**
  * "You wrote this; it should be this." Shown for a wrong answer on any rung
@@ -431,7 +423,7 @@ function OrderingInput({
  * nothing here, because inventing a "correct" version of an open answer would
  * be a lie.
  */
-function MistakeContrast({
+const MistakeContrast = ({
   exercise,
   response,
   expected,
@@ -443,7 +435,7 @@ function MistakeContrast({
   expected: string | undefined;
   expectedLabel: string;
   wordOrderHint: string;
-}) {
+}) => {
   const mistake = buildMistake(exercise, response, expected);
 
   // Nothing to contrast — fall back to naming the expected answer, which is
@@ -474,4 +466,4 @@ function MistakeContrast({
       )}
     </div>
   );
-}
+};

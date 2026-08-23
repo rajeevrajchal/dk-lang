@@ -1,4 +1,5 @@
 import { users } from "@/lib/repositories";
+import type { Education, LevelSource, OfficialResultInput, UserLevel } from "@/types";
 
 // The learner's LEVEL — and the wall between it and everything the app
 // measures.
@@ -16,29 +17,10 @@ import { users } from "@/lib/repositories";
 // fields is in this file, and none of them takes a score as an argument.
 
 export const EDUCATIONS = ["DU2", "DU3"] as const;
-export type Education = (typeof EDUCATIONS)[number];
-
 export const LEVEL_SOURCES = ["ONBOARDING", "OFFICIAL_RESULT"] as const;
-export type LevelSource = (typeof LEVEL_SOURCES)[number];
-
 export const TEST_TYPES = ["MODULTEST", "PD3"] as const;
-export type OfficialTestType = (typeof TEST_TYPES)[number];
-
 export const OFFICIAL_RESULTS = ["PASSED", "NOT_PASSED"] as const;
-export type OfficialResultOutcome = (typeof OFFICIAL_RESULTS)[number];
-
-export interface UserLevel {
-  education: Education | null;
-  currentModule: number | null;
-  levelSource: LevelSource | null;
-  /** ISO timestamp. PostgREST returns timestamps as strings, not Dates. */
-  levelSetAt: string | null;
-  onboarded: boolean;
-  /** True when the learner has never told us their level. */
-  unset: boolean;
-}
-
-export async function getUserLevel(userId: string): Promise<UserLevel> {
+export const getUserLevel = async (userId: string): Promise<UserLevel> => {
   const profile = await users.getProfile(userId);
   const education = (profile?.education as Education | null) ?? null;
   const currentModule = profile?.currentModule ?? null;
@@ -51,27 +33,27 @@ export async function getUserLevel(userId: string): Promise<UserLevel> {
     onboarded: !!profile?.onboardedAt,
     unset: education === null && currentModule === null,
   };
-}
+};
 
 /** A short label for the level, or null when it has never been set. */
-export function levelLabel(level: UserLevel): string | null {
+export const levelLabel = (level: UserLevel): string | null => {
   if (level.unset) return null;
   const parts: string[] = [];
   if (level.education) parts.push(level.education === "DU3" ? "PD3" : level.education);
   if (level.currentModule) parts.push(`Modul ${level.currentModule}`);
   return parts.join(" · ") || null;
-}
+};
 
 /**
  * Sets the level from what the learner said. `source` records how they told
  * us, so the UI can show "from your onboarding answers" or "from your Modul 2
  * result" rather than an unexplained number.
  */
-export async function setUserLevel(
+export const setUserLevel = async (
   userId: string,
   input: { education: Education | null; currentModule: number | null },
   source: LevelSource
-) {
+) => {
   const now = new Date().toISOString();
   await users.upsertProfile(userId, {
     education: input.education,
@@ -80,22 +62,11 @@ export async function setUserLevel(
     levelSetAt: now,
     ...(source === "ONBOARDING" ? { onboardedAt: now } : {}),
   });
-}
+};
 
-export async function markOnboarded(userId: string) {
+export const markOnboarded = async (userId: string) => {
   await users.upsertProfile(userId, { onboardedAt: new Date().toISOString() });
-}
-
-export interface OfficialResultInput {
-  testType: OfficialTestType;
-  education?: Education | null;
-  module?: number | null;
-  result?: OfficialResultOutcome | null;
-  takenAt?: Date | null;
-  note?: string | null;
-  source?: "SELF_REPORTED" | "REPORT_CARD";
-  reportCardId?: string | null;
-}
+};
 
 /**
  * Records a real test the learner sat.
@@ -104,7 +75,7 @@ export interface OfficialResultInput {
  * only forwards: passing Modul 2 means the learner is now at Modul 3. It never
  * moves the level down, and no in-app score reaches this function.
  */
-export async function addOfficialTestResult(userId: string, input: OfficialResultInput) {
+export const addOfficialTestResult = async (userId: string, input: OfficialResultInput) => {
   const row = await users.createOfficialResult(userId, {
     testType: input.testType,
     education: input.education ?? null,
@@ -129,12 +100,12 @@ export async function addOfficialTestResult(userId: string, input: OfficialResul
   }
 
   return row;
-}
+};
 
-export async function listOfficialTestResults(userId: string) {
+export const listOfficialTestResults = async (userId: string) => {
   return users.listOfficialResults(userId);
-}
+};
 
-export async function deleteOfficialTestResult(userId: string, id: string) {
+export const deleteOfficialTestResult = async (userId: string, id: string) => {
   return users.deleteOfficialResult(userId, id);
-}
+};

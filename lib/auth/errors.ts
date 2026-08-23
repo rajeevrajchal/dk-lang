@@ -11,6 +11,8 @@
 //     text on a page that looks like the real sign-in screen. Mapping to a
 //     known set removes that.
 
+import type { AuthErrorCode } from "@/types";
+
 export const AUTH_ERROR_CODES = [
   "invalid_credentials",
   "email_not_confirmed",
@@ -23,11 +25,9 @@ export const AUTH_ERROR_CODES = [
   "missing_code",
   "unknown",
 ] as const;
-export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[number];
-
-export function isAuthErrorCode(value: unknown): value is AuthErrorCode {
+export const isAuthErrorCode = (value: unknown): value is AuthErrorCode => {
   return typeof value === "string" && (AUTH_ERROR_CODES as readonly string[]).includes(value);
-}
+};
 
 /**
  * Classifies a Supabase auth error.
@@ -36,7 +36,7 @@ export function isAuthErrorCode(value: unknown): value is AuthErrorCode {
  * message text, because the codes are not populated for every failure and the
  * wording has been more stable than the coverage.
  */
-export function classifyAuthError(error: { message?: string; code?: string } | null): AuthErrorCode {
+export const classifyAuthError = (error: { message?: string; code?: string } | null): AuthErrorCode => {
   if (!error) return "unknown";
 
   const code = error.code?.toLowerCase() ?? "";
@@ -66,4 +66,4 @@ export function classifyAuthError(error: { message?: string; code?: string } | n
     return "expired_link";
   }
   return "unknown";
-}
+};

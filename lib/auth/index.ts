@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient, supabaseConfigured } from "@/lib/supabase/server";
 import { resolveSupabaseUser } from "./identity";
+import type { AppSession } from "@/types";
 
 // One way in, one session.
 //
@@ -19,17 +20,13 @@ import { resolveSupabaseUser } from "./identity";
 // `session.user.id` did not have to change. `user.id` is always the
 // application id, never a Supabase UUID — see lib/auth/identity.ts.
 
-export interface AppSession {
-  user: { id: string; email: string; name?: string | null };
-}
-
 /**
  * Next.js signals "this route touched request state" by throwing. That is
  * control flow, not a failure, and swallowing it breaks the framework's
  * static/dynamic detection — so it is re-thrown rather than caught along with
  * genuine Supabase errors.
  */
-function isFrameworkControlFlow(err: unknown): boolean {
+const isFrameworkControlFlow = (err: unknown): boolean => {
   const digest = (err as { digest?: unknown })?.digest;
   return (
     typeof digest === "string" &&
@@ -37,7 +34,7 @@ function isFrameworkControlFlow(err: unknown): boolean {
       digest.startsWith("NEXT_REDIRECT") ||
       digest.startsWith("NEXT_NOT_FOUND"))
   );
-}
+};
 
 /**
  * The current user, or null when nobody is signed in.
@@ -45,7 +42,7 @@ function isFrameworkControlFlow(err: unknown): boolean {
  * Returns null rather than throwing — every caller already handles it, and the
  * proxy has usually redirected first anyway.
  */
-export async function auth(): Promise<AppSession | null> {
+export const auth = async (): Promise<AppSession | null> => {
   if (!supabaseConfigured()) return null;
 
   try {
@@ -73,9 +70,9 @@ export async function auth(): Promise<AppSession | null> {
     console.warn("[auth] session lookup failed:", err);
     return null;
   }
-}
+};
 
-export async function signOut() {
+export const signOut = async () => {
   if (!supabaseConfigured()) return;
   try {
     const supabase = await createClient();
@@ -84,4 +81,4 @@ export async function signOut() {
     if (isFrameworkControlFlow(err)) throw err;
     console.warn("[auth] sign-out failed:", err);
   }
-}
+};

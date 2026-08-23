@@ -9,17 +9,17 @@ import { getServerDictionary } from "@/lib/i18n/server";
 // comes from — detailed exercise history in Class, per-question review in
 // Mock, the curriculum in Lessons.
 
-function pct(n: number | null | undefined) {
+const pct = (n: number | null | undefined) => {
   return n == null ? "—" : `${Math.round(n * 100)}%`;
-}
+};
 
-function fmtDate(d: Date | null | undefined) {
+const fmtDate = (d: Date | null | undefined) => {
   return d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—";
-}
+};
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export default async function DashboardPage() {
+const DashboardPage = async () => {
   const session = await auth();
   const dict = await getServerDictionary();
   const t = dict.dashboard;
@@ -283,4 +283,6 @@ export default async function DashboardPage() {
       </section>
     </div>
   );
-}
+};
+
+export default DashboardPage;

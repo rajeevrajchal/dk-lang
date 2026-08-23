@@ -1,8 +1,8 @@
-import { THEORY_LESSONS, type TheoryLesson } from "@/lib/content-gen/theory";
+import { THEORY_LESSONS } from "@/lib/content-gen/theory";
 import { FOUNDATION_LESSONS } from "./foundation-lessons";
 import { READING_LESSONS } from "./reading-lessons";
 import { WRITING_LESSONS } from "./writing-lessons";
-import type { Course, CourseChapter } from "./course-types";
+import type { Course, CourseChapter, TheoryLesson } from "@/types";
 
 // The Danish course: chapters you can work through from the beginning.
 //
@@ -420,27 +420,27 @@ export const DANISH_COURSE: Course = {
 
 export const CHAPTER_BY_ID = new Map(CHAPTERS.map((c) => [c.id, c]));
 
-export function chapterByNumber(n: number): CourseChapter | undefined {
+export const chapterByNumber = (n: number): CourseChapter | undefined => {
   return CHAPTERS.find((c) => c.number === n);
-}
+};
 
 /** The chapter a lesson slug belongs to, for linking back from a lesson. */
-export function chapterForLesson(slug: string): CourseChapter | undefined {
+export const chapterForLesson = (slug: string): CourseChapter | undefined => {
   return CHAPTERS.find((c) => c.topics.some((t) => t.lessonSlug === slug));
-}
+};
 
 /** Chapters that contribute to a given PD3 module. */
-export function chaptersForModule(moduleId: number): CourseChapter[] {
+export const chaptersForModule = (moduleId: number): CourseChapter[] => {
   return CHAPTERS.filter((c) => c.supportsModules.includes(moduleId));
-}
+};
 
 /**
  * Every lesson slug in the course, in teaching order. Used to check that the
  * course references nothing that does not exist.
  */
-export function courseLessonSlugs(): string[] {
+export const courseLessonSlugs = (): string[] => {
   return CHAPTERS.flatMap((c) => c.topics.map((t) => t.lessonSlug));
-}
+};
 
 /**
  * The lesson that comes after this one in teaching order, with the chapter it
@@ -451,13 +451,13 @@ export function courseLessonSlugs(): string[] {
  * goes back to an old lesson should still be offered the lesson that follows
  * it, not dropped somewhere else.
  */
-export function nextLessonAfter(
+export const nextLessonAfter = (
   slug: string
-): { chapter: CourseChapter; lessonSlug: string } | null {
+): { chapter: CourseChapter; lessonSlug: string } | null => {
   const sequence = CHAPTERS.flatMap((chapter) =>
     chapter.topics.map((topic) => ({ chapter, lessonSlug: topic.lessonSlug }))
   );
   const at = sequence.findIndex((step) => step.lessonSlug === slug);
   if (at === -1) return null;
   return sequence[at + 1] ?? null;
-}
+};

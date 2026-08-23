@@ -15,14 +15,14 @@ const PRIMARY = [
 
 const SECONDARY = [{ href: "/settings", key: "settings" as const, icon: "⚙" }];
 
-export function Sidebar({ userEmail }: { userEmail?: string | null }) {
+export const Sidebar = ({ userEmail }: { userEmail?: string | null }) => {
   const pathname = usePathname();
   const { dict } = useI18n();
 
   // The routes that moved keep their old URLs working, so the nav has to
   // highlight the right area for both. /class/course is Lessons; the timed
   // exam and mock-test routes are Mock.
-  function isActive(href: string): boolean {
+  const isActive = (href: string): boolean => {
     const aliases: Record<string, string[]> = {
       "/lessons": ["/class/course"],
       "/mock": ["/mock-test", "/exam"],
@@ -31,12 +31,12 @@ export function Sidebar({ userEmail }: { userEmail?: string | null }) {
     };
     const prefixes = [href, ...(aliases[href] ?? [])];
     return prefixes.some((p) => pathname === p || pathname.startsWith(p + "/"));
-  }
+  };
 
   // /class/course is a Lessons URL, so Class must not also claim it.
   const lessonsActive = isActive("/lessons");
 
-  function renderLink(link: { href: string; key: "dashboard" | "lessons" | "class" | "mock" | "settings"; icon: string }) {
+  const renderLink = (link: { href: string; key: "dashboard" | "lessons" | "class" | "mock" | "settings"; icon: string }) => {
     const active = link.href === "/class" ? isActive("/class") && !lessonsActive : isActive(link.href);
     return (
       <Link
@@ -52,7 +52,7 @@ export function Sidebar({ userEmail }: { userEmail?: string | null }) {
         <span>{dict.nav[link.key]}</span>
       </Link>
     );
-  }
+  };
 
   return (
     <aside className="w-56 shrink-0 border-r border-slate-200 bg-white flex flex-col">
@@ -73,4 +73,4 @@ export function Sidebar({ userEmail }: { userEmail?: string | null }) {
       )}
     </aside>
   );
-}
+};

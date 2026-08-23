@@ -1,8 +1,4 @@
-import type {
-  CommunicationDemand,
-  SpeakingStage,
-  TaskType,
-} from "./types";
+import type { CommunicationDemand, SpeakingStage, TaskType } from "@/types";
 
 // Which speaking opgaver each module is made of, and what phases each opgave
 // runs through.
@@ -19,7 +15,7 @@ import type {
 
 /**
  * Speaking task types per module. A module without an entry falls back to the
- * category-wide list in types.ts, which is what every module did before this
+ * category-wide list in constants.ts, which is what every module did before this
  * file existed — so nothing changes for them.
  */
 export const SPEAKING_TASKS_BY_MODULE: Record<number, TaskType[]> = {
@@ -27,9 +23,9 @@ export const SPEAKING_TASKS_BY_MODULE: Record<number, TaskType[]> = {
   3: ["speaking_prepared_topic", "speaking_picture_preference"],
 };
 
-export function speakingTasksForModule(moduleId: number): TaskType[] | null {
+export const speakingTasksForModule = (moduleId: number): TaskType[] | null => {
   return SPEAKING_TASKS_BY_MODULE[moduleId] ?? null;
-}
+};
 
 /**
  * The demand ceiling a module examines at. Modul 2 stays on concrete
@@ -42,9 +38,9 @@ export const MODULE_DEMANDS: Record<number, CommunicationDemand[]> = {
   3: ["description", "elaboration", "preference", "reasoning", "experience"],
 };
 
-export function demandsForModule(moduleId: number): CommunicationDemand[] {
+export const demandsForModule = (moduleId: number): CommunicationDemand[] => {
   return MODULE_DEMANDS[moduleId] ?? ["factual", "description"];
-}
+};
 
 // ---------------------------------------------------------------------------
 // Stage templates
@@ -129,14 +125,14 @@ export const STAGE_TEMPLATES: Partial<Record<TaskType, SpeakingStage[]>> = {
   ],
 };
 
-export function stagesForTaskType(taskType: TaskType): SpeakingStage[] | null {
+export const stagesForTaskType = (taskType: TaskType): SpeakingStage[] | null => {
   return STAGE_TEMPLATES[taskType] ?? null;
-}
+};
 
 /** True for the task types that carry the modultest opgave structure. */
-export function isStructuredSpeakingTask(taskType: TaskType): boolean {
+export const isStructuredSpeakingTask = (taskType: TaskType): boolean => {
   return taskType in STAGE_TEMPLATES;
-}
+};
 
 /**
  * The opgave number a speaking task sits at in its module, for labelling.

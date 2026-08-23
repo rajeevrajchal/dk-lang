@@ -2,10 +2,7 @@ import "server-only";
 
 import { createClient as createUserClient } from "./server";
 import { createAdminClient } from "./admin";
-import type { Database } from "./database.types";
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-export type Db = SupabaseClient<Database>;
+import type { DatabaseFunctions, Db } from "@/types";
 
 // Which Supabase client the repositories query through.
 //
@@ -26,17 +23,17 @@ export type Db = SupabaseClient<Database>;
 // has to be asked for by name.
 
 /** The signed-in learner's client. Every query is subject to RLS. */
-export async function db(): Promise<Db> {
+export const db = async (): Promise<Db> => {
   return createUserClient();
-}
+};
 
 /**
  * The service-role client. Bypasses RLS — use only when there is no session
  * to act on behalf of, or for content that belongs to nobody.
  */
-export function adminDb(): Db {
+export const adminDb = (): Db => {
   return createAdminClient();
-}
+};
 
 /**
  * Turns a PostgREST error into a thrown Error.
@@ -46,10 +43,10 @@ export function adminDb(): Db {
  * than "the query failed". Every repository funnels through this so a broken
  * query is loud.
  */
-export function unwrap<T>(
+export const unwrap = <T>(
   result: { data: T | null; error: { message: string; code?: string } | null },
   context: string
-): T {
+): T => {
   if (result.error) {
     throw new Error(`[supabase] ${context}: ${result.error.message}`);
   }
@@ -60,14 +57,12 @@ export function unwrap<T>(
     throw new Error(`[supabase] ${context}: no data returned`);
   }
   return result.data;
-}
+};
 
 /** PostgREST's "no rows matched" from .single(), which is often expected. */
-export function isNoRows(error: { code?: string } | null): boolean {
+export const isNoRows = (error: { code?: string } | null): boolean => {
   return error?.code === "PGRST116";
-}
-
-type Fns = Database["public"]["Functions"];
+};
 
 /**
  * Calls one of the database functions in supabase/functions.sql.
@@ -78,11 +73,11 @@ type Fns = Database["public"]["Functions"];
  * generics out. Here the function name alone is enough to type both the
  * arguments and the result.
  */
-export async function rpc<K extends keyof Fns & string>(
+export const rpc = async <K extends keyof DatabaseFunctions & string>(
   client: Db,
   fn: K,
-  args: Fns[K]["Args"]
-): Promise<Fns[K]["Returns"]> {
+  args: DatabaseFunctions[K]["Args"]
+): Promise<DatabaseFunctions[K]["Returns"]> => {
   // supabase-js resolves an RPC's return type by exact-matching the argument
   // object against every overload of that function name. Inside a generic
   // helper `K` is not yet concrete, so that match cannot be made and the
@@ -90,5 +85,5 @@ export async function rpc<K extends keyof Fns & string>(
   // helper's own signature stays exact, so call sites get real types.
   const { data, error } = await client.rpc(fn, args as never);
   if (error) throw new Error(`[supabase] rpc ${fn}: ${error.message}`);
-  return data as unknown as Fns[K]["Returns"];
-}
+  return data as unknown as DatabaseFunctions[K]["Returns"];
+};

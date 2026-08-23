@@ -1,11 +1,12 @@
+import { demandsForModule, stagesForTaskType } from "./speaking-patterns";
 import type {
   CommunicationDemand,
   ExerciseVariant,
   SpeakingContent,
+  SpeakingSpeaker,
   SpeakingStage,
-  TaskType,
-} from "./types";
-import { demandsForModule, stagesForTaskType } from "./speaking-patterns";
+  SpeakingState,
+} from "@/types";
 
 // Conversation state for a speaking task.
 //
@@ -17,53 +18,22 @@ import { demandsForModule, stagesForTaskType } from "./speaking-patterns";
 //
 // Everything here is pure and synchronous so it can be tested without the API.
 
-export type SpeakingSpeaker = "examiner" | "partner" | "candidate";
-
-export interface SpeakingTurn {
-  speaker: SpeakingSpeaker;
-  text: string;
-  /** For an examiner/partner turn: which coverage target it was aimed at. */
-  target?: string;
-  demand?: CommunicationDemand;
-}
-
-export interface SpeakingState {
-  taskType: TaskType;
-  moduleId: number;
-  topic: string;
-  /** Index into the task's stage list. */
-  stageIndex: number;
-  /**
-   * Everything the candidate should end up having talked about — the mindmap
-   * categories, or the facts they have to find out in an information gap.
-   */
-  allTargets: string[];
-  coveredTargets: string[];
-  turns: SpeakingTurn[];
-  /**
-   * Every question already put to the candidate, kept across stage
-   * boundaries. `turns` is per-stage and is cleared on advance, so without
-   * this the examiner would reopen a stage by repeating its first question.
-   */
-  askedQuestions: string[];
-}
-
 /** Turns of examiner questioning per stage before it is considered done. */
 const MIN_EXAMINER_TURNS = 4;
 /** A candidate answer at or below this many words reads as struggling. */
 const SHORT_ANSWER_WORDS = 3;
 
 /** The coverage targets implied by a speaking exercise's content. */
-export function targetsFor(content: SpeakingContent): string[] {
+export const targetsFor = (content: SpeakingContent): string[] => {
   if (content.mindmap) return content.mindmap.categories;
   if (content.informationGap) return content.informationGap.candidate.mustFindOut;
   if (content.preferenceOptions) return content.preferenceOptions.map((o) => o.label);
   if (content.preparedTopics?.length) return content.preparedTopics[0].prompts;
   // The original free-form prompts: the questions themselves are the targets.
   return content.questions;
-}
+};
 
-export function initialSpeakingState(variant: ExerciseVariant): SpeakingState {
+export const initialSpeakingState = (variant: ExerciseVariant): SpeakingState => {
   const content = variant.content as SpeakingContent;
   return {
     taskType: variant.taskType,
@@ -75,19 +45,19 @@ export function initialSpeakingState(variant: ExerciseVariant): SpeakingState {
     turns: [],
     askedQuestions: [],
   };
-}
+};
 
-export function stagesFor(state: SpeakingState): SpeakingStage[] {
+export const stagesFor = (state: SpeakingState): SpeakingStage[] => {
   return stagesForTaskType(state.taskType) ?? [];
-}
+};
 
-export function currentStage(state: SpeakingState): SpeakingStage | null {
+export const currentStage = (state: SpeakingState): SpeakingStage | null => {
   return stagesFor(state)[state.stageIndex] ?? null;
-}
+};
 
-export function uncoveredTargets(state: SpeakingState): string[] {
+export const uncoveredTargets = (state: SpeakingState): string[] => {
   return state.allTargets.filter((t) => !state.coveredTargets.includes(t));
-}
+};
 
 /**
  * Best-effort coverage detection from the candidate's own words.
@@ -98,7 +68,7 @@ export function uncoveredTargets(state: SpeakingState): string[] {
  * revisits a thin area instead of skipping it. When the API is available the
  * model's own judgement is merged on top (see recordCandidateTurn).
  */
-export function detectCoverage(answer: string, targets: string[]): string[] {
+export const detectCoverage = (answer: string, targets: string[]): string[] => {
   const haystack = answer.toLowerCase();
   return targets.filter((target) =>
     target
@@ -107,14 +77,14 @@ export function detectCoverage(answer: string, targets: string[]): string[] {
       .filter((w) => w.length > 3)
       .some((w) => haystack.includes(w))
   );
-}
+};
 
-export function recordExaminerTurn(
+export const recordExaminerTurn = (
   state: SpeakingState,
   text: string,
   target?: string,
   demand?: CommunicationDemand
-): SpeakingState {
+): SpeakingState => {
   const stage = currentStage(state);
   const speaker: SpeakingSpeaker = stage?.role === "partner" ? "partner" : "examiner";
   return {
@@ -122,18 +92,18 @@ export function recordExaminerTurn(
     turns: [...state.turns, { speaker, text, target, demand }],
     askedQuestions: [...state.askedQuestions, text],
   };
-}
+};
 
 /**
  * Records what the candidate said and updates coverage. `alsoCovered` is the
  * model's assessment, merged with the local heuristic — the app still owns
  * the record, the model only contributes to it.
  */
-export function recordCandidateTurn(
+export const recordCandidateTurn = (
   state: SpeakingState,
   text: string,
   alsoCovered: string[] = []
-): SpeakingState {
+): SpeakingState => {
   const detected = detectCoverage(text, uncoveredTargets(state));
   const confirmed = alsoCovered.filter((t) => state.allTargets.includes(t));
   const covered = [...new Set([...state.coveredTargets, ...detected, ...confirmed])];
@@ -142,29 +112,29 @@ export function recordCandidateTurn(
     coveredTargets: covered,
     turns: [...state.turns, { speaker: "candidate", text }],
   };
-}
+};
 
-export function examinerTurnsInStage(state: SpeakingState): number {
+export const examinerTurnsInStage = (state: SpeakingState): number => {
   return state.turns.filter((t) => t.speaker !== "candidate").length;
-}
+};
 
 /**
  * Whether the candidate looks stuck: their last two answers were very short.
  * The examiner should simplify or offer a concrete choice rather than pushing
  * on to a harder demand.
  */
-export function isStruggling(state: SpeakingState): boolean {
+export const isStruggling = (state: SpeakingState): boolean => {
   const answers = state.turns.filter((t) => t.speaker === "candidate").slice(-2);
   if (answers.length < 2) return false;
   return answers.every((a) => a.text.trim().split(/\s+/).filter(Boolean).length <= SHORT_ANSWER_WORDS);
-}
+};
 
 /**
  * A stage is finished once the candidate has been asked enough and there is
  * nothing important left uncovered. A presentation stage has no questioning,
  * so it ends as soon as the candidate has spoken once.
  */
-export function isStageComplete(state: SpeakingState): boolean {
+export const isStageComplete = (state: SpeakingState): boolean => {
   const stage = currentStage(state);
   if (!stage) return true;
   const candidateTurns = state.turns.filter((t) => t.speaker === "candidate").length;
@@ -172,17 +142,17 @@ export function isStageComplete(state: SpeakingState): boolean {
   if (stage.type === "presentation") return candidateTurns >= 1;
 
   return examinerTurnsInStage(state) >= MIN_EXAMINER_TURNS && uncoveredTargets(state).length === 0;
-}
+};
 
 /** Moves to the next stage. The per-stage transcript resets; what has been
  *  covered and what has already been asked deliberately do not. */
-export function advanceStage(state: SpeakingState): SpeakingState {
+export const advanceStage = (state: SpeakingState): SpeakingState => {
   return { ...state, stageIndex: state.stageIndex + 1, turns: [] };
-}
+};
 
-export function isTaskComplete(state: SpeakingState): boolean {
+export const isTaskComplete = (state: SpeakingState): boolean => {
   return state.stageIndex >= stagesFor(state).length;
-}
+};
 
 /**
  * The demand for the next question.
@@ -193,7 +163,7 @@ export function isTaskComplete(state: SpeakingState): boolean {
  * examines — which is what keeps a Modul 2 follow-up on "hvor ligger caféen?"
  * instead of drifting into "hvorfor tror du, folk skifter job?".
  */
-export function nextDemand(state: SpeakingState): CommunicationDemand {
+export const nextDemand = (state: SpeakingState): CommunicationDemand => {
   const stage = currentStage(state);
   const allowed = demandsForModule(state.moduleId);
   if (!stage) return allowed[0];
@@ -203,15 +173,15 @@ export function nextDemand(state: SpeakingState): CommunicationDemand {
   const start = base === -1 ? 0 : base;
   const climb = Math.floor(examinerTurnsInStage(state) / 2);
   return allowed[Math.min(start + climb, allowed.length - 1)];
-}
+};
 
 /**
  * What the next question should be about: the most important thing not yet
  * discussed, falling back to the last thing the candidate said so the
  * examiner deepens rather than jumping.
  */
-export function nextFocus(state: SpeakingState): { target?: string; lastAnswer?: string } {
+export const nextFocus = (state: SpeakingState): { target?: string; lastAnswer?: string } => {
   const uncovered = uncoveredTargets(state);
   const lastAnswer = [...state.turns].reverse().find((t) => t.speaker === "candidate")?.text;
   return { target: uncovered[0], lastAnswer };
-}
+};

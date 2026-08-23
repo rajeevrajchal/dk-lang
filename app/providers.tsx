@@ -9,6 +9,6 @@
 //
 // Kept as a component rather than removed so app/layout.tsx does not need
 // changing, and so there is an obvious place for the next client provider.
-export function Providers({ children }: { children: React.ReactNode }) {
+export const Providers = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
-}
+};

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db, adminDb, unwrap, isNoRows } from "@/lib/supabase/db";
-import type { Tables } from "@/lib/supabase/database.types";
+import type { Tables } from "@/types";
 
 // Users, profiles and official test results.
 //
@@ -14,7 +14,7 @@ import type { Tables } from "@/lib/supabase/database.types";
 // after sign-in uses the learner's own client, so the database enforces the
 // scoping rather than trusting this code to remember it.
 
-export async function findById(userId: string) {
+export const findById = async (userId: string) => {
   const supabase = await db();
   const { data, error } = await supabase
     .from("User")
@@ -23,17 +23,17 @@ export async function findById(userId: string) {
     .single();
   if (error && !isNoRows(error)) throw new Error(`[supabase] findById: ${error.message}`);
   return data ?? null;
-}
+};
 
 // --- sign-in path: no session yet, so these use the admin client -----------
 
-export async function findByEmailForAuth(email: string): Promise<Tables<"User"> | null> {
+export const findByEmailForAuth = async (email: string): Promise<Tables<"User"> | null> => {
   const { data, error } = await adminDb().from("User").select("*").eq("email", email).single();
   if (error && !isNoRows(error)) throw new Error(`[supabase] findByEmailForAuth: ${error.message}`);
   return data ?? null;
-}
+};
 
-export async function findBySupabaseId(supabaseUserId: string): Promise<Tables<"User"> | null> {
+export const findBySupabaseId = async (supabaseUserId: string): Promise<Tables<"User"> | null> => {
   const { data, error } = await adminDb()
     .from("User")
     .select("*")
@@ -41,13 +41,13 @@ export async function findBySupabaseId(supabaseUserId: string): Promise<Tables<"
     .single();
   if (error && !isNoRows(error)) throw new Error(`[supabase] findBySupabaseId: ${error.message}`);
   return data ?? null;
-}
+};
 
-export async function linkSupabaseIdentity(
+export const linkSupabaseIdentity = async (
   userId: string,
   supabaseUserId: string,
   name: string | null
-): Promise<Tables<"User">> {
+): Promise<Tables<"User">> => {
   const rows = unwrap(
     await adminDb()
       .from("User")
@@ -57,15 +57,15 @@ export async function linkSupabaseIdentity(
     "linkSupabaseIdentity"
   );
   return rows[0];
-}
+};
 
-export async function createUser(input: {
+export const createUser = async (input: {
   email: string;
   name: string | null;
   passwordHash?: string | null;
   supabaseUserId?: string | null;
   authProvider?: string;
-}): Promise<Tables<"User">> {
+}): Promise<Tables<"User">> => {
   const rows = unwrap(
     await adminDb()
       .from("User")
@@ -82,11 +82,11 @@ export async function createUser(input: {
     "createUser"
   );
   return rows[0];
-}
+};
 
 // --- profile ---------------------------------------------------------------
 
-export async function getProfile(userId: string): Promise<Tables<"UserProfile"> | null> {
+export const getProfile = async (userId: string): Promise<Tables<"UserProfile"> | null> => {
   const supabase = await db();
   const { data, error } = await supabase
     .from("UserProfile")
@@ -95,13 +95,13 @@ export async function getProfile(userId: string): Promise<Tables<"UserProfile"> 
     .single();
   if (error && !isNoRows(error)) throw new Error(`[supabase] getProfile: ${error.message}`);
   return data ?? null;
-}
+};
 
 /** Partial profile update, creating the row if it does not exist yet. */
-export async function upsertProfile(
+export const upsertProfile = async (
   userId: string,
   data: Partial<Omit<Tables<"UserProfile">, "id" | "userId">>
-): Promise<Tables<"UserProfile">> {
+): Promise<Tables<"UserProfile">> => {
   const supabase = await db();
   const existing = await getProfile(userId);
 
@@ -125,21 +125,21 @@ export async function upsertProfile(
     "upsertProfile"
   );
   return rows[0];
-}
+};
 
-export async function getInterestsJson(userId: string): Promise<string | null> {
+export const getInterestsJson = async (userId: string): Promise<string | null> => {
   return (await getProfile(userId))?.interestsJson ?? null;
-}
+};
 
-export async function setInterestsJson(userId: string, interestsJson: string) {
+export const setInterestsJson = async (userId: string, interestsJson: string) => {
   return upsertProfile(userId, { interestsJson });
-}
+};
 
 // --- official test results -------------------------------------------------
 
-export async function listOfficialResults(
+export const listOfficialResults = async (
   userId: string
-): Promise<Tables<"OfficialTestResult">[]> {
+): Promise<Tables<"OfficialTestResult">[]> => {
   const supabase = await db();
   return unwrap(
     await supabase
@@ -150,12 +150,12 @@ export async function listOfficialResults(
       .order("createdAt", { ascending: false }),
     "listOfficialResults"
   );
-}
+};
 
-export async function createOfficialResult(
+export const createOfficialResult = async (
   userId: string,
   data: Omit<Tables<"OfficialTestResult">, "id" | "userId" | "createdAt">
-): Promise<Tables<"OfficialTestResult">> {
+): Promise<Tables<"OfficialTestResult">> => {
   const supabase = await db();
   const rows = unwrap(
     await supabase
@@ -165,9 +165,9 @@ export async function createOfficialResult(
     "createOfficialResult"
   );
   return rows[0];
-}
+};
 
-export async function findOfficialResultByReportCard(userId: string, reportCardId: string) {
+export const findOfficialResultByReportCard = async (userId: string, reportCardId: string) => {
   const supabase = await db();
   const { data, error } = await supabase
     .from("OfficialTestResult")
@@ -179,9 +179,9 @@ export async function findOfficialResultByReportCard(userId: string, reportCardI
     throw new Error(`[supabase] findOfficialResultByReportCard: ${error.message}`);
   }
   return data ?? null;
-}
+};
 
-export async function deleteOfficialResult(userId: string, id: string): Promise<boolean> {
+export const deleteOfficialResult = async (userId: string, id: string): Promise<boolean> => {
   const supabase = await db();
   const rows = unwrap(
     await supabase
@@ -193,4 +193,4 @@ export async function deleteOfficialResult(userId: string, id: string): Promise<
     "deleteOfficialResult"
   );
   return rows.length > 0;
-}
+};

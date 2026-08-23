@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import { READING_TOPICS, type ReadingTopic } from "@/lib/reading/library";
+import { READING_TOPICS } from "@/lib/reading/library";
+import type { ReadingTopic } from "@/types";
 
 // What the learner likes reading about.
 //
@@ -11,7 +12,7 @@ import { READING_TOPICS, type ReadingTopic } from "@/lib/reading/library";
 // which is why this can live quietly in Settings rather than blocking the way
 // into the library.
 
-export function InterestsPicker({ initial }: { initial: ReadingTopic[] }) {
+export const InterestsPicker = ({ initial }: { initial: ReadingTopic[] }) => {
   const router = useRouter();
   const { dict } = useI18n();
   const t = dict.reading;
@@ -20,11 +21,11 @@ export function InterestsPicker({ initial }: { initial: ReadingTopic[] }) {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
 
-  function toggle(topic: ReadingTopic) {
+  const toggle = (topic: ReadingTopic) => {
     setSelected((s) => (s.includes(topic) ? s.filter((x) => x !== topic) : [...s, topic]));
-  }
+  };
 
-  async function save() {
+  const save = async () => {
     setSaving(true);
     await fetch("/api/profile/interests", {
       method: "POST",
@@ -34,7 +35,7 @@ export function InterestsPicker({ initial }: { initial: ReadingTopic[] }) {
     setSaving(false);
     setSavedAt(Date.now());
     router.refresh();
-  }
+  };
 
   const dirty =
     selected.length !== initial.length || selected.some((x) => !initial.includes(x));
@@ -78,4 +79,4 @@ export function InterestsPicker({ initial }: { initial: ReadingTopic[] }) {
       </div>
     </div>
   );
-}
+};

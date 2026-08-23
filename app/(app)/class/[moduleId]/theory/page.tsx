@@ -5,11 +5,11 @@ import { theoryForTiers } from "@/lib/content-gen/theory";
 import { TIERS } from "@/lib/curriculum/tiers";
 import { getServerDictionary } from "@/lib/i18n/server";
 
-export default async function TheoryIndexPage({
+const TheoryIndexPage = async ({
   params,
 }: {
   params: Promise<{ moduleId: string }>;
-}) {
+}) => {
   const { moduleId } = await params;
   const moduleIdNum = Number(moduleId);
 
@@ -66,4 +66,6 @@ export default async function TheoryIndexPage({
       })}
     </div>
   );
-}
+};
+
+export default TheoryIndexPage;

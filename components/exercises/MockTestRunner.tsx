@@ -8,49 +8,19 @@ import { OpgaveExplain } from "./OpgaveExplain";
 import { practiceHrefFor, summariseMock } from "@/lib/exercises/mock-summary";
 import type {
   ExerciseResponse,
-  GradedAnswer,
+  MockPartResult,
+  MockPhase,
+  MockResult,
   PublicExercise,
-} from "@/lib/exercises/types";
+} from "@/types";
 
-type Phase = "intro" | "preparing" | "running" | "result";
-
-interface PartResult {
-  attemptId: string;
-  orderIndex: number;
-  category: string;
-  taskType: string;
-  taskNumber: number | null;
-  topic: string;
-  title: string;
-  answered: boolean;
-  explainable: boolean;
-  score: number | null;
-  total: number | null;
-  mistakes: number | null;
-  answers: GradedAnswer[];
-  wordCount?: number;
-  minWords?: number;
-}
-
-interface MockResult {
-  reading: {
-    correct: number;
-    total: number;
-    score: number;
-    passed: boolean;
-    threshold: number;
-  };
-  writing: { answered: boolean; wordCount: number; minWords: number | null } | null;
-  parts: PartResult[];
-}
-
-function formatTime(seconds: number) {
+const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
-}
+};
 
-export function MockTestRunner({
+export const MockTestRunner = ({
   moduleId,
   generationEnabled,
   backHref,
@@ -59,12 +29,12 @@ export function MockTestRunner({
   generationEnabled: boolean;
   /** Where "back" goes. Defaults to the module hub, as it always did. */
   backHref?: string;
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.mockTest;
   const te = dict.exercises;
 
-  const [phase, setPhase] = useState<Phase>("intro");
+  const [phase, setPhase] = useState<MockPhase>("intro");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<PublicExercise[]>([]);
   const [index, setIndex] = useState(0);
@@ -105,7 +75,7 @@ export function MockTestRunner({
     [exercises, responses]
   );
 
-  async function start() {
+  const start = async () => {
     setPhase("preparing");
     setError(null);
     const res = await fetch("/api/mock-test/start", {
@@ -125,7 +95,7 @@ export function MockTestRunner({
     setIndex(0);
     setResponses({});
     setPhase("running");
-  }
+  };
 
   useEffect(() => {
     if (phase !== "running" || !sessionId) return;
@@ -443,7 +413,7 @@ export function MockTestRunner({
       </div>
     </div>
   );
-}
+};
 
 /**
  * "Strengths / needs practice" for a finished mock test.
@@ -452,7 +422,7 @@ export function MockTestRunner({
  * words") rather than a single number. Only scored opgaver appear: writing has
  * no examiner here, so it is not turned into a strength or a weakness.
  */
-function MockBreakdown({ parts, moduleId }: { parts: PartResult[]; moduleId: number }) {
+const MockBreakdown = ({ parts, moduleId }: { parts: MockPartResult[]; moduleId: number }) => {
   const { dict } = useI18n();
   const t = dict.mock;
   const te = dict.exercises;
@@ -466,9 +436,9 @@ function MockBreakdown({ parts, moduleId }: { parts: PartResult[]; moduleId: num
     );
   }
 
-  function label(taskType: string) {
+  const label = (taskType: string) => {
     return te.taskTypeNames[taskType] ?? te.categories[taskType] ?? taskType;
-  }
+  };
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
@@ -526,4 +496,4 @@ function MockBreakdown({ parts, moduleId }: { parts: PartResult[]; moduleId: num
       )}
     </section>
   );
-}
+};

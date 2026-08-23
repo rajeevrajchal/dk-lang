@@ -16,7 +16,7 @@ const SKILLS = [
   { key: "WRITING", href: "/class/writing", icon: "✍️" },
 ] as const;
 
-export default async function ClassPage() {
+const ClassPage = async () => {
   const session = await auth();
   const dict = await getServerDictionary();
   const t = dict.class2;
@@ -87,4 +87,6 @@ export default async function ClassPage() {
       )}
     </div>
   );
-}
+};
+
+export default ClassPage;

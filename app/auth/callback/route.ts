@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveSupabaseUser } from "@/lib/auth/identity";
-import { classifyAuthError, type AuthErrorCode } from "@/lib/auth/errors";
+import { classifyAuthError } from "@/lib/auth/errors";
+import type { AuthErrorCode } from "@/types";
 
 // Where Google sends the learner back to.
 //
@@ -10,7 +11,7 @@ import { classifyAuthError, type AuthErrorCode } from "@/lib/auth/errors";
 // so that a first Google sign-in fails loudly at the moment it happens —
 // finding out later, halfway through a lesson, would be much worse.
 
-export async function GET(request: Request) {
+export const GET = async (request: Request) => {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   // Only ever a path, never an absolute URL: taking an arbitrary `next` would
@@ -67,4 +68,4 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.redirect(new URL(next, url.origin));
-}
+};

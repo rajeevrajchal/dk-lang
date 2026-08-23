@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CHAPTER_BY_ID, LESSON_BY_SLUG, nextLessonAfter } from "@/lib/curriculum/course";
 import { lessonKind } from "@/lib/content-gen/theory";
-import { LessonExercises, type NextStep } from "@/components/course/LessonExercises";
+import { LessonExercises } from "@/components/course/LessonExercises";
 import { LessonVisit } from "@/components/lessons/LessonVisit";
 import { InteractiveText } from "@/components/reading/InteractiveText";
 import { WritingModelPanel } from "@/components/writing/WritingModelPanel";
 import { getServerDictionary } from "@/lib/i18n/server";
+import type { NextStep } from "@/types";
 
 // A course lesson.
 //
@@ -18,11 +19,11 @@ import { getServerDictionary } from "@/lib/i18n/server";
 // Opening the page records a visit (LessonVisit), which is what lets the
 // learner leave and be brought back here later.
 
-export default async function CourseLessonPage({
+const CourseLessonPage = async ({
   params,
 }: {
   params: Promise<{ chapterId: string; lessonSlug: string }>;
-}) {
+}) => {
   const { chapterId, lessonSlug } = await params;
   const chapter = CHAPTER_BY_ID.get(chapterId);
   const lesson = LESSON_BY_SLUG.get(lessonSlug);
@@ -211,10 +212,12 @@ export default async function CourseLessonPage({
       )}
     </div>
   );
-}
+};
+
+export default CourseLessonPage;
 
 /** For lessons that have no exercises yet — reading it through still counts. */
-function MarkDoneOnly({
+const MarkDoneOnly = ({
   lessonSlug,
   label,
   next,
@@ -222,11 +225,11 @@ function MarkDoneOnly({
   lessonSlug: string;
   label: string;
   next: NextStep | null;
-}) {
+}) => {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
       <p className="text-sm text-slate-600">{label}</p>
       <LessonExercises lessonSlug={lessonSlug} exercises={[]} next={next} />
     </div>
   );
-}
+};

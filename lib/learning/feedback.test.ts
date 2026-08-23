@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildMistake, sameWords } from "./feedback";
-import type { LessonExercise } from "@/lib/curriculum/course-types";
+import type { LessonExercise } from "@/types";
 
 // The correction a learner sees when they get something wrong. "✗" teaches
 // nothing; "❌ Jeg arbejde ✅ Jeg arbejder" teaches the rule in one glance.

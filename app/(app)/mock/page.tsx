@@ -12,11 +12,11 @@ import { getServerDictionary } from "@/lib/i18n/server";
 // teaching happens in Lessons and the coaching in Class; this area's job is to
 // behave like the exam.
 
-function fmtDate(d: Date | null) {
+const fmtDate = (d: Date | null) => {
   return d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—";
-}
+};
 
-export default async function MockPage() {
+const MockPage = async () => {
   const session = await auth();
   const dict = await getServerDictionary();
   const t = dict.mock;
@@ -113,4 +113,6 @@ export default async function MockPage() {
       <p className="text-xs text-slate-500">{t.notPractice}</p>
     </div>
   );
-}
+};
+
+export default MockPage;

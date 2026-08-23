@@ -1,4 +1,4 @@
-import type { ExerciseVariant } from "./types";
+import type { ExerciseVariant } from "@/types";
 
 // Læsning, Opgave 1 — match each person to the advert that suits them.
 //

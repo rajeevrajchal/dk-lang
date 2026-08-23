@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import type { WritingModel } from "@/lib/curriculum/course-types";
+import type { WritingModel } from "@/types";
 
 // A writing lesson, taught rather than set.
 //
@@ -12,7 +12,7 @@ import type { WritingModel } from "@/lib/curriculum/course-types";
 // "Write an email to your teacher" with none of that is a test, not a lesson —
 // that belongs in Class practice and Mock, not here.
 
-export function WritingModelPanel({ model }: { model: WritingModel }) {
+export const WritingModelPanel = ({ model }: { model: WritingModel }) => {
   const { dict } = useI18n();
   const t = dict.writing;
   const [openPart, setOpenPart] = useState<number | null>(0);
@@ -117,4 +117,4 @@ export function WritingModelPanel({ model }: { model: WritingModel }) {
       </section>
     </div>
   );
-}
+};

@@ -2,7 +2,7 @@
 
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 
-export function TranslateHelperToggle() {
+export const TranslateHelperToggle = () => {
   const { dict, translateHelperDefault, setTranslateHelperDefault } = useI18n();
 
   return (
@@ -28,4 +28,4 @@ export function TranslateHelperToggle() {
       </div>
     </div>
   );
-}
+};

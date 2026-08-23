@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { MODULE_BY_ID } from "@/lib/curriculum/modules";
 import { llmGenerationAvailable } from "@/lib/exercises/generator";
 import { selectableTaskTypes } from "@/lib/exercises/registry";
-import { TASK_NUMBER, type ExerciseCategory } from "@/lib/exercises/types";
+import { TASK_NUMBER } from "@/lib/exercises/constants";
 import { getServerDictionary } from "@/lib/i18n/server";
+import type { ExerciseCategory } from "@/types";
 
 // "Which task?" — the last step before practice.
 //
@@ -13,7 +14,7 @@ import { getServerDictionary } from "@/lib/i18n/server";
 // offers the prepared topic and the preference discussion. This is the screen
 // that makes Class module-shaped rather than a generic drill.
 
-export async function SkillTasks({
+export const SkillTasks = async ({
   category,
   skill,
   moduleId,
@@ -21,7 +22,7 @@ export async function SkillTasks({
   category: ExerciseCategory;
   skill: string;
   moduleId: number;
-}) {
+}) => {
   const mod = MODULE_BY_ID.get(moduleId);
   if (!mod) notFound();
 
@@ -111,4 +112,4 @@ export async function SkillTasks({
       )}
     </div>
   );
-}
+};

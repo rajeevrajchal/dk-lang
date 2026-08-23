@@ -7,11 +7,11 @@ import { loadLessonProgress } from "@/lib/curriculum/lesson-progress";
 import { lessonInProgress, lessonPassed } from "@/lib/curriculum/progress";
 import { getServerDictionary } from "@/lib/i18n/server";
 
-export default async function ChapterPage({
+const ChapterPage = async ({
   params,
 }: {
   params: Promise<{ chapterId: string }>;
-}) {
+}) => {
   const { chapterId } = await params;
   const chapter = CHAPTER_BY_ID.get(chapterId);
   if (!chapter) notFound();
@@ -117,4 +117,6 @@ export default async function ChapterPage({
       </div>
     </div>
   );
-}
+};
+
+export default ChapterPage;

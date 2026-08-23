@@ -17,77 +17,17 @@
 // Content is original. The reference modultest was used for structure,
 // instruction phrasing, task mechanics and difficulty only — never for text.
 
-export const EXERCISE_CATEGORIES = ["READING", "WRITING", "SPEAKING", "LISTENING"] as const;
+import type {
+  COMMUNICATION_DEMANDS,
+  EXERCISE_CATEGORIES,
+  SPEAKING_ROLES,
+  SPEAKING_STAGE_TYPES,
+  TASK_TYPES,
+} from "@/lib/exercises/constants";
+import type { LEARNING_MODES } from "@/lib/exercises/mode";
+
 export type ExerciseCategory = (typeof EXERCISE_CATEGORIES)[number];
-
-export const TASK_TYPES = [
-  // Læsning — the four tasks of the real modultest, in order.
-  "reading_task_1_matching",
-  "reading_task_2_wrong_sentence",
-  "reading_task_3_missing_words",
-  "reading_task_4_people_matching",
-  // Skrivning
-  "writing_email",
-  "writing_message",
-  "writing_short_text",
-  // Tale / samtale.
-  //
-  // The first three are the original general-purpose prompts and are kept
-  // exactly as they were. The four below them model the actual opgave formats
-  // of the modultest, and are composed per module (see speaking-patterns.ts).
-  //
-  // Note what is NOT here: "presentation followup", "pair interaction" and
-  // "examiner interview" are STAGES inside these tasks, not tasks of their
-  // own — the source material shows them as phases of Opgave 1 and Opgave 2.
-  // Modelling them as task types would have made a two-phase opgave look like
-  // two unrelated exercises.
-  "speaking_interview",
-  "speaking_topic",
-  "speaking_situation",
-  "speaking_mindmap",
-  "speaking_information_gap",
-  "speaking_prepared_topic",
-  "speaking_picture_preference",
-  // Lytning — declared so the architecture is ready; no variants exist yet
-  // because there is no audio. Text pretending to be audio would not
-  // rehearse listening, so none is authored.
-  "listening_multiple_choice",
-  "listening_matching",
-] as const;
 export type TaskType = (typeof TASK_TYPES)[number];
-
-export const TASK_TYPES_BY_CATEGORY: Record<ExerciseCategory, TaskType[]> = {
-  READING: [
-    "reading_task_1_matching",
-    "reading_task_2_wrong_sentence",
-    "reading_task_3_missing_words",
-    "reading_task_4_people_matching",
-  ],
-  WRITING: ["writing_email", "writing_message", "writing_short_text"],
-  // Every speaking task type the app knows. Which of them a given module
-  // actually uses is decided per module in speaking-patterns.ts — a module is
-  // composed FROM task types rather than being one. This stays the full list
-  // so anything iterating categories (the registry fallback, the authored
-  // pool) keeps behaving as before.
-  SPEAKING: [
-    "speaking_interview",
-    "speaking_topic",
-    "speaking_situation",
-    "speaking_mindmap",
-    "speaking_information_gap",
-    "speaking_prepared_topic",
-    "speaking_picture_preference",
-  ],
-  LISTENING: ["listening_multiple_choice", "listening_matching"],
-};
-
-// Which opgave number this task type is in the real test, for labelling.
-export const TASK_NUMBER: Partial<Record<TaskType, number>> = {
-  reading_task_1_matching: 1,
-  reading_task_2_wrong_sentence: 2,
-  reading_task_3_missing_words: 3,
-  reading_task_4_people_matching: 4,
-};
 
 // ---------------------------------------------------------------------------
 // Content shapes, one per task type
@@ -200,14 +140,6 @@ export interface WritingContent {
 // what makes Modul 3 harder — the communication requirement is.
 // ---------------------------------------------------------------------------
 
-export const COMMUNICATION_DEMANDS = [
-  "factual", // Hvad? Hvor? Hvornår? Hvem? Hvor ofte?
-  "description", // Hvordan er...? Fortæl om...
-  "elaboration", // Vil du fortælle lidt mere? Kan du give et eksempel?
-  "preference", // Hvad kan du bedst lide? Hvilken vil du vælge?
-  "reasoning", // Hvorfor? Hvad er grunden?
-  "experience", // Hvad er din erfaring med...?
-] as const;
 export type CommunicationDemand = (typeof COMMUNICATION_DEMANDS)[number];
 
 /**
@@ -215,16 +147,7 @@ export type CommunicationDemand = (typeof COMMUNICATION_DEMANDS)[number];
  * the conversation on; a partner exchanges information as an equal. Treating
  * them as the same role is what makes a pair task feel like an interview.
  */
-export const SPEAKING_ROLES = ["examiner", "partner", "solo"] as const;
 export type SpeakingRole = (typeof SPEAKING_ROLES)[number];
-
-export const SPEAKING_STAGE_TYPES = [
-  "presentation", // candidate speaks, uninterrupted
-  "examiner_followup", // examiner questions about what was just said
-  "information_exchange", // both sides ask to fill gaps in what they hold
-  "pair_discussion", // candidate and partner compare and choose
-  "examiner_interview", // examiner widens out after the pair work
-] as const;
 export type SpeakingStageType = (typeof SPEAKING_STAGE_TYPES)[number];
 
 export interface SpeakingStage {
@@ -380,6 +303,15 @@ export interface PublicExercise {
   content: PublicExerciseContent;
 }
 
+/** One past completion, oldest-to-newest ordering supplied by the caller. */
+export interface HistoryEntry {
+  variantId: string;
+  taskType: string;
+  completedAt: Date | null;
+  /** Present for generated exercises; lets the generator avoid recent topics. */
+  topic?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Responses + grading
 // ---------------------------------------------------------------------------
@@ -407,6 +339,59 @@ export interface ExerciseResult {
   minWords?: number;
 }
 
-export function isAutoScored(taskType: TaskType): boolean {
-  return taskType.startsWith("reading_") || taskType.startsWith("listening_");
+/** The answer to a single adaptive-engine Item. */
+export type ItemResponse = string | string[];
+
+// ---------------------------------------------------------------------------
+// Learning mode
+// ---------------------------------------------------------------------------
+
+export type LearningMode = (typeof LEARNING_MODES)[number];
+
+export interface ModeBehaviour {
+  /** When the learner finds out whether they were right. */
+  feedback: "immediate" | "on_submit" | "end_of_session";
+  /**
+   * How much the app says while they work.
+   *  taught     — explain the rule first, walk them through it (Lessons)
+   *  supported  — explanations available on request afterwards (Class)
+   *  minimal    — instructions only, like the printed test (Mock)
+   */
+  guidance: "taught" | "supported" | "minimal";
+  /** Whether the "explain this text" breakdown is offered. */
+  explanationsOffered: boolean;
+  /** Whether the learner can redo the same task straight away. */
+  retryAllowed: boolean;
+  /** Whether the session runs against a clock. */
+  timed: boolean;
+  /** Whether a result is recorded against module unlock state. */
+  countsTowardsReadiness: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Mock test summary
+// ---------------------------------------------------------------------------
+
+export interface ScoredPart {
+  taskType?: string;
+  category: string;
+  score: number | null;
+  total: number | null;
+}
+
+export interface SummaryEntry {
+  taskType: string;
+  category: string;
+  correct: number;
+  total: number;
+  ratio: number;
+}
+
+export interface MockSummary {
+  strengths: SummaryEntry[];
+  needsPractice: SummaryEntry[];
+  /** Every scored task type, strongest first — the full picture. */
+  all: SummaryEntry[];
+  /** Share correct across everything that could be scored. */
+  overall: number | null;
 }

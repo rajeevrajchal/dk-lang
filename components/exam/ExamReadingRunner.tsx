@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import type { ExamItem } from "@/types";
 
 // The timed, item-based reading test.
 //
@@ -10,31 +11,20 @@ import { useI18n } from "@/lib/i18n/LocaleProvider";
 // /mock/[moduleId]/reading without a second copy. The behaviour — twelve
 // questions, twelve minutes, no feedback until the end — is unchanged.
 
-interface ExamItem {
-  id: string;
-  tierId: number;
-  type: "MULTIPLE_CHOICE" | "TRUE_FALSE" | "GAP_FILL" | "MATCHING";
-  topic: string;
-  passageText: string | null;
-  passageId: string | null;
-  promptText: string;
-  optionsJson: string | null;
-}
-
-function formatTime(seconds: number) {
+const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
-}
+};
 
-export function ExamReadingRunner({
+export const ExamReadingRunner = ({
   moduleId,
   backHref = "/dashboard",
 }: {
   moduleId: number;
   /** Where the intro and result screens send the learner back to. */
   backHref?: string;
-}) {
+}) => {
   const { dict } = useI18n();
   const moduleIdNum = moduleId;
 
@@ -49,7 +39,7 @@ export function ExamReadingRunner({
   );
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  async function start() {
+  const start = async () => {
     const res = await fetch("/api/exam/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -62,15 +52,15 @@ export function ExamReadingRunner({
     setIndex(0);
     setResponses({});
     setPhase("running");
-  }
+  };
 
-  async function finish(sessionId: string) {
+  const finish = async (sessionId: string) => {
     if (timerRef.current) clearInterval(timerRef.current);
     const res = await fetch(`/api/exam/${sessionId}/complete`, { method: "POST" });
     const data = await res.json();
     setResult(data);
     setPhase("result");
-  }
+  };
 
   useEffect(() => {
     if (phase !== "running" || !examSessionId) return;
@@ -88,7 +78,7 @@ export function ExamReadingRunner({
     };
   }, [phase, examSessionId]);
 
-  async function submitCurrentAndAdvance() {
+  const submitCurrentAndAdvance = async () => {
     if (!examSessionId) return;
     const item = items[index];
     const response = responses[item.id];
@@ -105,7 +95,7 @@ export function ExamReadingRunner({
     } else {
       finish(examSessionId);
     }
-  }
+  };
 
   if (phase === "intro") {
     return (
@@ -217,4 +207,4 @@ export function ExamReadingRunner({
       </div>
     </div>
   );
-}
+};

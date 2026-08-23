@@ -1,5 +1,7 @@
 import { SkillModules } from "@/components/class/SkillModules";
 
-export default function WritingModulesPage() {
+const WritingModulesPage = () => {
   return <SkillModules category="WRITING" skill="writing" />;
-}
+};
+
+export default WritingModulesPage;

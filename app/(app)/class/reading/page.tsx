@@ -13,7 +13,7 @@ import { getServerDictionary } from "@/lib/i18n/server";
 // practice turns into exam practice by accident — so the choice is made
 // explicit here rather than hidden in a tab.
 
-export default async function ReadingPage() {
+const ReadingPage = async () => {
   const session = await auth();
   const dict = await getServerDictionary();
   const t = dict.reading;
@@ -60,4 +60,6 @@ export default async function ReadingPage() {
       </div>
     </div>
   );
-}
+};
+
+export default ReadingPage;

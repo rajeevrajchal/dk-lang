@@ -12,7 +12,13 @@
 // support several (present tense matters at Modul 1, 2 and 3 alike — what
 // changes is what you are expected to DO with it).
 
-import type { CommunicationDemand } from "@/lib/exercises/types";
+import type {
+  COURSE_STAGES,
+  EXERCISE_KINDS,
+  LESSON_KINDS,
+  SUPPORT_LANGUAGE,
+} from "@/lib/curriculum/course-constants";
+import type { CommunicationDemand } from "./exercises";
 
 // ---------------------------------------------------------------------------
 // Progression stages
@@ -23,33 +29,13 @@ import type { CommunicationDemand } from "@/lib/exercises/types";
 // much Danish the explanations use and how demanding the exercises get.
 // ---------------------------------------------------------------------------
 
-export const COURSE_STAGES = [
-  "words", // single words in isolation
-  "sentences", // simple statements
-  "questions", // asking things
-  "negation", // saying what is not
-  "tenses", // past, future, modals
-  "complex", // subordinate clauses, connectors
-  "communication", // explain, compare, justify — PD3 territory
-] as const;
 export type CourseStage = (typeof COURSE_STAGES)[number];
-
-export const STAGE_ORDER: Record<CourseStage, number> = {
-  words: 1,
-  sentences: 2,
-  questions: 3,
-  negation: 4,
-  tenses: 5,
-  complex: 6,
-  communication: 7,
-};
 
 /**
  * How much Danish the explanations should use. An absolute beginner cannot
  * read a grammar explanation in Danish, so early chapters explain in English
  * with Danish examples, and the balance shifts as the course goes on.
  */
-export const SUPPORT_LANGUAGE = ["english_led", "bilingual", "danish_led"] as const;
 export type SupportLanguage = (typeof SUPPORT_LANGUAGE)[number];
 
 // ---------------------------------------------------------------------------
@@ -61,31 +47,7 @@ export type SupportLanguage = (typeof SUPPORT_LANGUAGE)[number];
 // recognising it.
 // ---------------------------------------------------------------------------
 
-export const EXERCISE_KINDS = [
-  "recognition", // point at the thing ("which word is the verb?")
-  "selection", // choose the right form
-  "matching", // pair things up
-  "ordering", // build the sentence from scrambled words
-  "controlled_production", // produce a specific answer
-  "free_production", // write your own, no single right answer
-  "communication", // say something about your own life
-] as const;
 export type ExerciseKind = (typeof EXERCISE_KINDS)[number];
-
-export const EXERCISE_LADDER: Record<ExerciseKind, number> = {
-  recognition: 1,
-  selection: 2,
-  matching: 3,
-  ordering: 4,
-  controlled_production: 5,
-  free_production: 6,
-  communication: 7,
-};
-
-/** Auto-checkable kinds. The rest are self-assessed — see gradeLessonExercise. */
-export function isAutoCheckable(kind: ExerciseKind): boolean {
-  return EXERCISE_LADDER[kind] <= EXERCISE_LADDER.controlled_production;
-}
 
 interface ExerciseBase {
   id: string;
@@ -171,13 +133,6 @@ export type LessonExercise =
 // to contain. A grammar lesson can still carry a text, and usually should.
 // ---------------------------------------------------------------------------
 
-export const LESSON_KINDS = [
-  "grammar", // a rule, explained and practised
-  "reading", // a text, understood
-  "writing", // a text type, taken apart and then produced
-  "vocabulary", // words grouped by situation
-  "review", // old grammar met again in new company
-] as const;
 export type LessonKind = (typeof LESSON_KINDS)[number];
 
 // ---------------------------------------------------------------------------

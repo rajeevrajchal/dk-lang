@@ -1,4 +1,4 @@
-import type { LearningText } from "@/lib/learning/text";
+import type { LearningText } from "@/types";
 
 // Library-only Danish texts.
 //

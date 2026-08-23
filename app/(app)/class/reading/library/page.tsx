@@ -7,9 +7,9 @@ import { parseInterests } from "@/lib/reading/interests";
 import { getUserLevel } from "@/lib/level";
 import { loadLessonProgress } from "@/lib/curriculum/lesson-progress";
 import { courseProgress } from "@/lib/curriculum/progress";
-import { LibraryBrowser, type LibraryEntryState } from "@/components/reading/LibraryBrowser";
+import { LibraryBrowser } from "@/components/reading/LibraryBrowser";
 import { getServerDictionary } from "@/lib/i18n/server";
-import type { ReadingLevel } from "@/lib/learning/text";
+import type { LibraryEntryState, ReadingLevel } from "@/types";
 
 // The library.
 //
@@ -19,7 +19,7 @@ import type { ReadingLevel } from "@/lib/learning/text";
 // the two are different facts (see docs/product-architecture.md §7), and what
 // you can read follows from what you have been taught.
 
-export default async function ReadingLibraryPage() {
+const ReadingLibraryPage = async () => {
   const session = await auth();
   const userId = session!.user.id;
   const dict = await getServerDictionary();
@@ -89,4 +89,6 @@ export default async function ReadingLibraryPage() {
       />
     </div>
   );
-}
+};
+
+export default ReadingLibraryPage;

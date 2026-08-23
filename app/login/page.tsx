@@ -4,10 +4,11 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient, passwordAuthEnabled } from "@/lib/supabase/client";
-import { classifyAuthError, isAuthErrorCode, type AuthErrorCode } from "@/lib/auth/errors";
+import { classifyAuthError, isAuthErrorCode } from "@/lib/auth/errors";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { GoogleSignIn } from "@/components/auth/GoogleSignIn";
 import { AuthCard, ErrorNote, Field, SubmitButton } from "@/components/auth/AuthCard";
+import type { AuthErrorCode, AuthMode } from "@/types";
 
 // Sign in, or create an account.
 //
@@ -22,9 +23,7 @@ import { AuthCard, ErrorNote, Field, SubmitButton } from "@/components/auth/Auth
 // rate-limited by Supabase, honours the project's email-confirmation setting,
 // and returns a session directly instead of needing a second sign-in call.
 
-type Mode = "login" | "register";
-
-function AuthForm() {
+const AuthForm = () => {
   const { dict } = useI18n();
   const t = dict.login;
   const router = useRouter();
@@ -35,7 +34,7 @@ function AuthForm() {
   // trip. Only known codes are rendered — see lib/auth/errors.ts for why.
   const urlError = searchParams.get("error");
 
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -49,7 +48,7 @@ function AuthForm() {
   // button is hidden — form, tabs, divider and forgot-password link.
   const showPassword = passwordAuthEnabled();
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorCode(null);
 
@@ -99,7 +98,7 @@ function AuthForm() {
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   if (awaitingConfirmation) {
     return (
@@ -120,7 +119,7 @@ function AuthForm() {
       {!showPassword ? null : (
       <>
       <div className="mt-6 flex rounded-lg bg-slate-100 p-1 text-sm">
-        {(["login", "register"] as Mode[]).map((m) => (
+        {(["login", "register"] as AuthMode[]).map((m) => (
           <button
             key={m}
             type="button"
@@ -186,12 +185,14 @@ function AuthForm() {
       )}
     </AuthCard>
   );
-}
+};
 
-export default function LoginPage() {
+const LoginPage = () => {
   return (
     <Suspense>
       <AuthForm />
     </Suspense>
   );
-}
+};
+
+export default LoginPage;

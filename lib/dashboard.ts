@@ -1,71 +1,41 @@
 import { progress as progressRepo } from "@/lib/repositories";
 import { getConstructStats, getWeakestConstruct, determineCurrentTier } from "@/lib/adaptive/engine";
-import { getModuleDashboardState, pickCurrentModuleId, type ModuleDashboardState } from "@/lib/unlock";
-import { SKILLS, type Skill } from "@/lib/constants";
+import { getModuleDashboardState, pickCurrentModuleId } from "@/lib/unlock";
+import { SKILLS } from "@/lib/constants";
 import { MODULE_BY_ID } from "@/lib/curriculum/modules";
 import { CHAPTER_BY_ID, LESSON_BY_SLUG } from "@/lib/curriculum/course";
 import { loadLessonProgress } from "@/lib/curriculum/lesson-progress";
-import { courseProgress, resumePoint, type ResumePoint } from "@/lib/curriculum/progress";
-import { getUserLevel, levelLabel, type UserLevel } from "@/lib/level";
-import {
-  getMockHistory,
-  getPracticeActivity,
-  getReadingHabit,
-  getRecentActivity,
-  type ActivityEntry,
-  type MockHistory,
-  type PracticeActivity,
-  type ReadingHabit,
-} from "@/lib/activity";
-import type { Dictionary } from "@/lib/i18n/dictionaries";
-
-export interface SkillStatus {
-  skill: Skill;
-  label: string;
-  hasContent: boolean;
-  accuracy: number | null;
-  attemptCount: number;
-  currentTier: number | null;
-  weakestConstruct: { name: string; accuracy: number } | null;
-}
-
-export interface RecentActivityRow {
-  id: string;
-  createdAt: Date;
-  isCorrect: boolean;
-  skill: string;
-  moduleId: number;
-  tierId: number;
-  examSessionId: string | null;
-}
-
-export interface DashboardData {
-  currentModuleId: number;
-  moduleStates: ModuleDashboardState[];
-  skillStatuses: SkillStatus[];
-  recentActivity: RecentActivityRow[];
-  nextAction: { label: string; href: string };
-  verifiedReportCards: Awaited<ReturnType<typeof getVerifiedReportCards>>;
-}
+import { courseProgress, resumePoint } from "@/lib/curriculum/progress";
+import { getUserLevel, levelLabel } from "@/lib/level";
+import { getMockHistory, getPracticeActivity, getReadingHabit, getRecentActivity } from "@/lib/activity";
+import type {
+  ActivityEntry,
+  ContinueCard,
+  DashboardData,
+  Dictionary,
+  LearnerOverview,
+  Skill,
+  SkillStatus,
+} from "@/types";
 
 // Only Modul 2 reading has a generated item bank today; every other
 // skill/module combination is schema-ready but content is future work (see
 // docs/module-map.md).
 const CONTENT_READY: { moduleId: number; skill: Skill }[] = [{ moduleId: 2, skill: "READING" }];
 
-export function hasContent(moduleId: number, skill: Skill) {
+export const hasContent = (moduleId: number, skill: Skill) => {
   return CONTENT_READY.some((c) => c.moduleId === moduleId && c.skill === skill);
-}
+};
 
-async function getVerifiedReportCards(userId: string) {
+const getVerifiedReportCards = async (userId: string) => {
   return progressRepo.listReportCards(userId, "CONFIRMED");
-}
+};
 
-export async function getSkillStatusesForModule(
+export const getSkillStatusesForModule = async (
   userId: string,
   moduleId: number,
   dict: Dictionary
-): Promise<SkillStatus[]> {
+): Promise<SkillStatus[]> => {
   return Promise.all(
     SKILLS.map(async (skill): Promise<SkillStatus> => {
       const ready = hasContent(moduleId, skill);
@@ -102,9 +72,9 @@ export async function getSkillStatusesForModule(
       };
     })
   );
-}
+};
 
-export async function getDashboardData(userId: string, dict: Dictionary): Promise<DashboardData> {
+export const getDashboardData = async (userId: string, dict: Dictionary): Promise<DashboardData> => {
   const moduleStates = await getModuleDashboardState(userId);
   const currentModuleId = pickCurrentModuleId(moduleStates);
 
@@ -163,7 +133,7 @@ export async function getDashboardData(userId: string, dict: Dictionary): Promis
     nextAction,
     verifiedReportCards: await getVerifiedReportCards(userId),
   };
-}
+};
 
 export { MODULE_BY_ID };
 
@@ -175,41 +145,7 @@ export { MODULE_BY_ID };
 // lib/level. The Dashboard reports; it does not own any of these facts.
 // ---------------------------------------------------------------------------
 
-/**
- * What "Continue where you left off" should point at. Carries raw facts, not
- * sentences — the Dashboard turns `kind` and `category` into words with the
- * dictionary, so this stays locale-free.
- */
-export interface ContinueCard {
-  kind: "lesson" | "practice" | "mock" | "onboarding";
-  /** Lesson title for a lesson; empty for cards the dictionary titles itself. */
-  title: string;
-  detail?: string;
-  href: string;
-  category?: string;
-  moduleId?: number;
-}
-
-export interface LearnerOverview {
-  level: UserLevel;
-  levelLabel: string | null;
-  lessons: {
-    completed: number;
-    total: number;
-    ratio: number;
-    chaptersComplete: number;
-    chaptersTotal: number;
-    currentChapterTitle: string | null;
-    resume: (ResumePoint & { lessonTitle: string; chapterTitle: string }) | null;
-  };
-  readingHabit: ReadingHabit;
-  practice: PracticeActivity[];
-  mock: MockHistory;
-  recent: ActivityEntry[];
-  continueCard: ContinueCard;
-}
-
-export async function getLearnerOverview(userId: string): Promise<LearnerOverview> {
+export const getLearnerOverview = async (userId: string): Promise<LearnerOverview> => {
   const [level, progress, readingHabit, practice, mock, recent] = await Promise.all([
     getUserLevel(userId),
     loadLessonProgress(userId),
@@ -289,10 +225,10 @@ export async function getLearnerOverview(userId: string): Promise<LearnerOvervie
     recent,
     continueCard,
   };
-}
+};
 
 /** Human label for one recent-activity row. Kept out of the page's JSX. */
-export function describeActivity(entry: ActivityEntry, dict: Dictionary): string {
+export const describeActivity = (entry: ActivityEntry, dict: Dictionary): string => {
   switch (entry.kind) {
     case "lesson": {
       const lesson = entry.lessonSlug ? LESSON_BY_SLUG.get(entry.lessonSlug) : undefined;
@@ -305,4 +241,4 @@ export function describeActivity(entry: ActivityEntry, dict: Dictionary): string
     case "mock":
       return `${dict.mock.mockLabel} · Modul ${entry.moduleId}`;
   }
-}
+};

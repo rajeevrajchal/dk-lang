@@ -6,14 +6,14 @@ import { LESSON_BY_SLUG, chapterForLesson } from "@/lib/curriculum/course";
 import { gradeLesson } from "@/lib/curriculum/progress";
 
 /** Everything the learner has completed, keyed by lesson slug. */
-export async function GET() {
+export const GET = async () => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   return NextResponse.json(await lessons.loadProgress(session.user.id));
-}
+};
 
 const SubmitSchema = z.object({
   lessonSlug: z.string(),
@@ -25,7 +25,7 @@ const SubmitSchema = z.object({
  * so the answer keys stay server-side, the same rule the Practice Zone
  * follows.
  */
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -51,4 +51,4 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({ checks, score, total });
-}
+};

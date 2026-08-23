@@ -5,7 +5,7 @@ import { getSkillStatusesForModule, hasContent } from "@/lib/dashboard";
 import { MODULE_BY_ID } from "@/lib/curriculum/modules";
 import { theoryForTiers } from "@/lib/content-gen/theory";
 import { categoryHasContent } from "@/lib/exercises/registry";
-import { EXERCISE_CATEGORIES } from "@/lib/exercises/types";
+import { EXERCISE_CATEGORIES } from "@/lib/exercises/constants";
 import { getServerDictionary } from "@/lib/i18n/server";
 
 // The per-module hub inside Class.
@@ -14,11 +14,11 @@ import { getServerDictionary } from "@/lib/i18n/server";
 // /class/[moduleId] still lands somewhere sensible, and because "everything
 // for Modul 2 in one place" is genuinely useful next to the skill-first
 // route. Its links now point at the new Class and Mock areas.
-export default async function ClassModulePage({
+const ClassModulePage = async ({
   params,
 }: {
   params: Promise<{ moduleId: string }>;
-}) {
+}) => {
   const { moduleId } = await params;
   const moduleIdNum = Number(moduleId);
 
@@ -239,4 +239,6 @@ export default async function ClassModulePage({
       )}
     </div>
   );
-}
+};
+
+export default ClassModulePage;

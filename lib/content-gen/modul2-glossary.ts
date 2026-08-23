@@ -4,19 +4,7 @@
 // these 12 existing passages — see components/TranslatablePassage.tsx for
 // how a passage outside this set falls back to plain, non-interactive text.
 
-export interface WordGloss {
-  surface: string; // exact form as it appears in the passage (case-insensitive match)
-  lemma: string; // dictionary form
-  englishGloss: string; // meaning in this context
-  partOfSpeech: string;
-  inflectionNote: string; // how this form arises / behaves when combined with other words
-}
-
-export interface PassageGlossary {
-  passageId: string;
-  englishSummary: string;
-  words: WordGloss[];
-}
+import type { PassageGlossary } from "@/types";
 
 export const MODUL2_GLOSSARIES: PassageGlossary[] = [
   {

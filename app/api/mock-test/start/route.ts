@@ -5,7 +5,7 @@ import { exercises } from "@/lib/repositories";
 import { MODULES } from "@/lib/curriculum/modules";
 import { pickAuthoredVariantOfType, toPublicExercise } from "@/lib/exercises/registry";
 import { generateExercise, llmGenerationAvailable } from "@/lib/exercises/generator";
-import type { ExerciseCategory, ExerciseVariant, TaskType } from "@/lib/exercises/types";
+import type { ExerciseCategory, ExerciseVariant, TaskType } from "@/types";
 
 const StartSchema = z.object({ moduleId: z.number() });
 
@@ -30,7 +30,7 @@ const TEST_PLAN: { taskType: TaskType; category: ExerciseCategory }[] = [
 // this covers roughly half the volume in one sitting.
 export const MOCK_TEST_SECONDS = 40 * 60;
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -107,4 +107,4 @@ export async function POST(req: Request) {
     timeLimitSeconds: MOCK_TEST_SECONDS,
     exercises: built,
   });
-}
+};

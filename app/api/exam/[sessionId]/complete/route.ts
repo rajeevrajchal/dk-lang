@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { exercises, srs } from "@/lib/repositories";
 import { applyInAppExamResult, EXAM_PASS_THRESHOLD } from "@/lib/unlock";
-import type { Skill } from "@/lib/constants";
+import type { Skill } from "@/types";
 
-export async function POST(
+export const POST = async (
   _req: Request,
   { params }: { params: Promise<{ sessionId: string }> }
-) {
+) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,4 +43,4 @@ export async function POST(
   await applyInAppExamResult(session.user.id, examSession.moduleId, skill, score, passed);
 
   return NextResponse.json({ score, correct, total, passed, threshold: EXAM_PASS_THRESHOLD });
-}
+};

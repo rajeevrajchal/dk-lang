@@ -38,9 +38,9 @@ chapter that taught it.
 Two scales, both already in the codebase, both about what the learner has to
 handle rather than how obscure the words are:
 
-- `CourseStage` (`course-types.ts`): words → sentences → questions → negation →
+- `CourseStage` (`types/course.ts`): words → sentences → questions → negation →
   tenses → complex → communication.
-- `ReadingLevel` (`lib/learning/text.ts`): 1 a handful of main clauses · 2
+- `ReadingLevel` (`types/learning.ts`): 1 a handful of main clauses · 2
   connected sentences · 3 paragraphs, past tense, subordinate clauses appear ·
   4 natural everyday Danish with opinions · 5 PD3 argument.
 

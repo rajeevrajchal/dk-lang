@@ -31,16 +31,16 @@ import { createClient } from "@supabase/supabase-js";
 const prisma = new PrismaClient();
 const invite = process.argv.includes("--invite");
 
-function admin() {
+const admin = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
     throw new Error("Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
   }
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-}
+};
 
-async function main() {
+const main = async () => {
   const supabase = admin();
   const users = await prisma.user.findMany({
     select: { id: true, email: true, name: true, supabaseUserId: true },
@@ -127,7 +127,7 @@ async function main() {
           `The --invite route uses Supabase's built-in SMTP, which allows only a few\n` +
           `messages an hour; auth-link.ts never sends an email and is not limited.\n`)
   );
-}
+};
 
 main()
   .catch((err) => {

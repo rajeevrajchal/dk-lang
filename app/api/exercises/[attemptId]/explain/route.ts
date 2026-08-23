@@ -3,15 +3,15 @@ import { auth } from "@/lib/auth";
 import { exercises } from "@/lib/repositories";
 import { VARIANT_BY_ID } from "@/lib/exercises/registry";
 import { generateExplanation, explanationAvailable } from "@/lib/exercises/explain";
-import type { ExerciseVariant } from "@/lib/exercises/types";
+import type { ExerciseVariant } from "@/types";
 
 // A full sentence-and-word pass over a long opgave takes a while.
 export const maxDuration = 300;
 
-export async function POST(
+export const POST = async (
   _req: Request,
   { params }: { params: Promise<{ attemptId: string }> }
-) {
+) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -69,4 +69,4 @@ export async function POST(
   await exercises.updateAttempt(session.user.id, attemptId, { explanationJson: JSON.stringify(outcome.explanation) });
 
   return NextResponse.json({ cached: false, ...outcome.explanation });
-}
+};

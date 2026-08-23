@@ -1,4 +1,4 @@
-import type { TheoryLesson } from "@/lib/content-gen/theory";
+import type { TheoryLesson } from "@/types";
 
 // Reading lessons: Danish texts, taught rather than tested.
 //

@@ -2,8 +2,9 @@ import { notFound } from "next/navigation";
 import { ExerciseRunner } from "@/components/exercises/ExerciseRunner";
 import { llmGenerationAvailable } from "@/lib/exercises/generator";
 import { moduleUsesTaskType } from "@/lib/exercises/module-tasks";
-import { TASK_TYPES, type ExerciseCategory, type TaskType } from "@/lib/exercises/types";
+import { TASK_TYPES } from "@/lib/exercises/constants";
 import { getServerDictionary } from "@/lib/i18n/server";
+import type { ExerciseCategory, TaskType } from "@/types";
 
 /**
  * Runs Class practice for one module, optionally pinned to one task type.
@@ -13,7 +14,7 @@ import { getServerDictionary } from "@/lib/i18n/server";
  * module's composition here as well as in the API, so a hand-typed URL for a
  * task the module does not examine 404s rather than silently drifting.
  */
-export async function SkillPractice({
+export const SkillPractice = async ({
   category,
   moduleId,
   task,
@@ -23,7 +24,7 @@ export async function SkillPractice({
   moduleId: number;
   task: string;
   skill: string;
-}) {
+}) => {
   const dict = await getServerDictionary();
 
   let taskType: TaskType | undefined;
@@ -43,4 +44,4 @@ export async function SkillPractice({
       backLabel={dict.class2.backToSkill}
     />
   );
-}
+};

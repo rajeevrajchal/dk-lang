@@ -5,22 +5,9 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { TranslatablePassage } from "@/components/TranslatablePassage";
 import { ExplainPanel } from "@/components/ExplainPanel";
+import type { MatchingOptions, PracticeItem } from "@/types";
 
-interface PracticeItem {
-  id: string;
-  tierId: number;
-  type: "MULTIPLE_CHOICE" | "TRUE_FALSE" | "GAP_FILL" | "MATCHING";
-  topic: string;
-  passageText: string | null;
-  passageId: string | null;
-  promptText: string;
-  optionsJson: string | null;
-  constructs: { id: string; code: string; name: string }[];
-}
-
-type MatchingOptions = { left: string[]; right: string[] };
-
-function AnswerInput({
+const AnswerInput = ({
   item,
   onSubmit,
   disabled,
@@ -28,7 +15,7 @@ function AnswerInput({
   item: PracticeItem;
   onSubmit: (response: string | string[]) => void;
   disabled: boolean;
-}) {
+}) => {
   const { dict } = useI18n();
   const [selected, setSelected] = useState<string | null>(null);
   const [matches, setMatches] = useState<Record<number, number | null>>({});
@@ -127,13 +114,13 @@ function AnswerInput({
   }
 
   return null;
-}
+};
 
-export default function ReadingPracticePage({
+const ReadingPracticePage = ({
   params,
 }: {
   params: Promise<{ moduleId: string }>;
-}) {
+}) => {
   const { dict, translateHelperDefault } = useI18n();
   const { moduleId } = usePromise(params);
   const moduleIdNum = Number(moduleId);
@@ -162,7 +149,7 @@ export default function ReadingPracticePage({
     loadSet();
   }, [loadSet]);
 
-  async function handleSubmit(response: string | string[]) {
+  const handleSubmit = async (response: string | string[]) => {
     if (!items) return;
     const item = items[index];
     const res = await fetch("/api/attempts", {
@@ -173,13 +160,13 @@ export default function ReadingPracticePage({
     const data = await res.json();
     setFeedback({ isCorrect: data.isCorrect, explanation: data.explanation });
     setScore((s) => ({ correct: s.correct + (data.isCorrect ? 1 : 0), total: s.total + 1 }));
-  }
+  };
 
-  function handleNext() {
+  const handleNext = () => {
     setFeedback(null);
     setStartedAt(Date.now());
     setIndex((i) => i + 1);
-  }
+  };
 
   if (!items || !tierInfo) {
     return <div className="p-8 text-sm text-slate-500">{dict.practice.loadingExercises}</div>;
@@ -272,4 +259,6 @@ export default function ReadingPracticePage({
       </div>
     </div>
   );
-}
+};
+
+export default ReadingPracticePage;

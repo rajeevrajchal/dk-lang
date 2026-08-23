@@ -1,9 +1,9 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import type { Locale } from "@/lib/i18n/config";
+import type { Locale } from "@/types";
 
-export function LocaleSwitcher() {
+export const LocaleSwitcher = () => {
   const { locale, dict, setLocale } = useI18n();
 
   const options: { value: Locale; label: string }[] = [
@@ -27,4 +27,4 @@ export function LocaleSwitcher() {
       ))}
     </div>
   );
-}
+};

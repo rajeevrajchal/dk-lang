@@ -1,7 +1,13 @@
 import "server-only";
 
 import { db, unwrap } from "@/lib/supabase/db";
-import type { Tables } from "@/lib/supabase/database.types";
+import type {
+  ConstructRow,
+  ConstructWithAccuracy,
+  ItemRow,
+  ItemWithConstructs,
+  Tables,
+} from "@/types";
 
 // Curriculum content: modules, tiers, constructs and the item bank.
 //
@@ -14,15 +20,8 @@ import type { Tables } from "@/lib/supabase/database.types";
 // rows, so fetching the pieces and joining them costs nothing measurable and
 // is much easier to reason about than an embed string.
 
-export type ItemRow = Tables<"Item">;
-export type ConstructRow = Tables<"Construct">;
-
-export interface ItemWithConstructs extends ItemRow {
-  itemConstructs: { constructId: string; construct: ConstructRow }[];
-}
-
 /** Attaches each item's constructs, with two extra queries for the whole set. */
-async function withConstructs(items: ItemRow[]): Promise<ItemWithConstructs[]> {
+const withConstructs = async (items: ItemRow[]): Promise<ItemWithConstructs[]> => {
   if (items.length === 0) return [];
   const supabase = await db();
 
@@ -54,21 +53,17 @@ async function withConstructs(items: ItemRow[]): Promise<ItemWithConstructs[]> {
   }
 
   return items.map((item) => ({ ...item, itemConstructs: byItem.get(item.id) ?? [] }));
-}
-
-export interface ConstructWithAccuracy extends ConstructRow {
-  constructAccura: Tables<"ConstructAccuracy">[];
-}
+};
 
 /**
  * Constructs, optionally limited to those exercised by a module's items, each
  * carrying this learner's accuracy for one skill.
  */
-export async function constructsWithAccuracy(
+export const constructsWithAccuracy = async (
   userId: string,
   skill: string,
   moduleId?: number
-): Promise<ConstructWithAccuracy[]> {
+): Promise<ConstructWithAccuracy[]> => {
   const supabase = await db();
 
   let constructs = unwrap(
@@ -116,15 +111,15 @@ export async function constructsWithAccuracy(
   }
 
   return constructs.map((c) => ({ ...c, constructAccura: byConstruct.get(c.id) ?? [] }));
-}
+};
 
 /** Item ids this learner has answered recently, so they are not served again. */
-export async function recentlyAnsweredItemIds(
+export const recentlyAnsweredItemIds = async (
   userId: string,
   moduleId: number,
   skill: string,
   take = 30
-): Promise<string[]> {
+): Promise<string[]> => {
   const supabase = await db();
 
   const moduleItems = unwrap(
@@ -144,15 +139,15 @@ export async function recentlyAnsweredItemIds(
     "recentlyAnsweredItemIds"
   );
   return attempts.map((a) => a.itemId);
-}
+};
 
-export async function itemsAtTier(
+export const itemsAtTier = async (
   moduleId: number,
   skill: string,
   tierId: number,
   excludeIds: string[],
   take: number
-): Promise<ItemWithConstructs[]> {
+): Promise<ItemWithConstructs[]> => {
   const supabase = await db();
   let query = supabase
     .from("Item")
@@ -168,16 +163,16 @@ export async function itemsAtTier(
   if (excludeIds.length > 0) query = query.not("id", "in", `(${excludeIds.join(",")})`);
 
   return withConstructs(unwrap(await query, "itemsAtTier"));
-}
+};
 
 /** Items below a tier that exercise one of the given constructs, for review. */
-export async function reviewItems(
+export const reviewItems = async (
   moduleId: number,
   skill: string,
   belowTier: number,
   constructIds: string[],
   take: number
-): Promise<ItemWithConstructs[]> {
+): Promise<ItemWithConstructs[]> => {
   if (constructIds.length === 0) return [];
   const supabase = await db();
 
@@ -199,13 +194,13 @@ export async function reviewItems(
     "reviewItems"
   );
   return withConstructs(items);
-}
+};
 
-export async function itemsForModuleSkill(
+export const itemsForModuleSkill = async (
   moduleId: number,
   skill: string,
   take: number
-): Promise<ItemWithConstructs[]> {
+): Promise<ItemWithConstructs[]> => {
   const supabase = await db();
   const items = unwrap(
     await supabase
@@ -217,9 +212,9 @@ export async function itemsForModuleSkill(
     "itemsForModuleSkill"
   );
   return withConstructs(items);
-}
+};
 
-export async function findItem(itemId: string): Promise<ItemWithConstructs | null> {
+export const findItem = async (itemId: string): Promise<ItemWithConstructs | null> => {
   const supabase = await db();
   const items = unwrap(
     await supabase.from("Item").select("*").eq("id", itemId),
@@ -227,7 +222,7 @@ export async function findItem(itemId: string): Promise<ItemWithConstructs | nul
   );
   if (items.length === 0) return null;
   return (await withConstructs(items))[0];
-}
+};
 
 /**
  * The pool the timed exam draws from at one tier.
@@ -235,11 +230,11 @@ export async function findItem(itemId: string): Promise<ItemWithConstructs | nul
  * MATCHING items are excluded because the exam page renders only MC, TF and
  * gap-fill; they still appear in adaptive practice.
  */
-export async function examPoolAtTier(
+export const examPoolAtTier = async (
   moduleId: number,
   skill: string,
   tierId: number
-): Promise<ItemRow[]> {
+): Promise<ItemRow[]> => {
   const supabase = await db();
   return unwrap(
     await supabase
@@ -251,4 +246,4 @@ export async function examPoolAtTier(
       .neq("type", "MATCHING"),
     "examPoolAtTier"
   );
-}
+};

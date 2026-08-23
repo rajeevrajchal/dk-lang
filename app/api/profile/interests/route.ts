@@ -16,16 +16,16 @@ const InterestsSchema = z.object({
   interests: z.array(z.enum(READING_TOPICS)).max(READING_TOPICS.length),
 });
 
-export async function GET() {
+export const GET = async () => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const interestsJson = await users.getInterestsJson(session.user.id);
   return NextResponse.json({ interests: parseInterests(interestsJson) });
-}
+};
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -40,4 +40,4 @@ export async function POST(req: Request) {
   await users.setInterestsJson(session.user.id, json);
 
   return NextResponse.json({ interests: parsed.data.interests });
-}
+};

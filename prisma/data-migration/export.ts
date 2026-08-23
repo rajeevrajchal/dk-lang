@@ -18,7 +18,7 @@ import { SNAPSHOT_PATH, TABLE_ORDER } from "./tables";
 const prisma = new PrismaClient();
 
 
-async function main() {
+const main = async () => {
   const out: Record<string, unknown[]> = {};
 
   for (const table of TABLE_ORDER) {
@@ -40,7 +40,7 @@ async function main() {
 
   const total = Object.values(out).reduce((n, rows) => n + rows.length, 0);
   console.log(`\n${total} rows -> ${target}`);
-}
+};
 
 // Only when run directly. Importing this module must not export anything —
 // import.ts used to pull TABLE_ORDER from here, which silently ran this and

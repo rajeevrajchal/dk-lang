@@ -1,13 +1,14 @@
 import { notFound, redirect } from "next/navigation";
-import { EXERCISE_CATEGORIES, type ExerciseCategory } from "@/lib/exercises/types";
+import { EXERCISE_CATEGORIES } from "@/lib/exercises/constants";
+import type { ExerciseCategory } from "@/types";
 
 // Opgave practice moved under Class, where it sits beside the other two
 // skills instead of being a separate corner of the app. Old links still work.
-export default async function OpgaverRedirect({
+const OpgaverRedirect = async ({
   params,
 }: {
   params: Promise<{ moduleId: string; category: string }>;
-}) {
+}) => {
   const { moduleId, category } = await params;
   const upper = category.toUpperCase() as ExerciseCategory;
 
@@ -20,4 +21,6 @@ export default async function OpgaverRedirect({
   if (upper === "LISTENING") redirect("/class");
 
   redirect(`/class/${category.toLowerCase()}/${moduleId}/any`);
-}
+};
+
+export default OpgaverRedirect;

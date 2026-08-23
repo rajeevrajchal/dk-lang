@@ -1,23 +1,14 @@
 "use client";
 
-import type { Dictionary } from "@/lib/i18n/dictionaries";
+import { countWords } from "@/lib/exercises/grading";
 import type {
-  ExerciseResponse,
   PublicExerciseContent,
   ReadingTask1Content,
   ReadingTask3Content,
+  RendererProps,
   SpeakingContent,
   WritingContent,
-} from "@/lib/exercises/types";
-import { countWords } from "@/lib/exercises/grading";
-
-export interface RendererProps {
-  content: PublicExerciseContent;
-  response: ExerciseResponse;
-  setResponse: (next: ExerciseResponse) => void;
-  disabled: boolean;
-  dict: Dictionary;
-}
+} from "@/types";
 
 const cardCls = "rounded-lg border border-slate-200 bg-white p-4";
 
@@ -34,13 +25,13 @@ const referenceCls =
 // ---------------------------------------------------------------------------
 // Læsning Opgave 1 — match people to adverts
 // ---------------------------------------------------------------------------
-function Task1({
+const Task1 = ({
   content,
   response,
   setResponse,
   disabled,
   dict,
-}: RendererProps) {
+}: RendererProps) => {
   const c = content as Omit<ReadingTask1Content, "answers" | "rationales">;
   const t = dict.exercises;
 
@@ -126,18 +117,18 @@ function Task1({
       </div>
     </div>
   );
-}
+};
 
 // ---------------------------------------------------------------------------
 // Læsning Opgave 2 — the sentence that does not belong
 // ---------------------------------------------------------------------------
-function Task2({
+const Task2 = ({
   content,
   response,
   setResponse,
   disabled,
   dict,
-}: RendererProps) {
+}: RendererProps) => {
   const c = content as Extract<
     PublicExerciseContent,
     { kind: "reading_task_2_wrong_sentence" }
@@ -199,18 +190,18 @@ function Task2({
       ))}
     </div>
   );
-}
+};
 
 // ---------------------------------------------------------------------------
 // Læsning Opgave 3 — missing words from a word bank
 // ---------------------------------------------------------------------------
-function Task3({
+const Task3 = ({
   content,
   response,
   setResponse,
   disabled,
   dict,
-}: RendererProps) {
+}: RendererProps) => {
   const c = content as Omit<ReadingTask3Content, "answers" | "rationales">;
   const t = dict.exercises;
 
@@ -297,12 +288,12 @@ function Task3({
       </div>
     </div>
   );
-}
+};
 
 // ---------------------------------------------------------------------------
 // Læsning Opgave 4 — which of the three people
 // ---------------------------------------------------------------------------
-function Task4({ content, response, setResponse, disabled }: RendererProps) {
+const Task4 = ({ content, response, setResponse, disabled }: RendererProps) => {
   const c = content as Extract<
     PublicExerciseContent,
     { kind: "reading_task_4_people_matching" }
@@ -389,18 +380,18 @@ function Task4({ content, response, setResponse, disabled }: RendererProps) {
       </div>
     </div>
   );
-}
+};
 
 // ---------------------------------------------------------------------------
 // Skrivning
 // ---------------------------------------------------------------------------
-function Writing({
+const Writing = ({
   content,
   response,
   setResponse,
   disabled,
   dict,
-}: RendererProps) {
+}: RendererProps) => {
   const c = content as WritingContent;
   const t = dict.exercises;
   const text = response.text ?? "";
@@ -479,12 +470,12 @@ function Writing({
       </div>
     </div>
   );
-}
+};
 
 // ---------------------------------------------------------------------------
 // Tale
 // ---------------------------------------------------------------------------
-function Speaking({ content, dict }: RendererProps) {
+const Speaking = ({ content, dict }: RendererProps) => {
   const c = content as SpeakingContent;
   const t = dict.exercises;
 
@@ -681,9 +672,9 @@ function Speaking({ content, dict }: RendererProps) {
       </div>
     </div>
   );
-}
+};
 
-export function ExerciseBody(props: RendererProps) {
+export const ExerciseBody = (props: RendererProps) => {
   switch (props.content.kind) {
     case "reading_task_1_matching":
       return <Task1 {...props} />;
@@ -700,22 +691,22 @@ export function ExerciseBody(props: RendererProps) {
     default:
       return null;
   }
-}
+};
 
 /**
  * Whether this exercise lays itself out in two columns and so wants more room
  * than the usual reading measure. The renderer owns the layout; a runner only
  * needs to know how wide to make the page around it.
  */
-export function wantsWideLayout(content: PublicExerciseContent): boolean {
+export const wantsWideLayout = (content: PublicExerciseContent): boolean => {
   return (
     content.kind === "reading_task_1_matching" ||
     content.kind === "reading_task_4_people_matching"
   );
-}
+};
 
 /** How many answers this exercise still expects, for the submit gate. */
-export function expectedAnswerKeys(content: PublicExerciseContent): string[] {
+export const expectedAnswerKeys = (content: PublicExerciseContent): string[] => {
   switch (content.kind) {
     case "reading_task_1_matching":
       return content.people.map((p) => p.id);
@@ -730,4 +721,4 @@ export function expectedAnswerKeys(content: PublicExerciseContent): string[] {
     default:
       return [];
   }
-}
+};

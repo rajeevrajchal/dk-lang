@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DANISH_COURSE } from "./course";
-import {
-  courseProgress,
-  lessonInProgress,
-  lessonPassed,
-  resumePoint,
-  type ProgressMap,
-} from "./progress";
+import { courseProgress, lessonInProgress, lessonPassed, resumePoint } from "./progress";
+import type { ProgressMap } from "@/types";
 
 // Lesson lifecycle and resuming. The rules that make "leave and come back"
 // work, tested without a database.
@@ -16,11 +11,11 @@ const secondChapter = DANISH_COURSE.chapters[1];
 const firstSlug = firstChapter.topics[0].lessonSlug;
 const secondSlug = secondChapter.topics[0].lessonSlug;
 
-function completed(slug: string, at: string, score = 5, total = 5) {
+const completed = (slug: string, at: string, score = 5, total = 5) => {
   return { lessonSlug: slug, score, total, completedAt: at, status: "COMPLETED" as const };
-}
+};
 
-function opened(slug: string, visitedAt: string) {
+const opened = (slug: string, visitedAt: string) => {
   return {
     lessonSlug: slug,
     score: null,
@@ -29,7 +24,7 @@ function opened(slug: string, visitedAt: string) {
     status: "IN_PROGRESS" as const,
     lastVisitedAt: visitedAt,
   };
-}
+};
 
 describe("lesson status", () => {
   it("does not treat an opened lesson as passed", () => {

@@ -1,4 +1,5 @@
-import { READING_TOPICS, type ReadingTopic } from "./library";
+import { READING_TOPICS } from "./library";
+import type { ReadingTopic } from "@/types";
 
 // The learner's reading interests, stored as JSON on UserProfile.
 //
@@ -6,7 +7,7 @@ import { READING_TOPICS, type ReadingTopic } from "./library";
 // recommendation, which is not worth failing a page render over — so anything
 // unrecognised is dropped and the rest is kept.
 
-export function parseInterests(json: string | null | undefined): ReadingTopic[] {
+export const parseInterests = (json: string | null | undefined): ReadingTopic[] => {
   if (!json) return [];
   try {
     const parsed: unknown = JSON.parse(json);
@@ -17,8 +18,8 @@ export function parseInterests(json: string | null | undefined): ReadingTopic[] 
   } catch {
     return [];
   }
-}
+};
 
-export function serialiseInterests(interests: ReadingTopic[]): string {
+export const serialiseInterests = (interests: ReadingTopic[]): string => {
   return JSON.stringify([...new Set(interests)]);
-}
+};

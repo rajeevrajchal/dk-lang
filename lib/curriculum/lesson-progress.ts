@@ -1,5 +1,5 @@
 import { lessons } from "@/lib/repositories";
-import type { ProgressMap } from "./progress";
+import type { ProgressMap } from "@/types";
 
 // Lesson progress, re-exported from the repository layer.
 //
@@ -8,14 +8,14 @@ import type { ProgressMap } from "./progress";
 // "record a visit without demoting a finished lesson" rule, in the place the
 // rest of the data access lives.
 
-export async function loadLessonProgress(userId: string): Promise<ProgressMap> {
+export const loadLessonProgress = async (userId: string): Promise<ProgressMap> => {
   return lessons.loadProgress(userId);
-}
+};
 
-export async function recordLessonVisit(
+export const recordLessonVisit = async (
   userId: string,
   lessonSlug: string,
   chapterId: string | null
-) {
+) => {
   return lessons.recordVisit(userId, lessonSlug, chapterId);
-}
+};

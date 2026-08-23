@@ -1,4 +1,4 @@
-import type { GeneratedReadingItem } from "./types";
+import type { GeneratedReadingItem } from "@/types";
 
 // Modul 2 reading (læsning) item bank — tiers 1-3.
 //

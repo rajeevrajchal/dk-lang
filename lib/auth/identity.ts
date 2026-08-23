@@ -1,6 +1,7 @@
 import "server-only";
 
 import { users } from "@/lib/repositories";
+import type { AppUser, SupabaseIdentity } from "@/types";
 
 // Turning a Supabase Auth identity into an application user.
 //
@@ -15,19 +16,6 @@ import { users } from "@/lib/repositories";
 // verified the address — linking on an unverified address would be an account
 // takeover, so this refuses one.
 
-export interface SupabaseIdentity {
-  id: string;
-  email: string;
-  name?: string | null;
-  emailVerified: boolean;
-}
-
-export interface AppUser {
-  id: string;
-  email: string;
-  name: string | null;
-}
-
 /**
  * Finds, links or creates the application user behind a Supabase identity.
  *
@@ -36,7 +24,7 @@ export interface AppUser {
  *   2. same email, no link — link and return them, keeping all their data
  *   3. nobody              — create a new user
  */
-export async function resolveSupabaseUser(identity: SupabaseIdentity): Promise<AppUser> {
+export const resolveSupabaseUser = async (identity: SupabaseIdentity): Promise<AppUser> => {
   if (!identity.emailVerified) {
     throw new Error("Supabase identity has an unverified email address");
   }
@@ -69,4 +57,4 @@ export async function resolveSupabaseUser(identity: SupabaseIdentity): Promise<A
     // provider already refuses a user without one.
   });
   return { id: created.id, email: created.email, name: created.name };
-}
+};

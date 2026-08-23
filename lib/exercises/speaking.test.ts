@@ -23,8 +23,8 @@ import {
   recordExaminerTurn,
   uncoveredTargets,
 } from "./speaking-state";
-import { TASK_TYPES_BY_CATEGORY } from "./types";
-import type { ExerciseVariant, SpeakingContent } from "./types";
+import { TASK_TYPES_BY_CATEGORY } from "./constants";
+import type { ExerciseVariant, SpeakingContent } from "@/types";
 
 const variant = (id: string): ExerciseVariant => {
   const v = ALL_VARIANTS.find((x) => x.variantId === id);

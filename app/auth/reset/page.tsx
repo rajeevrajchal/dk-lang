@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { classifyAuthError, type AuthErrorCode } from "@/lib/auth/errors";
+import { classifyAuthError } from "@/lib/auth/errors";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { AuthCard, ErrorNote, Field, SubmitButton } from "@/components/auth/AuthCard";
+import type { AuthErrorCode } from "@/types";
 
 // Choosing a new password.
 //
@@ -15,7 +16,7 @@ import { AuthCard, ErrorNote, Field, SubmitButton } from "@/components/auth/Auth
 // session check below is what stops the form appearing to someone who simply
 // typed the URL, who would otherwise fill it in and get an error on submit.
 
-export default function ResetPasswordPage() {
+const ResetPasswordPage = () => {
   const { dict } = useI18n();
   const t = dict.login;
   const router = useRouter();
@@ -38,7 +39,7 @@ export default function ResetPasswordPage() {
     })();
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorCode(null);
     setMismatch(null);
@@ -70,7 +71,7 @@ export default function ResetPasswordPage() {
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   if (checking) {
     return (
@@ -120,4 +121,6 @@ export default function ResetPasswordPage() {
       )}
     </AuthCard>
   );
-}
+};
+
+export default ResetPasswordPage;

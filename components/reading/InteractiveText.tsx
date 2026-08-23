@@ -2,14 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import {
-  glossaryIndex,
-  lookupKey,
-  type Gloss,
-  type LearningText,
-  type ReadingSupport,
-  type TextSentence,
-} from "@/lib/learning/text";
+import { glossaryIndex, lookupKey } from "@/lib/learning/text";
+import type { Focus, Gloss, LearningText, ReadingSupport } from "@/types";
 
 // Reading Danish at four levels of magnification: a word, a sentence, a
 // paragraph, or the whole text.
@@ -21,12 +15,6 @@ import {
 // learner reaches for the smallest one that answers their question, and so
 // "translate everything" is available but never the first thing they see.
 
-export type Focus =
-  | { kind: "word"; gloss: Gloss | null; token: string; sentence: TextSentence | null }
-  | { kind: "sentence"; sentence: TextSentence; index: number }
-  | { kind: "paragraph"; index: number }
-  | null;
-
 /** Sentence highlight colours. Meaning is the learner's; these are just paint. */
 const HIGHLIGHT_CLASS: Record<string, string> = {
   YELLOW: "bg-amber-100",
@@ -35,12 +23,12 @@ const HIGHLIGHT_CLASS: Record<string, string> = {
   RED: "bg-red-100",
 };
 
-function tokenize(sentence: string): string[] {
+const tokenize = (sentence: string): string[] => {
   // Whitespace is kept as its own token so the sentence rejoins exactly.
   return sentence.split(/(\s+)/).filter((t) => t.length > 0);
-}
+};
 
-export function InteractiveText({
+export const InteractiveText = ({
   text,
   support,
   /** Rendered under the text — comprehension work, links to the grammar. */
@@ -67,7 +55,7 @@ export function InteractiveText({
   highlights?: Record<number, string>;
   /** Called when a highlighted sentence's marker is clicked. */
   onHighlightClick?: (sentenceIndex: number) => void;
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.reading;
 
@@ -236,10 +224,10 @@ export function InteractiveText({
       {children}
     </div>
   );
-}
+};
 
 /** Whatever the learner last clicked, explained. */
-function FocusPanel({
+const FocusPanel = ({
   focus,
   text,
   onClose,
@@ -247,7 +235,7 @@ function FocusPanel({
   focus: Focus;
   text: LearningText;
   onClose: () => void;
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.reading;
   if (!focus) return null;
@@ -309,14 +297,14 @@ function FocusPanel({
       )}
     </div>
   );
-}
+};
 
 /**
  * One word. Shows the meaning HERE first and the dictionary form second —
  * a learner mid-sentence wants to know what this form is doing, not to be
  * handed a paradigm.
  */
-function WordCard({ gloss }: { gloss: Gloss }) {
+const WordCard = ({ gloss }: { gloss: Gloss }) => {
   const { dict } = useI18n();
   const t = dict.reading;
 
@@ -341,4 +329,4 @@ function WordCard({ gloss }: { gloss: Gloss }) {
       <p className="text-sm text-blue-800">{gloss.inflectionNote}</p>
     </div>
   );
-}
+};

@@ -842,4 +842,3 @@ export const en = {
   } as Record<number, { name: string; cefrGoal: string; description: string }>,
 };
 
-export type Dictionary = typeof en;

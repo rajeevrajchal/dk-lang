@@ -6,28 +6,16 @@ import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { ExerciseBody, expectedAnswerKeys, wantsWideLayout } from "./renderers";
 import { OpgaveExplain } from "./OpgaveExplain";
 import { SpeakingConversation } from "./SpeakingConversation";
-import type { SpeakingContent } from "@/lib/exercises/types";
 import type {
   ExerciseCategory,
   ExerciseResponse,
   ExerciseResult,
+  HistoryRow,
   PublicExercise,
-} from "@/lib/exercises/types";
+  SpeakingContent,
+} from "@/types";
 
-interface HistoryRow {
-  id: string;
-  category: string;
-  taskType: string;
-  taskNumber: number | null;
-  topic: string;
-  title: string;
-  score: number | null;
-  total: number | null;
-  mistakes: number | null;
-  completedAt: string | null;
-}
-
-export function ExerciseRunner({
+export const ExerciseRunner = ({
   moduleId,
   category,
   generationEnabled = false,
@@ -43,7 +31,7 @@ export function ExerciseRunner({
   /** Where "back" goes. Defaults to the module hub, as it always did. */
   backHref?: string;
   backLabel?: string;
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.exercises;
 
@@ -86,7 +74,7 @@ export function ExerciseRunner({
     loadHistory();
   }, [loadNext, loadHistory]);
 
-  async function submit() {
+  const submit = async () => {
     if (!exercise) return;
     setSubmitting(true);
     const res = await fetch(`/api/exercises/${exercise.attemptId}/submit`, {
@@ -99,7 +87,7 @@ export function ExerciseRunner({
       await loadHistory();
     }
     setSubmitting(false);
-  }
+  };
 
   const expected = exercise ? expectedAnswerKeys(exercise.content) : [];
   const answered = expected.filter((k) => (response[k] ?? "").trim().length > 0).length;
@@ -307,4 +295,4 @@ export function ExerciseRunner({
       </section>
     </div>
   );
-}
+};

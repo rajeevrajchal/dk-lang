@@ -1,4 +1,4 @@
-import type { TheoryLesson } from "@/lib/content-gen/theory";
+import type { TheoryLesson } from "@/types";
 
 // Writing lessons: a text type taken apart, then handed back a piece at a
 // time.
@@ -14,7 +14,7 @@ import type { TheoryLesson } from "@/lib/content-gen/theory";
 //   controlled_production  write one line into a skeleton
 //   free_production        write the whole thing yourself
 //
-// That is the existing ladder from course-types.ts doing exactly what it was
+// That is the existing ladder from course-constants.ts doing exactly what it was
 // built for. No new exercise kinds were needed.
 
 export const WRITING_LESSONS: TheoryLesson[] = [

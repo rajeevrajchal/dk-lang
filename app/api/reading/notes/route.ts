@@ -18,7 +18,7 @@ const NoteSchema = z.object({
   body: z.string().min(1).max(2000),
 });
 
-export async function GET(req: Request) {
+export const GET = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,9 +26,9 @@ export async function GET(req: Request) {
   const textId = new URL(req.url).searchParams.get("textId");
 
   return NextResponse.json(await reading.listNotes(session.user.id, textId ?? undefined));
-}
+};
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -49,9 +49,9 @@ export async function POST(req: Request) {
       body: d.body,
     })
   );
-}
+};
 
-export async function DELETE(req: Request) {
+export const DELETE = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -64,4 +64,4 @@ export async function DELETE(req: Request) {
   const deleted = await reading.deleteNote(session.user.id, id);
   if (!deleted) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
-}
+};

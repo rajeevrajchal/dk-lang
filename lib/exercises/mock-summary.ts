@@ -1,4 +1,4 @@
-import type { TaskType } from "./types";
+import type { MockSummary, ScoredPart, SummaryEntry, TaskType } from "@/types";
 
 // Turning a finished mock test into "what went well, what needs work".
 //
@@ -12,31 +12,7 @@ export const STRENGTH_THRESHOLD = 0.8;
 /** At or below this, it is flagged for practice. */
 export const WEAKNESS_THRESHOLD = 0.6;
 
-export interface ScoredPart {
-  taskType?: string;
-  category: string;
-  score: number | null;
-  total: number | null;
-}
-
-export interface SummaryEntry {
-  taskType: string;
-  category: string;
-  correct: number;
-  total: number;
-  ratio: number;
-}
-
-export interface MockSummary {
-  strengths: SummaryEntry[];
-  needsPractice: SummaryEntry[];
-  /** Every scored task type, strongest first — the full picture. */
-  all: SummaryEntry[];
-  /** Share correct across everything that could be scored. */
-  overall: number | null;
-}
-
-export function summariseMock(parts: ScoredPart[]): MockSummary {
+export const summariseMock = (parts: ScoredPart[]): MockSummary => {
   const byType = new Map<string, SummaryEntry>();
 
   for (const p of parts) {
@@ -65,13 +41,13 @@ export function summariseMock(parts: ScoredPart[]): MockSummary {
     all,
     overall: total > 0 ? correct / total : null,
   };
-}
+};
 
 /** Where in Class to go and work on a weak task type. */
-export function practiceHrefFor(entry: SummaryEntry, moduleId: number): string {
+export const practiceHrefFor = (entry: SummaryEntry, moduleId: number): string => {
   const skill = entry.category.toLowerCase();
   const isTaskType = entry.taskType !== entry.category;
   return isTaskType
     ? `/class/${skill}/${moduleId}/${entry.taskType as TaskType}`
     : `/class/${skill}/${moduleId}`;
-}
+};

@@ -61,7 +61,7 @@ a dynamic-segment name clash.
 
 ```
                       CORE ENGINE
-   lib/exercises/{registry,generator,grading,types}.ts
+  lib/exercises/{registry,generator,grading}.ts + types/exercises.ts
                            |
         +------------------+------------------+
         v                  v                  v

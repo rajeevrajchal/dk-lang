@@ -10,13 +10,13 @@ import { useEffect } from "react";
  * ever offer the next unstarted one. Fire-and-forget — a failed call costs a
  * resume point, not the lesson.
  */
-export function LessonVisit({
+export const LessonVisit = ({
   lessonSlug,
   chapterId,
 }: {
   lessonSlug: string;
   chapterId: string;
-}) {
+}) => {
   useEffect(() => {
     fetch("/api/lessons/visit", {
       method: "POST",
@@ -26,4 +26,4 @@ export function LessonVisit({
   }, [lessonSlug, chapterId]);
 
   return null;
-}
+};

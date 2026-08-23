@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 
-export default async function ChapterRedirect({
+const ChapterRedirect = async ({
   params,
 }: {
   params: Promise<{ chapterId: string }>;
-}) {
+}) => {
   const { chapterId } = await params;
   redirect(`/lessons/${chapterId}`);
-}
+};
+
+export default ChapterRedirect;

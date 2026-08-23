@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { content, srs } from "@/lib/repositories";
 import { gradeResponse } from "@/lib/grading";
 import { recordAttemptEffects } from "@/lib/adaptive/engine";
-import type { ItemTypeCode, Skill } from "@/lib/constants";
+import type { ItemTypeCode, Skill } from "@/types";
 
 const AttemptSchema = z.object({
   itemId: z.string(),
@@ -13,7 +13,7 @@ const AttemptSchema = z.object({
   examSessionId: z.string().optional(),
 });
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -48,4 +48,4 @@ export async function POST(req: Request) {
     explanation: item.explanation,
     correctAnswer: JSON.parse(item.answerJson),
   });
-}
+};

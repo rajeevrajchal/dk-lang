@@ -1,6 +1,6 @@
 import { progress } from "@/lib/repositories";
 import { adminDb, unwrap } from "@/lib/supabase/db";
-import type { Skill } from "@/lib/constants";
+import type { ReconciliationChange, Skill } from "@/types";
 
 const DISCIPLINE_TO_SKILL: Record<string, Skill> = {
   mundtlig: "SPEAKING",
@@ -9,23 +9,15 @@ const DISCIPLINE_TO_SKILL: Record<string, Skill> = {
   skriftlig: "WRITING",
 };
 
-export interface ReconciliationChange {
-  discipline: string;
-  skill: Skill;
-  officialPassed: boolean;
-  previousInAppPassed: boolean | null;
-  discrepancy: boolean;
-}
-
 // Reconciles a confirmed report card against the app's in-app module/skill
 // state. The report card is always authoritative: this only ever sets
 // officialPassed (and flags a discrepancy note when it disagrees with the
 // in-app signal) — it never touches inAppPassed, which stays a record of
 // what the mock exam actually showed.
-export async function reconcileReportCard(
+export const reconcileReportCard = async (
   userId: string,
   reportCardId: string
-): Promise<ReconciliationChange[]> {
+): Promise<ReconciliationChange[]> => {
   // Admin client: reconciliation runs on the learner's behalf but reads a row
   // by id, and this must not silently return nothing if a policy changes.
   const cards = unwrap(
@@ -85,4 +77,4 @@ export async function reconcileReportCard(
   );
 
   return changes;
-}
+};

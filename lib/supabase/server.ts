@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
-import type { Database } from "./database.types";
 import { cookies } from "next/headers";
+import type { Database } from "@/types";
 
 // Supabase on the server, reading the session from cookies.
 //
@@ -10,7 +10,7 @@ import { cookies } from "next/headers";
 // than lazy — the proxy refreshes the session on every request, so a
 // server-rendered page can always read a valid one and never needs to write.
 
-export async function createClient() {
+export const createClient = async () => {
   const cookieStore = await cookies();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -40,9 +40,9 @@ export async function createClient() {
       },
     },
   });
-}
+};
 
-export function supabaseConfigured(): boolean {
+export const supabaseConfigured = (): boolean => {
   return (
     !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
     !!(
@@ -50,4 +50,4 @@ export function supabaseConfigured(): boolean {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     )
   );
-}
+};

@@ -6,7 +6,8 @@ import {
   streamObject,
 } from "ai";
 import type { z } from "zod";
-import { resolveModel, type AiProvider, type AiTask } from "./registry";
+import { resolveModel } from "./registry";
+import type { GenerateOptions, GenerateOutcome } from "@/types";
 
 // One way to ask a model for a typed object.
 //
@@ -21,45 +22,7 @@ import { resolveModel, type AiProvider, type AiTask } from "./registry";
 // that a throw would push try/catch into all of them and tempt someone into
 // swallowing it.
 
-export interface GenerateOutcome<T> {
-  object: T | null;
-  /** Why there is no object. Absent on success. */
-  reason?: string;
-  /** Which vendor answered, for logging. */
-  provider?: AiProvider;
-  /**
-   * Whether trying again could plausibly succeed.
-   *
-   * False for a missing key, a rejected key or a malformed request — none of
-   * those fix themselves, and callers that retry (the exercise generator tries
-   * twice) would otherwise burn their second attempt on a certainty. Vendor
-   * error classes are read here so no caller has to know about them.
-   */
-  retryable: boolean;
-}
-
-export interface GenerateOptions<S extends z.ZodType<object>> {
-  task: AiTask;
-  schema: S;
-  system: string;
-  prompt: string;
-  /** Force a vendor. Falls back to the default when it has no key. */
-  provider?: AiProvider;
-  /**
-   * Stream the response instead of waiting for it whole.
-   *
-   * Only worth it for genuinely long output: a full sentence-and-word pass
-   * over an opgave can run to tens of thousands of tokens, and a non-streaming
-   * request risks the HTTP timeout before the first byte. The awaited result is
-   * identical either way — this is about the connection staying alive, not
-   * about showing partial output.
-   */
-  stream?: boolean;
-  /** Milliseconds. Defaults by task size. */
-  timeoutMs?: number;
-}
-
-function classifyError(err: unknown): { reason: string; retryable: boolean } {
+const classifyError = (err: unknown): { reason: string; retryable: boolean } => {
   if (LoadAPIKeyError.isInstance(err)) {
     return { reason: "no API key configured for this provider", retryable: false };
   }
@@ -91,15 +54,15 @@ function classifyError(err: unknown): { reason: string; retryable: boolean } {
     return { reason: err.message, retryable: err.name === "TimeoutError" || err.name === "AbortError" };
   }
   return { reason: "unknown error", retryable: false };
-}
+};
 
 // The output type is inferred FROM the schema rather than supplied alongside
 // it. That is not just tidier: the AI SDK's own types branch on whether the
 // schema produces an object, and an unconstrained type parameter leaves that
 // branch unresolvable.
-export async function generateStructured<S extends z.ZodType<object>>(
+export const generateStructured = async <S extends z.ZodType<object>>(
   opts: GenerateOptions<S>
-): Promise<GenerateOutcome<z.infer<S>>> {
+): Promise<GenerateOutcome<z.infer<S>>> => {
   const resolved = resolveModel(opts.task, opts.provider);
   if (!resolved) {
     return {
@@ -145,4 +108,4 @@ export async function generateStructured<S extends z.ZodType<object>>(
     console.warn(`[ai] ${opts.task} failed on ${provider}: ${reason}`);
     return { object: null, reason, provider, retryable };
   }
-}
+};

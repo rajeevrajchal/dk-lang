@@ -9,7 +9,7 @@ import { useI18n } from "@/lib/i18n/LocaleProvider";
 // Extracted so sign-in, register, forgot-password and reset-password look like
 // one flow rather than four pages that happen to be nearby.
 
-export function AuthCard({
+export const AuthCard = ({
   title,
   subtitle,
   children,
@@ -19,7 +19,7 @@ export function AuthCard({
   subtitle?: string;
   children: React.ReactNode;
   backHref?: string;
-}) {
+}) => {
   const { dict } = useI18n();
 
   return (
@@ -44,13 +44,13 @@ export function AuthCard({
       </div>
     </div>
   );
-}
+};
 
 /** Field label + input, so the four forms cannot drift apart visually. */
-export function Field({
+export const Field = ({
   label,
   ...props
-}: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+}: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) => {
   return (
     <div>
       <label className="block text-sm font-medium text-slate-700">{label}</label>
@@ -60,17 +60,17 @@ export function Field({
       />
     </div>
   );
-}
+};
 
-export function ErrorNote({ children }: { children: React.ReactNode }) {
+export const ErrorNote = ({ children }: { children: React.ReactNode }) => {
   return (
     <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
       {children}
     </p>
   );
-}
+};
 
-export function SubmitButton({
+export const SubmitButton = ({
   loading,
   children,
   disabled,
@@ -78,7 +78,7 @@ export function SubmitButton({
   loading: boolean;
   children: React.ReactNode;
   disabled?: boolean;
-}) {
+}) => {
   const { dict } = useI18n();
   return (
     <button
@@ -89,4 +89,4 @@ export function SubmitButton({
       {loading ? dict.login.submitting : children}
     </button>
   );
-}
+};

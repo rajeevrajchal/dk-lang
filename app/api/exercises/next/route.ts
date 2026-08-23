@@ -11,13 +11,8 @@ import {
 import { moduleUsesTaskType } from "@/lib/exercises/module-tasks";
 import { generateExercise, llmGenerationAvailable } from "@/lib/exercises/generator";
 import { LEARNING_MODES } from "@/lib/exercises/mode";
-import {
-  EXERCISE_CATEGORIES,
-  TASK_TYPES,
-  type ExerciseCategory,
-  type ExerciseVariant,
-  type TaskType,
-} from "@/lib/exercises/types";
+import { EXERCISE_CATEGORIES, TASK_TYPES } from "@/lib/exercises/constants";
+import type { ExerciseCategory, ExerciseVariant, TaskType } from "@/types";
 
 const NextSchema = z.object({
   moduleId: z.number(),
@@ -39,7 +34,7 @@ const NextSchema = z.object({
 // Generation can take a while on a hard task; Next needs to allow for it.
 export const maxDuration = 300;
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -137,4 +132,4 @@ export async function POST(req: Request) {
     ...toPublicExercise(variant, attempt.id, generated ? true : isNew),
     generated,
   });
-}
+};

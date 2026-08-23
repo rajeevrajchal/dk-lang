@@ -15,15 +15,15 @@ const LevelSchema = z.object({
   source: z.literal("ONBOARDING").optional(),
 });
 
-export async function GET() {
+export const GET = async () => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return NextResponse.json(await getUserLevel(session.user.id));
-}
+};
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -48,14 +48,14 @@ export async function POST(req: Request) {
   if (source === "ONBOARDING") await markOnboarded(session.user.id);
 
   return NextResponse.json(await getUserLevel(session.user.id));
-}
+};
 
 /** "Skip for now" — onboarding is done, the level stays unset. */
-export async function PATCH() {
+export const PATCH = async () => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   await markOnboarded(session.user.id);
   return NextResponse.json(await getUserLevel(session.user.id));
-}
+};

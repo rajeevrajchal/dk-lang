@@ -9,7 +9,7 @@ import { z } from "zod";
 // own word bank, so every schema is followed by the semantic checks in
 // validate.ts before a generated exercise is ever shown to a learner.
 //
-// Field names match the hand-authored variant types in ./types.ts so a
+// Field names match the hand-authored variant types in @/types/exercises so a
 // generated exercise and an authored one are the same thing downstream.
 
 export const Task1Schema = z.object({
@@ -238,15 +238,3 @@ export const ExaminerTurnSchema = z.object({
   stageComplete: z.boolean(),
 });
 
-export type MindmapGenerated = z.infer<typeof MindmapSchema>;
-export type InformationGapGenerated = z.infer<typeof InformationGapSchema>;
-export type PreparedTopicGenerated = z.infer<typeof PreparedTopicSchema>;
-export type PicturePreferenceGenerated = z.infer<typeof PicturePreferenceSchema>;
-export type ExaminerTurnGenerated = z.infer<typeof ExaminerTurnSchema>;
-
-export type Task1Generated = z.infer<typeof Task1Schema>;
-export type Task2Generated = z.infer<typeof Task2Schema>;
-export type Task3Generated = z.infer<typeof Task3Schema>;
-export type Task4Generated = z.infer<typeof Task4Schema>;
-export type WritingGenerated = z.infer<typeof WritingSchema>;
-export type SpeakingGenerated = z.infer<typeof SpeakingSchema>;

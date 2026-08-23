@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import type { SidebarChapter } from "@/types";
 
 // The course, always visible while you are in it.
 //
@@ -12,28 +13,13 @@ import { useI18n } from "@/lib/i18n/LocaleProvider";
 // it, so the rules live in one place and the sidebar cannot disagree with
 // the pages.
 
-export interface SidebarTopic {
-  title: string;
-  lessonSlug: string;
-  done: boolean;
-  started: boolean;
-}
-
-export interface SidebarChapter {
-  id: string;
-  number: number;
-  title: string;
-  status: "available" | "in_progress" | "complete";
-  topics: SidebarTopic[];
-}
-
 const MARK: Record<SidebarChapter["status"], string> = {
   complete: "✓",
   in_progress: "→",
   available: "○",
 };
 
-export function LessonSidebar({
+export const LessonSidebar = ({
   chapters,
   completed,
   total,
@@ -45,7 +31,7 @@ export function LessonSidebar({
   total: number;
   resumeHref: string | null;
   resumeLabel: string;
-}) {
+}) => {
   const pathname = usePathname();
   const { dict } = useI18n();
   const t = dict.lessons;
@@ -155,4 +141,4 @@ export function LessonSidebar({
       </nav>
     </aside>
   );
-}
+};

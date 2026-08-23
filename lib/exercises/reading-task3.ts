@@ -1,4 +1,4 @@
-import type { ExerciseVariant } from "./types";
+import type { ExerciseVariant } from "@/types";
 
 // Læsning, Opgave 3 — write the missing words, each word once, four left over.
 //
