@@ -5,10 +5,9 @@ import { READING_TASK4_VARIANTS } from "./reading-task4";
 import { WRITING_VARIANTS } from "./writing";
 import { SPEAKING_VARIANTS, SPEAKING_OPGAVE_VARIANTS } from "./speaking";
 import { isExplainable } from "./explainable";
-import { speakingTasksForModule } from "./speaking-patterns";
+import { orderedTaskTypes } from "./module-tasks";
 import {
   TASK_NUMBER,
-  TASK_TYPES_BY_CATEGORY,
   type ExerciseCategory,
   type ExerciseVariant,
   type PublicExercise,
@@ -67,14 +66,14 @@ export function selectNextTaskType(
   category: ExerciseCategory,
   history: HistoryEntry[]
 ): TaskType | null {
-  // Speaking is composed per module: Modul 2 runs the mindmap and the
-  // information gap, Modul 3 the prepared topic and the picture preference.
-  // A module with no composition defined falls back to the category-wide list,
-  // which is what every module did before modules were taken into account.
-  const orderedTypes = (
-    (category === "SPEAKING" ? speakingTasksForModule(moduleId) : null) ??
-    TASK_TYPES_BY_CATEGORY[category]
-  ).filter((t) => t.startsWith("listening_") === false);
+  // Every category is composed per module: Modul 2 reading runs Opgave 1-4,
+  // Modul 2 speaking the mindmap and the information gap, Modul 3 speaking the
+  // prepared topic and the picture preference. A module with no composition
+  // for a category falls back to the category-wide list, which is what every
+  // module did before modules were taken into account (see module-tasks.ts).
+  const orderedTypes = orderedTaskTypes(moduleId, category).filter(
+    (t) => t.startsWith("listening_") === false
+  );
   if (orderedTypes.length === 0) return null;
 
   const typeLastDoneAt = new Map<string, number>();
@@ -113,14 +112,13 @@ export function selectNextVariant(
     if (prev === undefined || t > prev) typeLastDoneAt.set(h.taskType, t);
   }
 
-  // Task types that actually have variants authored, in test order. Speaking
-  // consults the module's own composition first, so the authored fallback
-  // serves the same opgaver the generator would — otherwise a learner without
-  // an API key would get Modul 2's general prompts instead of its opgaver.
-  const orderedTypes = (
-    (category === "SPEAKING" ? speakingTasksForModule(moduleId) : null) ??
-    TASK_TYPES_BY_CATEGORY[category]
-  ).filter((t) => available.some((v) => v.taskType === t));
+  // Task types that actually have variants authored, in test order. The
+  // module's own composition comes first, so the authored fallback serves the
+  // same opgaver the generator would — otherwise a learner without an API key
+  // would get Modul 2's general prompts instead of its opgaver.
+  const orderedTypes = orderedTaskTypes(moduleId, category).filter((t) =>
+    available.some((v) => v.taskType === t)
+  );
   if (orderedTypes.length === 0) return null;
 
   const nextType = orderedTypes.reduce((best, t) => {
@@ -256,6 +254,37 @@ export function answerCount(variant: ExerciseVariant): number {
     default:
       return 0;
   }
+}
+
+/**
+ * The task types a learner can choose from in Class for this module and
+ * category: the module's composition, minus anything with neither an authored
+ * variant nor a generator prompt. Used to build the "pick a task" screen —
+ * offering a task the engine cannot produce would be a dead end.
+ */
+export function selectableTaskTypes(
+  moduleId: number,
+  category: ExerciseCategory,
+  generationAvailable: boolean
+): TaskType[] {
+  const authored = variantsFor(moduleId, category);
+  return orderedTaskTypes(moduleId, category).filter((t) => {
+    if (t.startsWith("listening_")) return false;
+    if (authored.some((v) => v.taskType === t)) return true;
+    return generationAvailable;
+  });
+}
+
+/**
+ * Whether Class can offer this module/category at all — either something is
+ * authored, or the module declares a composition the generator can write for.
+ */
+export function moduleCategoryAvailable(
+  moduleId: number,
+  category: ExerciseCategory,
+  generationAvailable: boolean
+): boolean {
+  return selectableTaskTypes(moduleId, category, generationAvailable).length > 0;
 }
 
 export { TASK_NUMBER };

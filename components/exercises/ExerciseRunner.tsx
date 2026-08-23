@@ -31,10 +31,18 @@ export function ExerciseRunner({
   moduleId,
   category,
   generationEnabled = false,
+  taskType,
+  backHref,
+  backLabel,
 }: {
   moduleId: number;
   category: ExerciseCategory;
   generationEnabled?: boolean;
+  /** Pin practice to one task type. Omitted, the engine rotates through them. */
+  taskType?: string;
+  /** Where "back" goes. Defaults to the module hub, as it always did. */
+  backHref?: string;
+  backLabel?: string;
 }) {
   const { dict } = useI18n();
   const t = dict.exercises;
@@ -59,7 +67,9 @@ export function ExerciseRunner({
     const res = await fetch("/api/exercises/next", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ moduleId, category }),
+      // mode "class" is the default on the server too; sending it explicitly
+      // keeps the request readable next to the mock test's own start call.
+      body: JSON.stringify({ moduleId, category, taskType, mode: "class" }),
     });
     if (res.ok) {
       setExercise(await res.json());
@@ -69,7 +79,7 @@ export function ExerciseRunner({
       setUnavailable(true);
     }
     setLoading(false);
-  }, [moduleId, category]);
+  }, [moduleId, category, taskType]);
 
   useEffect(() => {
     loadNext();
@@ -98,8 +108,11 @@ export function ExerciseRunner({
 
   return (
     <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-6">
-      <Link href={`/class/${moduleId}`} className="text-sm text-slate-500 hover:underline">
-        {t.backToModule}
+      <Link
+        href={backHref ?? `/class/${moduleId}`}
+        className="text-sm text-slate-500 hover:underline"
+      >
+        {backLabel ?? t.backToModule}
       </Link>
 
       {loading &&

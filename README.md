@@ -6,11 +6,37 @@ brief — most importantly: **this app never sources, reproduces, or claims
 equivalence to the real SIRI exam bank.** Every practice item is originally
 written and tagged `generated: true` (see `docs/content-validation.md`).
 
+## Product structure
+
+Four learning areas plus profile, described in full in
+`docs/product-architecture.md`:
+
+| Area          | The learner's question        | Route      |
+| ------------- | ----------------------------- | ---------- |
+| **Lessons**   | What do I need to learn?      | `/lessons` |
+| **Class**     | Can I use what I learned?     | `/class`   |
+| **Mock**      | Am I ready for the real test? | `/mock`    |
+| **Dashboard** | How am I doing?               | `/dashboard` |
+| **Settings**  | What level am I?              | `/settings` |
+
+One exercise engine serves all three learning areas
+(`lib/exercises/`); the difference between them is the learning mode
+(`lib/exercises/mode.ts`), not a separate implementation.
+
+Two things that look alike and are kept strictly apart: the learner's
+**official level** (told to us at onboarding or from a real test result) and
+their **practice standing** (what the app measured). A mock score never moves
+the official level — see `docs/product-architecture.md` §7.
+
 ## What's built vs. scaffolded
 
 Built end-to-end, with real seeded content and a passing production build:
 
-- Auth (email/password) + protected dashboard shell
+- Auth (email/password) + onboarding + the four-area app shell
+- Grammar course (`/lessons`): 15 chapters, chapter/topic/lesson hierarchy,
+  a course sidebar, per-lesson progress and resume-where-you-left-off
+- Skill-first practice (`/class`): reading, speaking and writing, with the
+  task types each module actually examines
 - **Modul 2 reading**, tiers 1–3: 38 tagged items (constructs, topic,
   question type), adaptive tier/construct selection, spaced-repetition
   review, per-attempt tracking
@@ -86,6 +112,14 @@ Full schema: `prisma/schema.prisma`. Summary by concern:
   public), OCR/manual-entry extracted fields, `status` through
   `PENDING_EXTRACTION → PENDING_CONFIRMATION → CONFIRMED`, and a
   `reconciliationJson` summary of what changed when it was confirmed.
+- **Lessons**: `LessonProgress` — one row per learner per lesson slug, with a
+  `status` (`IN_PROGRESS` once opened, `COMPLETED` once handed in), the score
+  on its auto-checkable exercises, and `lastVisitedAt`, which is what
+  "continue where you left off" reads.
+- **Level — the other deliberate split**: `UserProfile` holds the level the
+  learner *told* us (onboarding, or an official result), and
+  `OfficialTestResult` records the real tests they sat. Neither is ever
+  written from a practice or mock score; `lib/level.ts` is the only writer.
 
 ## Content validation
 

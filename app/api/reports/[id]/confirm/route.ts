@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { reconcileReportCard } from "@/lib/report-cards";
+import { addOfficialTestResult } from "@/lib/level";
 
 const ConfirmSchema = z.object({
   sprogcenter: z.string().min(1),
@@ -45,6 +46,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   const changes = await reconcileReportCard(session.user.id, id);
+
+  // A confirmed certificate is an official test result, so it is recorded as
+  // one rather than living only inside ModuleSkillStatus. The result counts as
+  // passed when every discipline on the certificate passed — a partial pass is
+  // not a pass, and is recorded as such rather than being rounded up.
+  const disciplines = Object.values(results);
+  const allPassed = disciplines.length > 0 && disciplines.every((r) => r === "pass");
+
+  // Only create it once: re-confirming an already-confirmed card should not
+  // stack up duplicate results.
+  const existing = await prisma.officialTestResult.findFirst({
+    where: { userId: session.user.id, reportCardId: id },
+  });
+  if (!existing) {
+    await addOfficialTestResult(session.user.id, {
+      testType: module === 5 ? "PD3" : "MODULTEST",
+      module: module === 5 ? null : module,
+      result: allPassed ? "PASSED" : "NOT_PASSED",
+      takenAt: new Date(date),
+      note: sprogcenter,
+      source: "REPORT_CARD",
+      reportCardId: id,
+    });
+  }
 
   return NextResponse.json({ ok: true, changes });
 }

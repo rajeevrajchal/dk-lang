@@ -14,21 +14,48 @@ import { isAutoCheckable, type CourseChapter, type LessonExercise } from "./cour
 /** Fraction of auto-checkable exercises that must be right to count as passed. */
 export const MASTERY_THRESHOLD = 0.6;
 
+/**
+ * Where a lesson has got to. A row exists as soon as the lesson is OPENED, so
+ * "has a row" no longer means "is finished" — status is what says that.
+ *
+ * Optional, and treated as COMPLETED when absent: every row written before
+ * lessons tracked a lifecycle was written on submission, and the pure
+ * functions here are also called from tests that build a ProgressMap by hand.
+ */
+export const LESSON_STATUSES = ["IN_PROGRESS", "COMPLETED"] as const;
+export type LessonStatus = (typeof LESSON_STATUSES)[number];
+
 export interface LessonResult {
   lessonSlug: string;
   /** Correct out of the auto-checkable exercises. Null if none were checkable. */
   score: number | null;
   total: number | null;
   completedAt: string;
+  status?: LessonStatus;
+  /** When the learner last had this lesson open — what resuming is based on. */
+  lastVisitedAt?: string | null;
 }
 
 export type ProgressMap = Record<string, LessonResult>;
 
+/** Whether the learner has finished this lesson (as opposed to opened it). */
+export function lessonSubmitted(result: LessonResult | undefined): boolean {
+  if (!result) return false;
+  return (result.status ?? "COMPLETED") === "COMPLETED";
+}
+
 export function lessonPassed(result: LessonResult | undefined): boolean {
   if (!result) return false;
+  // Opened but not handed in is not passed, however good the (absent) score.
+  if (!lessonSubmitted(result)) return false;
   // A lesson made only of free-production work counts as done once submitted.
   if (result.total == null || result.total === 0) return true;
   return (result.score ?? 0) / result.total >= MASTERY_THRESHOLD;
+}
+
+/** Started but not finished — the state "Continue lesson" exists for. */
+export function lessonInProgress(result: LessonResult | undefined): boolean {
+  return !!result && !lessonPassed(result);
 }
 
 export function chapterLessonSlugs(chapter: CourseChapter): string[] {
@@ -110,6 +137,69 @@ export function moduleReadiness(
     total: chapters.length,
     ratio: chapters.length === 0 ? 0 : complete / chapters.length,
   };
+}
+
+/**
+ * Progress across the whole course, for the Dashboard: how many lessons are
+ * done out of how many exist, and which chapter the learner is in.
+ */
+export function courseProgress(progress: ProgressMap): {
+  completed: number;
+  total: number;
+  ratio: number;
+  chaptersComplete: number;
+  chaptersTotal: number;
+  currentChapter: CourseChapter | null;
+} {
+  const allSlugs = DANISH_COURSE.chapters.flatMap(chapterLessonSlugs);
+  const completed = allSlugs.filter((s) => lessonPassed(progress[s])).length;
+  const chaptersComplete = DANISH_COURSE.chapters.filter((c) =>
+    chapterComplete(c, progress)
+  ).length;
+  const next = nextUp(progress);
+
+  return {
+    completed,
+    total: allSlugs.length,
+    ratio: allSlugs.length === 0 ? 0 : completed / allSlugs.length,
+    chaptersComplete,
+    chaptersTotal: DANISH_COURSE.chapters.length,
+    currentChapter: next?.chapter ?? null,
+  };
+}
+
+export interface ResumePoint {
+  chapter: CourseChapter;
+  lessonSlug: string;
+  /** True when this is somewhere they left off rather than the next new thing. */
+  resumed: boolean;
+}
+
+/**
+ * Where "Continue learning" goes.
+ *
+ * The most recently visited lesson they have not finished wins — a learner who
+ * stopped halfway through Chapter 4 should land back in Chapter 4, not at the
+ * first gap in Chapter 2. With nothing open, this is just nextUp().
+ */
+export function resumePoint(progress: ProgressMap): ResumePoint | null {
+  let best: { slug: string; at: number } | null = null;
+  for (const [slug, result] of Object.entries(progress)) {
+    if (lessonPassed(result)) continue;
+    const at = new Date(result.lastVisitedAt ?? result.completedAt).getTime();
+    if (Number.isNaN(at)) continue;
+    if (!best || at > best.at) best = { slug, at };
+  }
+
+  if (best) {
+    const chapter = DANISH_COURSE.chapters.find((c) =>
+      chapterLessonSlugs(c).includes(best!.slug)
+    );
+    if (chapter) return { chapter, lessonSlug: best.slug, resumed: true };
+  }
+
+  const next = nextUp(progress);
+  return next ? { ...next, resumed: false } : null;
 }
 
 // ---------------------------------------------------------------------------

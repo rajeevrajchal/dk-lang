@@ -39,6 +39,8 @@ model User {
   reportCards       ReportCard[]
   exerciseAttempts  ExerciseAttempt[]
   lessonProgress    LessonProgress[]
+  profile           UserProfile?
+  officialResults   OfficialTestResult[]
 }
 
 model Account {
@@ -326,6 +328,14 @@ model LessonProgress {
   // Raw answers, so a learner can see what they wrote last time.
   responsesJson String?
 
+  // Lifecycle, so a lesson can be left and resumed. Defaults to COMPLETED so
+  // every row written before this field existed keeps meaning exactly what it
+  // meant: a finished lesson. A row is created as IN_PROGRESS the first time
+  // the lesson is opened, and promoted on submission.
+  status        String    @default("COMPLETED") // IN_PROGRESS | COMPLETED
+  startedAt     DateTime?
+  lastVisitedAt DateTime?
+
   completedAt DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -426,4 +436,66 @@ model ReportCard {
   reconciliationJson String? // summary of what changed vs prior in-app state
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Learner profile: the level the learner SAYS they are at.
+//
+// This is deliberately a separate concept from anything the app measures. A
+// mock test score never writes here (see lib/unlock.ts — it only ever touches
+// ModuleSkillStatus.inApp*), and nothing reads practice performance to infer
+// a level. Only two things set it: onboarding, and an official test result the
+// learner has told us about. See docs/product-architecture.md §7.
+// ---------------------------------------------------------------------------
+
+model UserProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // "DU2" | "DU3". Null until onboarding has been completed.
+  education String?
+  // 1..5. The module the learner is officially at, NOT the one they are
+  // studying — a learner can be working through Modul 3 material with an
+  // official Modul 2 result, and both facts are true at once.
+  currentModule Int?
+  // "ONBOARDING" | "OFFICIAL_RESULT" — where currentModule came from, so the
+  // UI can say how it knows.
+  levelSource String?
+  levelSetAt  DateTime?
+
+  onboardedAt DateTime?
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// A real test the learner actually sat. Distinct from every in-app result:
+// a PracticeResult is something this app measured, an OfficialTestResult is
+// something an examiner decided.
+//
+// A confirmed ReportCard upload is one source of these (OCR + confirmation,
+// see lib/report-cards.ts); a self-reported entry in Settings is the other.
+model OfficialTestResult {
+  id     String @id @default(cuid())
+  userId String
+
+  testType  String // MODULTEST | PD3
+  education String? // DU2 | DU3
+  module    Int? // 1..5; null for a PD3 result, which has no module
+  // "PASSED" | "NOT_PASSED". Null when the learner recorded the sitting but
+  // not an outcome.
+  result String?
+  takenAt DateTime?
+
+  // SELF_REPORTED | REPORT_CARD. A report-card-sourced row points back at the
+  // upload it came from, so the evidence is never separated from the claim.
+  source       String  @default("SELF_REPORTED")
+  reportCardId String?
+
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
