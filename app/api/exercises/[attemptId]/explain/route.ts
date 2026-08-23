@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { exercises } from "@/lib/repositories";
 import { VARIANT_BY_ID } from "@/lib/exercises/registry";
 import { generateExplanation, explanationAvailable } from "@/lib/exercises/explain";
 import type { ExerciseVariant } from "@/lib/exercises/types";
@@ -18,10 +18,10 @@ export async function POST(
   }
   const { attemptId } = await params;
 
-  const attempt = await prisma.exerciseAttempt.findUnique({ where: { id: attemptId } });
-  if (!attempt || attempt.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  // Scoped by userId inside the repository: an attempt id alone must not be
+  // enough to read somebody else's answers.
+  const attempt = await exercises.findAttempt(session.user.id, attemptId);
+  if (!attempt) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // The explanation translates the whole text and walks its grammar, so it
   // would hand over the answers. It is only available once the learner has
@@ -33,10 +33,7 @@ export async function POST(
     );
   }
   if (attempt.examSessionId) {
-    const exam = await prisma.examSession.findUnique({
-      where: { id: attempt.examSessionId },
-      select: { status: true },
-    });
+    const exam = await exercises.findExamSession(session.user.id, attempt.examSessionId);
     if (exam?.status !== "COMPLETED") {
       return NextResponse.json({ error: "Finish the test first" }, { status: 409 });
     }
@@ -69,10 +66,7 @@ export async function POST(
     );
   }
 
-  await prisma.exerciseAttempt.update({
-    where: { id: attemptId },
-    data: { explanationJson: JSON.stringify(outcome.explanation) },
-  });
+  await exercises.updateAttempt(session.user.id, attemptId, { explanationJson: JSON.stringify(outcome.explanation) });
 
   return NextResponse.json({ cached: false, ...outcome.explanation });
 }

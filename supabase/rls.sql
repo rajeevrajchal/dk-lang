@@ -1,20 +1,21 @@
 -- Row Level Security for the Danish learning app.
 --
--- READ THIS BEFORE RELYING ON IT.
+-- THIS IS THE AUTHORIZATION BOUNDARY.
 --
--- The application talks to PostgreSQL through Prisma, which connects as the
--- table owner. Owners bypass RLS, so THESE POLICIES DO NOT CONSTRAIN THE
--- APPLICATION'S OWN QUERIES. The control that actually enforces "you only see
--- your own rows" is the `userId` scoping in lib/repositories/*.
+-- Every application query goes through lib/repositories/*, which uses
+-- supabase-js carrying the signed-in learner's JWT. So these policies are
+-- evaluated on every read and write the app makes: the database itself refuses
+-- to return another learner's rows, rather than relying on the application
+-- remembering to add a WHERE clause.
 --
--- So what are these for? Containment. Supabase exposes every table over
--- PostgREST to anyone holding the publishable key, which by design ships to
--- the browser. Without RLS, that key would be a read/write handle on every
--- learner's data. With it, the key can reach nothing at all unless a policy
--- allows it.
+-- (An earlier iteration queried through Prisma, which connects as the table
+-- owner and bypasses RLS entirely. That is why the repositories still filter
+-- by userId as well — belt and braces, and it keeps the intent visible — but
+-- the policies below are what actually enforces it now.)
 --
--- In other words: this file is what makes it safe that a Supabase key is
--- public, not what makes the app's own queries safe.
+-- The service-role key still bypasses all of this. It is used in exactly two
+-- places: sign-in, before a session exists, and shared content that belongs to
+-- nobody. See lib/supabase/db.ts.
 --
 -- Run once, after `prisma migrate deploy`:
 --     psql "$DIRECT_URL" -f supabase/rls.sql
@@ -38,11 +39,12 @@ begin
       and tablename not like '\_prisma%'
   loop
     execute format('alter table public.%I enable row level security', t);
-    -- FORCE makes the policies apply to the table owner too. Deliberately NOT
-    -- set: Prisma connects as the owner and would be locked out of its own
-    -- database. Flipping this on is the first step if the app ever moves to
-    -- connecting as a restricted role.
-    -- execute format('alter table public.%I force row level security', t);
+    -- FORCE applies the policies to the table owner as well. Now safe, and
+    -- worth having: the application no longer connects as the owner, so the
+    -- only thing this locks down is a direct psql session or a stray script.
+    -- The service role still bypasses it, which is what migrations and seeding
+    -- rely on.
+    execute format('alter table public.%I force row level security', t);
   end loop;
 end $$;
 
@@ -152,17 +154,36 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
--- 6. Never reachable from the browser
+-- 6. Never reachable with a user token
 --
--- Account, Session and VerificationToken hold credentials and session tokens.
--- RLS is on and no policy is created, so PostgREST can reach none of them.
+-- User, Account, Session and VerificationToken hold credentials and session
+-- tokens. RLS is on and — apart from the two self-scoped policies in §4 — no
+-- policy is created, so a learner's own token can reach none of them. The
+-- sign-in path reads them through the service role instead, which is correct:
+-- there is no session yet at that point for a policy to check.
+--
 -- Stated explicitly because "no policy" looks like an oversight otherwise.
 -- ---------------------------------------------------------------------------
 
 -- (intentionally empty)
 
 -- ---------------------------------------------------------------------------
--- 7. Check what you ended up with
+-- 7. Storage
+--
+-- Report cards live in a private bucket and are read back only through
+-- app/api/reports/[id]/file, which checks the row belongs to the caller and
+-- then downloads with the service role. No storage policy grants a user token
+-- direct access, so an object key alone is not enough to fetch a document.
+--
+-- Create the bucket once (private), if it does not exist:
+--
+--   insert into storage.buckets (id, name, public)
+--   values ('"'"'report-cards'"'"', '"'"'report-cards'"'"', false)
+--   on conflict (id) do nothing;
+-- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- 8. Check what you ended up with
 -- ---------------------------------------------------------------------------
 
 -- select tablename,

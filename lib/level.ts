@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { users } from "@/lib/repositories";
 
 // The learner's LEVEL — and the wall between it and everything the app
 // measures.
@@ -31,14 +31,15 @@ export interface UserLevel {
   education: Education | null;
   currentModule: number | null;
   levelSource: LevelSource | null;
-  levelSetAt: Date | null;
+  /** ISO timestamp. PostgREST returns timestamps as strings, not Dates. */
+  levelSetAt: string | null;
   onboarded: boolean;
   /** True when the learner has never told us their level. */
   unset: boolean;
 }
 
 export async function getUserLevel(userId: string): Promise<UserLevel> {
-  const profile = await prisma.userProfile.findUnique({ where: { userId } });
+  const profile = await users.getProfile(userId);
   const education = (profile?.education as Education | null) ?? null;
   const currentModule = profile?.currentModule ?? null;
 
@@ -71,33 +72,18 @@ export async function setUserLevel(
   input: { education: Education | null; currentModule: number | null },
   source: LevelSource
 ) {
-  const now = new Date();
-  await prisma.userProfile.upsert({
-    where: { userId },
-    update: {
-      education: input.education,
-      currentModule: input.currentModule,
-      levelSource: source,
-      levelSetAt: now,
-      ...(source === "ONBOARDING" ? { onboardedAt: now } : {}),
-    },
-    create: {
-      userId,
-      education: input.education,
-      currentModule: input.currentModule,
-      levelSource: source,
-      levelSetAt: now,
-      onboardedAt: source === "ONBOARDING" ? now : null,
-    },
+  const now = new Date().toISOString();
+  await users.upsertProfile(userId, {
+    education: input.education,
+    currentModule: input.currentModule,
+    levelSource: source,
+    levelSetAt: now,
+    ...(source === "ONBOARDING" ? { onboardedAt: now } : {}),
   });
 }
 
 export async function markOnboarded(userId: string) {
-  await prisma.userProfile.upsert({
-    where: { userId },
-    update: { onboardedAt: new Date() },
-    create: { userId, onboardedAt: new Date() },
-  });
+  await users.upsertProfile(userId, { onboardedAt: new Date().toISOString() });
 }
 
 export interface OfficialResultInput {
@@ -119,18 +105,15 @@ export interface OfficialResultInput {
  * moves the level down, and no in-app score reaches this function.
  */
 export async function addOfficialTestResult(userId: string, input: OfficialResultInput) {
-  const row = await prisma.officialTestResult.create({
-    data: {
-      userId,
-      testType: input.testType,
-      education: input.education ?? null,
-      module: input.module ?? null,
-      result: input.result ?? null,
-      takenAt: input.takenAt ?? null,
-      note: input.note ?? null,
-      source: input.source ?? "SELF_REPORTED",
-      reportCardId: input.reportCardId ?? null,
-    },
+  const row = await users.createOfficialResult(userId, {
+    testType: input.testType,
+    education: input.education ?? null,
+    module: input.module ?? null,
+    result: input.result ?? null,
+    takenAt: input.takenAt?.toISOString() ?? null,
+    note: input.note ?? null,
+    source: input.source ?? "SELF_REPORTED",
+    reportCardId: input.reportCardId ?? null,
   });
 
   if (input.result === "PASSED" && input.testType === "MODULTEST" && input.module) {
@@ -149,15 +132,9 @@ export async function addOfficialTestResult(userId: string, input: OfficialResul
 }
 
 export async function listOfficialTestResults(userId: string) {
-  return prisma.officialTestResult.findMany({
-    where: { userId },
-    orderBy: [{ takenAt: "desc" }, { createdAt: "desc" }],
-  });
+  return users.listOfficialResults(userId);
 }
 
 export async function deleteOfficialTestResult(userId: string, id: string) {
-  const row = await prisma.officialTestResult.findUnique({ where: { id } });
-  if (!row || row.userId !== userId) return false;
-  await prisma.officialTestResult.delete({ where: { id } });
-  return true;
+  return users.deleteOfficialResult(userId, id);
 }

@@ -1,71 +1,196 @@
 import "server-only";
 
-import { prisma } from "@/lib/db";
+import { db, adminDb, unwrap, isNoRows } from "@/lib/supabase/db";
+import type { Tables } from "@/lib/supabase/database.types";
 
 // Users, profiles and official test results.
 //
 // The split between "what the learner told us" (UserProfile, OfficialTestResult)
 // and "what the app measured" (ModuleSkillStatus, attempts) is deliberate and
 // is enforced here: nothing in this file takes a score.
+//
+// Account lookups during sign-in use the ADMIN client, because they happen
+// before a session exists — there is no JWT for RLS to check yet. Everything
+// after sign-in uses the learner's own client, so the database enforces the
+// scoping rather than trusting this code to remember it.
 
 export async function findById(userId: string) {
-  return prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, email: true, name: true, authProvider: true, createdAt: true },
-  });
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from("User")
+    .select("id, email, name, authProvider, createdAt")
+    .eq("id", userId)
+    .single();
+  if (error && !isNoRows(error)) throw new Error(`[supabase] findById: ${error.message}`);
+  return data ?? null;
 }
 
-export async function findByEmail(email: string) {
-  return prisma.user.findUnique({ where: { email } });
+// --- sign-in path: no session yet, so these use the admin client -----------
+
+export async function findByEmailForAuth(email: string): Promise<Tables<"User"> | null> {
+  const { data, error } = await adminDb().from("User").select("*").eq("email", email).single();
+  if (error && !isNoRows(error)) throw new Error(`[supabase] findByEmailForAuth: ${error.message}`);
+  return data ?? null;
 }
 
-export async function getProfile(userId: string) {
-  return prisma.userProfile.findUnique({ where: { userId } });
+export async function findBySupabaseId(supabaseUserId: string): Promise<Tables<"User"> | null> {
+  const { data, error } = await adminDb()
+    .from("User")
+    .select("*")
+    .eq("supabaseUserId", supabaseUserId)
+    .single();
+  if (error && !isNoRows(error)) throw new Error(`[supabase] findBySupabaseId: ${error.message}`);
+  return data ?? null;
 }
 
+export async function linkSupabaseIdentity(
+  userId: string,
+  supabaseUserId: string,
+  name: string | null
+): Promise<Tables<"User">> {
+  const rows = unwrap(
+    await adminDb()
+      .from("User")
+      .update({ supabaseUserId, ...(name ? { name } : {}) })
+      .eq("id", userId)
+      .select(),
+    "linkSupabaseIdentity"
+  );
+  return rows[0];
+}
+
+export async function createUser(input: {
+  email: string;
+  name: string | null;
+  passwordHash?: string | null;
+  supabaseUserId?: string | null;
+  authProvider?: string;
+}): Promise<Tables<"User">> {
+  const rows = unwrap(
+    await adminDb()
+      .from("User")
+      .insert({
+        id: crypto.randomUUID(),
+        email: input.email,
+        name: input.name,
+        passwordHash: input.passwordHash ?? null,
+        supabaseUserId: input.supabaseUserId ?? null,
+        authProvider: input.authProvider ?? "credentials",
+        createdAt: new Date().toISOString(),
+      })
+      .select(),
+    "createUser"
+  );
+  return rows[0];
+}
+
+// --- profile ---------------------------------------------------------------
+
+export async function getProfile(userId: string): Promise<Tables<"UserProfile"> | null> {
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from("UserProfile")
+    .select("*")
+    .eq("userId", userId)
+    .single();
+  if (error && !isNoRows(error)) throw new Error(`[supabase] getProfile: ${error.message}`);
+  return data ?? null;
+}
+
+/** Partial profile update, creating the row if it does not exist yet. */
 export async function upsertProfile(
   userId: string,
-  data: Parameters<typeof prisma.userProfile.update>[0]["data"]
-) {
-  return prisma.userProfile.upsert({
-    where: { userId },
-    update: data,
-    create: { userId, ...data } as never,
-  });
+  data: Partial<Omit<Tables<"UserProfile">, "id" | "userId">>
+): Promise<Tables<"UserProfile">> {
+  const supabase = await db();
+  const existing = await getProfile(userId);
+
+  const rows = unwrap(
+    await supabase
+      .from("UserProfile")
+      .upsert(
+        {
+          // Merged with what is already stored, so a caller setting one field
+          // does not silently null the rest — PostgREST's upsert writes the
+          // whole row.
+          ...(existing ?? {}),
+          id: existing?.id ?? crypto.randomUUID(),
+          userId,
+          ...data,
+          updatedAt: new Date().toISOString(),
+        },
+        { onConflict: "userId", ignoreDuplicates: false }
+      )
+      .select(),
+    "upsertProfile"
+  );
+  return rows[0];
 }
 
 export async function getInterestsJson(userId: string): Promise<string | null> {
-  const row = await prisma.userProfile.findUnique({
-    where: { userId },
-    select: { interestsJson: true },
-  });
-  return row?.interestsJson ?? null;
+  return (await getProfile(userId))?.interestsJson ?? null;
 }
 
 export async function setInterestsJson(userId: string, interestsJson: string) {
-  return prisma.userProfile.upsert({
-    where: { userId },
-    update: { interestsJson },
-    create: { userId, interestsJson },
-  });
+  return upsertProfile(userId, { interestsJson });
 }
 
-export async function listOfficialResults(userId: string) {
-  return prisma.officialTestResult.findMany({
-    where: { userId },
-    orderBy: [{ takenAt: "desc" }, { createdAt: "desc" }],
-  });
+// --- official test results -------------------------------------------------
+
+export async function listOfficialResults(
+  userId: string
+): Promise<Tables<"OfficialTestResult">[]> {
+  const supabase = await db();
+  return unwrap(
+    await supabase
+      .from("OfficialTestResult")
+      .select("*")
+      .eq("userId", userId)
+      .order("takenAt", { ascending: false, nullsFirst: false })
+      .order("createdAt", { ascending: false }),
+    "listOfficialResults"
+  );
 }
 
 export async function createOfficialResult(
   userId: string,
-  data: Omit<Parameters<typeof prisma.officialTestResult.create>[0]["data"], "userId" | "user">
-) {
-  return prisma.officialTestResult.create({ data: { ...data, userId } as never });
+  data: Omit<Tables<"OfficialTestResult">, "id" | "userId" | "createdAt">
+): Promise<Tables<"OfficialTestResult">> {
+  const supabase = await db();
+  const rows = unwrap(
+    await supabase
+      .from("OfficialTestResult")
+      .insert({ ...data, id: crypto.randomUUID(), userId, createdAt: new Date().toISOString() })
+      .select(),
+    "createOfficialResult"
+  );
+  return rows[0];
 }
 
-/** Scoped by userId as well as id: an id alone would let anyone delete anyone's. */
+export async function findOfficialResultByReportCard(userId: string, reportCardId: string) {
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from("OfficialTestResult")
+    .select("*")
+    .eq("userId", userId)
+    .eq("reportCardId", reportCardId)
+    .single();
+  if (error && !isNoRows(error)) {
+    throw new Error(`[supabase] findOfficialResultByReportCard: ${error.message}`);
+  }
+  return data ?? null;
+}
+
 export async function deleteOfficialResult(userId: string, id: string): Promise<boolean> {
-  const { count } = await prisma.officialTestResult.deleteMany({ where: { id, userId } });
-  return count > 0;
+  const supabase = await db();
+  const rows = unwrap(
+    await supabase
+      .from("OfficialTestResult")
+      .delete()
+      .eq("id", id)
+      .eq("userId", userId)
+      .select("id"),
+    "deleteOfficialResult"
+  );
+  return rows.length > 0;
 }

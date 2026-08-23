@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db";
+import { users } from "@/lib/repositories";
 
 // Two ways in, one session shape.
 //
@@ -32,7 +32,8 @@ export const {
         const password = credentials?.password as string | undefined;
         if (!email || !password) return null;
 
-        const user = await prisma.user.findUnique({ where: { email } });
+        // Admin client: there is no session yet, so nothing for RLS to check.
+        const user = await users.findByEmailForAuth(email);
         if (!user?.passwordHash) return null;
 
         const valid = await bcrypt.compare(password, user.passwordHash);

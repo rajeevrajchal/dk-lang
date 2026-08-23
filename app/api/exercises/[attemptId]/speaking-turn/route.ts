@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { exercises } from "@/lib/repositories";
 import { VARIANT_BY_ID } from "@/lib/exercises/registry";
 import { nextExaminerTurn, scriptedExaminerTurn, examinerAvailable } from "@/lib/exercises/examiner";
 import {
@@ -51,10 +51,10 @@ export async function POST(
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
-  const attempt = await prisma.exerciseAttempt.findUnique({ where: { id: attemptId } });
-  if (!attempt || attempt.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  // Scoped by userId inside the repository: an attempt id alone must not be
+  // enough to read somebody else's answers.
+  const attempt = await exercises.findAttempt(session.user.id, attemptId);
+  if (!attempt) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (attempt.category !== "SPEAKING") {
     return NextResponse.json({ error: "Not a speaking exercise" }, { status: 400 });
   }
@@ -81,10 +81,7 @@ export async function POST(
   }
 
   if (isTaskComplete(state)) {
-    await prisma.exerciseAttempt.update({
-      where: { id: attemptId },
-      data: { speakingStateJson: JSON.stringify(state) },
-    });
+    await exercises.updateAttempt(session.user.id, attemptId, { speakingStateJson: JSON.stringify(state) });
     return NextResponse.json({ done: true, state, stages: stagesFor(state) });
   }
 
@@ -101,10 +98,7 @@ export async function POST(
   }
   state = recordExaminerTurn(state, turn.question, turn.target ?? undefined);
 
-  await prisma.exerciseAttempt.update({
-    where: { id: attemptId },
-    data: { speakingStateJson: JSON.stringify(state) },
-  });
+  await exercises.updateAttempt(session.user.id, attemptId, { speakingStateJson: JSON.stringify(state) });
 
   return NextResponse.json({
     done: false,

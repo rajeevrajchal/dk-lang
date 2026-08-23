@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 
 // Supabase with the service-role key: bypasses Row Level Security entirely.
 //
@@ -12,7 +13,7 @@ import { createClient } from "@supabase/supabase-js";
 // Only for work no user session can do: administrative lookups, linking an
 // OAuth identity to an existing account, backfills.
 
-let cached: ReturnType<typeof createClient> | null = null;
+let cached: ReturnType<typeof createClient<Database>> | null = null;
 
 export function createAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -25,7 +26,7 @@ export function createAdminClient() {
   }
 
   if (!cached) {
-    cached = createClient(url, key, {
+    cached = createClient<Database>(url, key, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
   }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
+import { users } from "@/lib/repositories";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -22,15 +22,13 @@ export async function POST(req: Request) {
 
   const { email, password, name } = parsed.data;
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await users.findByEmailForAuth(email);
   if (existing) {
     return NextResponse.json({ error: "Account already exists" }, { status: 409 });
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = await prisma.user.create({
-    data: { email, passwordHash, name },
-  });
+  const user = await users.createUser({ email, passwordHash, name: name ?? null });
 
   return NextResponse.json({ id: user.id, email: user.email });
 }

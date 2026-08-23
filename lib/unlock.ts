@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { progress } from "@/lib/repositories";
 import { MODULES } from "@/lib/curriculum/modules";
 import type { Skill } from "@/lib/constants";
 
@@ -53,7 +53,7 @@ function requiredSkillsFor(moduleId: number): Skill[] {
 }
 
 export async function getModuleDashboardState(userId: string): Promise<ModuleDashboardState[]> {
-  const allStatus = await prisma.moduleSkillStatus.findMany({ where: { userId } });
+  const allStatus = await progress.moduleSkillStatuses(userId);
 
   const byModule = new Map<number, typeof allStatus>();
   for (const s of allStatus) {
@@ -124,18 +124,5 @@ export async function applyInAppExamResult(
   score: number,
   passed: boolean
 ) {
-  await prisma.moduleSkillStatus.upsert({
-    where: { userId_moduleId_skill: { userId, moduleId, skill } },
-    update: passed
-      ? { inAppPassed: true, inAppScore: score, inAppPassedAt: new Date() }
-      : { inAppScore: score },
-    create: {
-      userId,
-      moduleId,
-      skill,
-      inAppPassed: passed,
-      inAppScore: score,
-      inAppPassedAt: passed ? new Date() : null,
-    },
-  });
+  await progress.applyInAppResult(userId, moduleId, skill, score, passed);
 }

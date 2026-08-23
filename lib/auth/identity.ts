@@ -1,6 +1,6 @@
 import "server-only";
 
-import { prisma } from "@/lib/db";
+import { users } from "@/lib/repositories";
 
 // Turning a Supabase Auth identity into an application user.
 //
@@ -41,40 +41,32 @@ export async function resolveSupabaseUser(identity: SupabaseIdentity): Promise<A
     throw new Error("Supabase identity has an unverified email address");
   }
 
-  const linked = await prisma.user.findUnique({
-    where: { supabaseUserId: identity.id },
-    select: { id: true, email: true, name: true },
-  });
-  if (linked) return linked;
+  // These run before a session exists, so they go through the admin client —
+  // there is no JWT for Row Level Security to check yet.
+  const linked = await users.findBySupabaseId(identity.id);
+  if (linked) return { id: linked.id, email: linked.email, name: linked.name };
 
-  const byEmail = await prisma.user.findUnique({
-    where: { email: identity.email },
-    select: { id: true, email: true, name: true },
-  });
+  const byEmail = await users.findByEmailForAuth(identity.email);
 
   if (byEmail) {
-    // Existing account, first Google sign-in. Keep the cuid — that is the
-    // whole point — and record that this identity now also opens it. The
-    // password hash is deliberately left alone so both routes keep working.
-    return prisma.user.update({
-      where: { id: byEmail.id },
-      data: {
-        supabaseUserId: identity.id,
-        name: byEmail.name ?? identity.name ?? null,
-      },
-      select: { id: true, email: true, name: true },
-    });
+    // Existing account, first Google sign-in. Keep the id — that is the whole
+    // point — and record that this identity now also opens it. The password
+    // hash is deliberately left alone so both routes keep working.
+    const updated = await users.linkSupabaseIdentity(
+      byEmail.id,
+      identity.id,
+      byEmail.name ?? identity.name ?? null
+    );
+    return { id: updated.id, email: updated.email, name: updated.name };
   }
 
-  return prisma.user.create({
-    data: {
-      email: identity.email,
-      name: identity.name ?? null,
-      supabaseUserId: identity.id,
-      authProvider: "google",
-      // No passwordHash: this account has no password, and the credentials
-      // provider already refuses a user without one.
-    },
-    select: { id: true, email: true, name: true },
+  const created = await users.createUser({
+    email: identity.email,
+    name: identity.name ?? null,
+    supabaseUserId: identity.id,
+    authProvider: "google",
+    // No passwordHash: this account has no password, and the credentials
+    // provider already refuses a user without one.
   });
+  return { id: created.id, email: created.email, name: created.name };
 }

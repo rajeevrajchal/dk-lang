@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { exercises } from "@/lib/repositories";
 import { MODULES } from "@/lib/curriculum/modules";
 import { pickAuthoredVariantOfType, toPublicExercise } from "@/lib/exercises/registry";
 import { generateExercise, llmGenerationAvailable } from "@/lib/exercises/generator";
@@ -46,11 +46,10 @@ export async function POST(req: Request) {
   const mod = MODULES.find((m) => m.id === moduleId);
   if (!mod) return NextResponse.json({ error: "Unknown module" }, { status: 404 });
 
-  const history = await prisma.exerciseAttempt.findMany({
-    where: { userId, moduleId, status: "COMPLETED" },
-    select: { variantId: true, taskType: true, topic: true, completedAt: true },
-    orderBy: { completedAt: "asc" },
-  });
+  const history = (await exercises.completedHistory(userId, { moduleId })).map((h) => ({
+    ...h,
+    completedAt: h.completedAt ? new Date(h.completedAt) : null,
+  }));
 
   // Build all five in parallel — serially this would be minutes of waiting.
   // Each slot degrades on its own: a failed generation falls back to the
@@ -74,21 +73,20 @@ export async function POST(req: Request) {
     );
   }
 
-  const examSession = await prisma.examSession.create({
-    data: {
-      userId,
-      moduleId,
-      examType: mod.isFinalExam ? "PD3" : "MODULTEST",
-      status: "IN_PROGRESS",
-    },
+  const examSession = await exercises.createExamSession({
+    userId,
+    moduleId,
+    examType: mod.isFinalExam ? "PD3" : "MODULTEST",
+    status: "IN_PROGRESS",
   });
 
-  const exercises = [];
+  // Named `built` rather than `exercises`: that name now belongs to the
+  // repository import at the top of the file.
+  const built = [];
   for (let i = 0; i < variants.length; i++) {
     const variant = variants[i]!;
     const generated = variant.variantId.startsWith("gen-");
-    const attempt = await prisma.exerciseAttempt.create({
-      data: {
+    const attempt = await exercises.createAttempt({
         userId,
         moduleId,
         category: variant.category,
@@ -100,14 +98,13 @@ export async function POST(req: Request) {
         variantJson: generated ? JSON.stringify(variant) : null,
         examSessionId: examSession.id,
         orderIndex: i,
-      },
     });
-    exercises.push({ ...toPublicExercise(variant, attempt.id, true), generated });
+    built.push({ ...toPublicExercise(variant, attempt.id, true), generated });
   }
 
   return NextResponse.json({
     sessionId: examSession.id,
     timeLimitSeconds: MOCK_TEST_SECONDS,
-    exercises,
+    exercises: built,
   });
 }

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { content, srs } from "@/lib/repositories";
 import type { Skill } from "@/lib/constants";
 
 // --------------------------------------------------------------------------
@@ -47,15 +47,7 @@ export async function getConstructStats(
   skill: Skill,
   moduleId?: number
 ): Promise<ConstructStat[]> {
-  const constructs = await prisma.construct.findMany({
-    where: moduleId
-      ? { itemConstructs: { some: { item: { moduleId } } } }
-      : undefined,
-    include: {
-      constructAccura: { where: { userId, skill } },
-    },
-    orderBy: { tierId: "asc" },
-  });
+  const constructs = await content.constructsWithAccuracy(userId, skill, moduleId);
 
   return constructs.map((c) => {
     const stat = c.constructAccura[0];
@@ -186,45 +178,31 @@ export async function selectPracticeSet(
   const reviewSlots = Math.min(3, Math.floor(count * 0.3));
   const newSlots = count - reviewSlots;
 
-  const recentAttemptItemIds = (
-    await prisma.attempt.findMany({
-      where: { userId, item: { moduleId, skill } },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-      select: { itemId: true },
-    })
-  ).map((a) => a.itemId);
+  const recentAttemptItemIds = await content.recentlyAnsweredItemIds(
+    userId,
+    moduleId,
+    skill,
+    30
+  );
 
-  const currentTierItems = await prisma.item.findMany({
-    where: {
-      moduleId,
-      skill,
-      tierId: currentTier,
-      id: { notIn: recentAttemptItemIds },
-    },
-    include: { itemConstructs: { include: { construct: true } } },
-    take: newSlots * 3,
-  });
+  const currentTierItems = await content.itemsAtTier(
+    moduleId,
+    skill,
+    currentTier,
+    recentAttemptItemIds,
+    newSlots * 3
+  );
 
-  const dueSrs = await prisma.srsState.findMany({
-    where: { userId, dueAt: { lte: new Date() } },
-    orderBy: { dueAt: "asc" },
-    take: reviewSlots * 3,
-  });
+  const dueSrs = await srs.dueStates(userId, reviewSlots * 3);
   const dueConstructIds = dueSrs.map((s) => s.constructId);
 
-  const reviewItems = dueConstructIds.length
-    ? await prisma.item.findMany({
-        where: {
-          moduleId,
-          skill,
-          tierId: { lt: currentTier },
-          itemConstructs: { some: { constructId: { in: dueConstructIds } } },
-        },
-        include: { itemConstructs: { include: { construct: true } } },
-        take: reviewSlots * 2,
-      })
-    : [];
+  const reviewItems = await content.reviewItems(
+    moduleId,
+    skill,
+    currentTier,
+    dueConstructIds,
+    reviewSlots * 2
+  );
 
   function shuffle<T>(arr: T[]): T[] {
     return [...arr].sort(() => Math.random() - 0.5);
@@ -239,11 +217,7 @@ export async function selectPracticeSet(
   // early in the item bank, or the learner has already seen almost
   // everything at this tier recently).
   if (picked.length < count) {
-    const fallback = await prisma.item.findMany({
-      where: { moduleId, skill },
-      include: { itemConstructs: { include: { construct: true } } },
-      take: count * 2,
-    });
+    const fallback = await content.itemsForModuleSkill(moduleId, skill, count * 2);
     for (const item of shuffle(fallback)) {
       if (picked.length >= count) break;
       if (!picked.find((p) => p.id === item.id)) picked.push(item);
@@ -297,42 +271,23 @@ export async function recordAttemptEffects(
   skill: Skill,
   isCorrect: boolean
 ) {
-  const item = await prisma.item.findUniqueOrThrow({
-    where: { id: itemId },
-    include: { itemConstructs: true },
-  });
+  const item = await content.findItem(itemId);
+  if (!item) throw new Error(`item ${itemId} not found`);
 
   for (const ic of item.itemConstructs) {
-    await prisma.constructAccuracy.upsert({
-      where: { userId_constructId_skill: { userId, constructId: ic.constructId, skill } },
-      update: {
-        correctCount: { increment: isCorrect ? 1 : 0 },
-        totalCount: { increment: 1 },
-        lastAttemptAt: new Date(),
-      },
-      create: {
-        userId,
-        constructId: ic.constructId,
-        skill,
-        correctCount: isCorrect ? 1 : 0,
-        totalCount: 1,
-        lastAttemptAt: new Date(),
-      },
-    });
+    await srs.recordAccuracy(userId, ic.constructId, skill, isCorrect);
 
-    const existingSrs = await prisma.srsState.findUnique({
-      where: { userId_constructId: { userId, constructId: ic.constructId } },
-    });
+    const existingSrs = await srs.findState(userId, ic.constructId);
     const next = nextSrsState(
       existingSrs ?? { easeFactor: 2.5, intervalDays: 0, repetitions: 0 },
       isCorrect
     );
     const dueAt = new Date(Date.now() + next.intervalDays * 24 * 60 * 60 * 1000);
 
-    await prisma.srsState.upsert({
-      where: { userId_constructId: { userId, constructId: ic.constructId } },
-      update: { ...next, dueAt, lastReviewedAt: new Date() },
-      create: { userId, constructId: ic.constructId, ...next, dueAt, lastReviewedAt: new Date() },
+    await srs.upsertState(userId, ic.constructId, {
+      ...next,
+      dueAt: dueAt.toISOString(),
+      lastReviewedAt: new Date().toISOString(),
     });
   }
 }

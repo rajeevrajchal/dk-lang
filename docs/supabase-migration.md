@@ -7,10 +7,10 @@ What this change set does, and what you need to do to run it.
 | Phase | Status |
 | --- | --- |
 | 1. SQLite → Supabase PostgreSQL | ✅ written, **not yet applied to a database** |
-| 2. Repository layer | ✅ `lib/repositories/*`; no UI component touches the ORM |
+| 2. Repository layer, on supabase-js | ✅ **no application code queries Prisma any more** |
 | 3. Supabase Auth + Google OAuth | ✅ alongside the existing email/password sign-in |
 | 4. Vercel AI SDK, Anthropic + OpenAI | ✅ the vendor SDK is gone from the codebase |
-| 5. Row Level Security | ✅ `supabase/rls.sql` — read §"RLS is containment" below |
+| 5. Row Level Security | ✅ **now the real authorization boundary** |
 | 6. Verified against a live project | ❌ needs the database password |
 
 All 196 tests pass (182 existing, unchanged, plus 14 for the AI layer), the
@@ -265,30 +265,100 @@ second attempt on a certainty.
 
 ---
 
-# RLS is containment, not the primary control
+# Row Level Security is the authorization boundary
 
-Worth being blunt about, because the opposite is easy to assume.
+Every application query goes through `lib/repositories/*`, which uses
+`supabase-js` carrying the signed-in learner's JWT. So the policies in
+`supabase/rls.sql` are evaluated on every read and write: **the database
+refuses to return another learner's rows**, rather than relying on the
+application remembering a `WHERE` clause.
 
-**Prisma connects as the table owner, so the policies in `supabase/rls.sql` do
-not constrain the application's own queries.** What enforces "you only see your
-own rows" is the `userId` scoping in `lib/repositories/*` — which is why every
-function there takes `userId` as its first argument, and why repository
-deletes use `deleteMany({ where: { id, userId } })` rather than
-`delete({ where: { id } })`: someone else's id then matches nothing instead of
-deleting their row.
+`FORCE ROW LEVEL SECURITY` is enabled, so the policies apply even to the table
+owner. The service-role key still bypasses everything, and is used in exactly
+two places:
 
-So what is RLS for? Supabase exposes every table over PostgREST to anyone
-holding the publishable key, which by design ships to the browser. Without RLS
-that key is a read/write handle on every learner's data. With it, the key
-reaches nothing unless a policy allows it.
+- **sign-in**, before a session exists — there is no JWT for a policy to check
+  yet, so `users.findByEmailForAuth` and friends use the admin client;
+- **shared content that belongs to nobody** — the explanation cache, and
+  report-card files in a private storage bucket.
 
-`FORCE ROW LEVEL SECURITY` is deliberately left commented out in the SQL: it
-would apply the policies to the owner too, and lock Prisma out of its own
-database. Turning it on is the first step if the app ever moves to connecting
-as a restricted role.
+`lib/supabase/db.ts` makes that explicit: `db()` is the default and `adminDb()`
+has to be asked for by name.
 
-Run it after the migration:
+The repositories still filter by `userId` as well. That is belt-and-braces now
+rather than the only control, and it is kept because a query that says what it
+wants is easier to read and the intent survives a policy being changed.
+
+## Why Prisma is still here
+
+It owns the schema, the migrations and the data-migration scripts — which it is
+good at, and `supabase-js` cannot do at all. It no longer runs a single
+application query. `lib/db.ts` says so, and importing it from a route would
+reintroduce the ORM-bypasses-RLS problem the repositories exist to avoid.
+
+Types come from `scripts/generate-db-types.ts`, which reads
+`prisma/schema.prisma` and emits the `Database` type `supabase-js` needs. Run
+it after any schema change:
 
 ```bash
-psql "$DIRECT_URL" -f supabase/rls.sql
+npx tsx scripts/generate-db-types.ts
 ```
+
+Normally that would be `supabase gen types typescript`, but that needs a live
+database; reading the Prisma schema gives the same information and cannot drift
+from the migration that created the tables.
+
+## What PostgREST could not express
+
+Four things needed database functions (`supabase/functions.sql`), because
+PostgREST's upsert writes the same values whether it inserts or updates:
+
+| Function | Why |
+| --- | --- |
+| `reading_progress_upsert` | seconds accumulate on update but are set on insert, and a finished text must stay finished when re-opened |
+| `saved_word_upsert` | re-saving a word refreshes its translation but must never wipe the learner's own note |
+| `lesson_progress_visit` | opening a completed lesson must not demote it to in-progress |
+| `module_skill_apply_in_app` | a pass is never taken away by a later weaker attempt, and `officialPassed` must never be written from a practice score |
+
+Doing these as read-then-write from the application would be racy — two tabs
+open on the same text would lose reading time.
+
+One place deliberately *does* read-then-write: `srs.recordAccuracy`. It is a
+running average used to pick the next exercise, so losing one count in a rare
+double-submit changes nothing a learner would notice. Everything that matters —
+attempts, scores, module status — is atomic.
+
+## Files moved to Supabase Storage
+
+Report cards were written to `storage/reportcards/` on local disk. That works
+in development and not at all on a serverless host, where the filesystem is
+ephemeral and per-instance: the upload lands on one machine and the download
+asks another.
+
+They now go to a **private** `report-cards` bucket. No storage policy grants a
+user token direct access, so an object key alone is not enough to fetch a
+document — `app/api/reports/[id]/file` checks the row belongs to the caller and
+then downloads with the service role.
+
+`lib/ocr.ts` now takes bytes rather than a filesystem path, since there is no
+longer a local path to read.
+
+## Running it
+
+```bash
+npx prisma migrate deploy                          # schema
+npx tsx prisma/data-migration/import.ts            # your 255 rows
+psql "$DIRECT_URL" -f supabase/functions.sql       # the four functions
+psql "$DIRECT_URL" -f supabase/rls.sql             # policies + FORCE
+```
+
+Then create the storage bucket (SQL Editor is fine):
+
+```sql
+insert into storage.buckets (id, name, public)
+values ('report-cards', 'report-cards', false)
+on conflict (id) do nothing;
+```
+
+Order matters: `rls.sql` reads the `User` table to build `app_user_id()`, and
+`functions.sql` references tables that must already exist.

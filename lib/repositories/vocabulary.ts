@@ -1,6 +1,7 @@
 import "server-only";
 
-import { prisma } from "@/lib/db";
+import { db, rpc, unwrap } from "@/lib/supabase/db";
+import type { Tables } from "@/lib/supabase/database.types";
 
 // The learner's own vocabulary — words and expressions kept while reading.
 //
@@ -8,11 +9,18 @@ import { prisma } from "@/lib/db";
 // content. `vocabItemId` links the two where they correspond, so this stays
 // one vocabulary with two sources rather than two vocabularies.
 
-export async function listSavedWords(userId: string, sourceTextId?: string) {
-  return prisma.savedWord.findMany({
-    where: { userId, ...(sourceTextId ? { sourceTextId } : {}) },
-    orderBy: { createdAt: "desc" },
-  });
+export async function listSavedWords(
+  userId: string,
+  sourceTextId?: string
+): Promise<Tables<"SavedWord">[]> {
+  const supabase = await db();
+  let query = supabase
+    .from("SavedWord")
+    .select("*")
+    .eq("userId", userId)
+    .order("createdAt", { ascending: false });
+  if (sourceTextId) query = query.eq("sourceTextId", sourceTextId);
+  return unwrap(await query, "listSavedWords");
 }
 
 export interface SaveWordInput {
@@ -27,54 +35,61 @@ export interface SaveWordInput {
   note?: string;
 }
 
-export async function saveWord(userId: string, input: SaveWordInput) {
-  // Link to the seeded bank when this word is also in it.
-  const bankEntry = await prisma.vocabItem.findFirst({
-    where: { danish: input.lemma ?? input.danish },
-    select: { id: true },
+/**
+ * Saves a word or phrase.
+ *
+ * Goes through a database function because insert and update differ: saving
+ * the same word again from another text refreshes its translation but must
+ * never wipe a note the learner wrote. PostgREST's upsert writes the same
+ * values on both paths and could not express that.
+ */
+export async function saveWord(
+  userId: string,
+  input: SaveWordInput
+): Promise<Tables<"SavedWord">> {
+  const supabase = await db();
+  const rows = await rpc(supabase, "saved_word_upsert", {
+    p_user_id: userId,
+    p_kind: input.kind,
+    p_danish: input.danish,
+    p_translation: input.translation,
+    p_lemma: input.lemma ?? null,
+    p_part_of_speech: input.partOfSpeech ?? null,
+    p_context_sentence: input.contextSentence ?? null,
+    p_grammar_note: input.grammarNote ?? null,
+    p_source_text_id: input.sourceTextId ?? null,
+    p_note: input.note ?? null,
   });
-
-  return prisma.savedWord.upsert({
-    where: { userId_danish: { userId, danish: input.danish } },
-    // Saving the same word again from another text refreshes what we know
-    // about it but never wipes a note the learner wrote.
-    update: {
-      translation: input.translation,
-      lemma: input.lemma ?? undefined,
-      partOfSpeech: input.partOfSpeech ?? undefined,
-      contextSentence: input.contextSentence ?? undefined,
-      grammarNote: input.grammarNote ?? undefined,
-      ...(input.note ? { note: input.note } : {}),
-    },
-    create: {
-      userId,
-      kind: input.kind,
-      danish: input.danish,
-      lemma: input.lemma ?? null,
-      translation: input.translation,
-      partOfSpeech: input.partOfSpeech ?? null,
-      contextSentence: input.contextSentence ?? null,
-      grammarNote: input.grammarNote ?? null,
-      sourceTextId: input.sourceTextId ?? null,
-      note: input.note ?? null,
-      vocabItemId: bankEntry?.id ?? null,
-    },
-  });
+  return rows[0];
 }
 
 export async function updateSavedWord(
   userId: string,
   id: string,
   data: { note?: string | null; learned?: boolean }
-) {
-  // updateMany rather than update: it scopes by userId, so somebody else's id
-  // simply matches nothing instead of editing their row.
-  const { count } = await prisma.savedWord.updateMany({ where: { id, userId }, data });
-  if (count === 0) return null;
-  return prisma.savedWord.findUnique({ where: { id } });
+): Promise<Tables<"SavedWord"> | null> {
+  if (Object.keys(data).length === 0) return null;
+
+  const supabase = await db();
+  const rows = unwrap(
+    await supabase
+      .from("SavedWord")
+      .update({ ...data, updatedAt: new Date().toISOString() })
+      .eq("id", id)
+      .eq("userId", userId)
+      .select(),
+    "updateSavedWord"
+  );
+  // Empty rather than an error when the id belongs to someone else: RLS and
+  // the userId filter both make it match nothing.
+  return rows[0] ?? null;
 }
 
 export async function deleteSavedWord(userId: string, id: string): Promise<boolean> {
-  const { count } = await prisma.savedWord.deleteMany({ where: { id, userId } });
-  return count > 0;
+  const supabase = await db();
+  const rows = unwrap(
+    await supabase.from("SavedWord").delete().eq("id", id).eq("userId", userId).select("id"),
+    "deleteSavedWord"
+  );
+  return rows.length > 0;
 }

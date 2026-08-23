@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import fs from "node:fs/promises";
-import path from "node:path";
-import crypto from "node:crypto";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { adminDb, unwrap } from "@/lib/supabase/db";
+import { reportCardKey, uploadReportCard } from "@/lib/supabase/storage";
 import { extractReportCard } from "@/lib/ocr";
 
-// Stored outside /public and never served by a public URL — only
-// app/api/reports/[id]/file/route.ts can read it back, and that route is
-// auth-gated to the owning user. This is a personal document with PII, so
-// it gets the same access control as the account's auth, not just "a file
-// somewhere on disk".
-const STORAGE_ROOT = path.join(process.cwd(), "storage", "reportcards");
+// Files go to a PRIVATE Supabase Storage bucket, never a public URL — only
+// app/api/reports/[id]/file/route.ts reads them back, and that route checks
+// the row belongs to the caller first. These are personal documents with PII,
+// so they get the same access control as the account itself.
+//
+// They used to be written to local disk, which works in development and not at
+// all on a serverless host: the upload lands on one instance and the download
+// asks another.
 const ALLOWED_MIME: Record<string, string> = {
   "application/pdf": "pdf",
   "image/png": "png",
@@ -38,36 +38,48 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Filen er for stor (maks 15 MB)" }, { status: 400 });
   }
 
-  const userDir = path.join(STORAGE_ROOT, session.user.id);
-  await fs.mkdir(userDir, { recursive: true });
-  const filename = `${crypto.randomUUID()}.${ext}`;
-  const absolutePath = path.join(userDir, filename);
-  const bytes = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(absolutePath, bytes);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const key = reportCardKey(session.user.id, `report.${ext}`);
+  await uploadReportCard(key, bytes, file.type);
 
-  const reportCard = await prisma.reportCard.create({
-    data: {
-      userId: session.user.id,
-      filePath: path.relative(process.cwd(), absolutePath),
-      mimeType: file.type,
-      status: "PENDING_EXTRACTION",
-    },
-  });
+  // Written through the admin client: the bucket and this row are handled
+  // together, and the row is created before extraction so an OCR failure
+  // leaves a recoverable record rather than an orphaned file.
+  const created = unwrap(
+    await adminDb()
+      .from("ReportCard")
+      .insert({
+        id: crypto.randomUUID(),
+        userId: session.user.id,
+        filePath: key,
+        mimeType: file.type,
+        status: "PENDING_EXTRACTION",
+        uploadedAt: new Date().toISOString(),
+      })
+      .select(),
+    "uploadReportCard(create)"
+  );
+  const reportCard = created[0];
 
-  const extracted = await extractReportCard(absolutePath, file.type);
+  const extracted = await extractReportCard(bytes, file.type);
 
-  const updated = await prisma.reportCard.update({
-    where: { id: reportCard.id },
-    data: {
-      status: "PENDING_CONFIRMATION",
-      extractedSprogcenter: extracted.sprogcenter,
-      extractedModule: extracted.module,
-      extractedDate: extracted.date ? new Date(extracted.date) : null,
-      extractedResultsJson: JSON.stringify(extracted.results),
-      extractionConfidence: extracted.confidence,
-      rawOcrText: extracted.rawText,
-    },
-  });
+  const updatedRows = unwrap(
+    await adminDb()
+      .from("ReportCard")
+      .update({
+        status: "PENDING_CONFIRMATION",
+        extractedSprogcenter: extracted.sprogcenter,
+        extractedModule: extracted.module,
+        extractedDate: extracted.date ? new Date(extracted.date).toISOString() : null,
+        extractedResultsJson: JSON.stringify(extracted.results),
+        extractionConfidence: extracted.confidence,
+        rawOcrText: extracted.rawText,
+      })
+      .eq("id", reportCard.id)
+      .select(),
+    "uploadReportCard(update)"
+  );
+  const updated = updatedRows[0];
 
   return NextResponse.json(updated);
 }

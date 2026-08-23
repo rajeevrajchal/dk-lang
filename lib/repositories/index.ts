@@ -22,3 +22,5 @@ export * as reading from "./reading";
 export * as vocabulary from "./vocabulary";
 export * as lessons from "./lessons";
 export * as exercises from "./exercises";
+export * as content from "./content";
+export * as srs from "./srs";

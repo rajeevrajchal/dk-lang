@@ -74,7 +74,8 @@ long-lived personal tool, not a one-off:
 | Concern | Choice | Why |
 |---|---|---|
 | Framework | Next.js 16 (App Router) + TypeScript | One deployable for UI + API routes; no separate backend to run/deploy. |
-| Database | Supabase PostgreSQL via Prisma | Prisma owns the schema, migrations and queries; Supabase provides the database, auth and storage. See `docs/supabase-migration.md`. |
+| Database | Supabase PostgreSQL via `supabase-js` | Queries go through `lib/repositories/*` carrying the learner's JWT, so Row Level Security is the authorization boundary. Prisma owns the schema and migrations only. |
+| Files | Supabase Storage (private bucket) | Report cards are personal documents; no public URL, downloads are auth-gated. |
 | Auth | Supabase Auth (Google) + NextAuth (email/password) | Both behind one `auth()`. Existing accounts keep their ids and data when they switch to Google. |
 | AI | Vercel AI SDK → Anthropic / OpenAI | No vendor SDK in the codebase; `lib/ai/registry.ts` picks a model per task. With no API key every feature falls back to authored content. |
 | Auth | NextAuth (Auth.js) v5, Credentials provider | Email/password is enough for a single-learner tool; the Prisma adapter tables are still modeled so a second learner is a config change, not a migration. |

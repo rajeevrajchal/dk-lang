@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { exercises, lessons, progress as progressRepo } from "@/lib/repositories";
 import { EXAM_PASS_THRESHOLD } from "@/lib/unlock";
 import type { ExerciseCategory } from "@/lib/exercises/types";
 
@@ -98,29 +98,22 @@ export async function getReadingHabit(userId: string, windowDays = 28): Promise<
   since.setHours(0, 0, 0, 0);
 
   const [opgaver, items] = await Promise.all([
-    prisma.exerciseAttempt.findMany({
-      where: {
-        userId,
-        category: "READING",
-        status: "COMPLETED",
-        completedAt: { gte: since },
-      },
-      select: { completedAt: true },
-    }),
-    prisma.attempt.findMany({
-      where: { userId, createdAt: { gte: since }, item: { skill: "READING" } },
-      select: { createdAt: true },
-    }),
+    exercises.completedReadingSince(userId, since),
+    progressRepo.readingAttemptsSince(userId, since),
   ]);
 
   // Item attempts are single questions, so a drill session would otherwise
   // count as a dozen "sessions". One reading session per day from the drill is
   // the honest unit here; the opgave attempts are already whole exercises.
+  // Timestamps arrive from PostgREST as ISO strings.
   const itemDays = new Map<string, Date>();
-  for (const a of items) itemDays.set(dayKey(a.createdAt), a.createdAt);
+  for (const a of items) {
+    const at = new Date(a.createdAt);
+    itemDays.set(dayKey(at), at);
+  }
 
   const dates = [
-    ...opgaver.map((a) => a.completedAt!).filter(Boolean),
+    ...opgaver.filter((a) => a.completedAt).map((a) => new Date(a.completedAt!)),
     ...itemDays.values(),
   ];
 
@@ -143,18 +136,14 @@ export interface PracticeActivity {
  * separately.
  */
 export async function getPracticeActivity(userId: string): Promise<PracticeActivity[]> {
-  const rows = await prisma.exerciseAttempt.findMany({
-    where: { userId, status: "COMPLETED", examSessionId: null },
-    select: { category: true, completedAt: true },
-  });
+  const rows = await exercises.practiceActivity(userId);
 
   const byCategory = new Map<string, { sessions: number; lastAt: Date | null }>();
   for (const r of rows) {
     const entry = byCategory.get(r.category) ?? { sessions: 0, lastAt: null };
     entry.sessions++;
-    if (r.completedAt && (!entry.lastAt || r.completedAt > entry.lastAt)) {
-      entry.lastAt = r.completedAt;
-    }
+    const at = r.completedAt ? new Date(r.completedAt) : null;
+    if (at && (!entry.lastAt || at > entry.lastAt)) entry.lastAt = at;
     byCategory.set(r.category, entry);
   }
 
@@ -210,16 +199,13 @@ function parsePassed(json: string | null): boolean | null {
 }
 
 export async function getMockHistory(userId: string): Promise<MockHistory> {
-  const sessions = await prisma.examSession.findMany({
-    where: { userId, status: "COMPLETED" },
-    orderBy: { completedAt: "desc" },
-  });
+  const sessions = await exercises.completedExamSessions(userId);
 
   const summaries: MockTestSummary[] = sessions.map((s) => ({
     id: s.id,
     moduleId: s.moduleId,
     examType: s.examType,
-    completedAt: s.completedAt,
+    completedAt: s.completedAt ? new Date(s.completedAt) : null,
     readingScore: parseScores(s.scoresJson),
     passed: parsePassed(s.passedJson),
   }));
@@ -257,29 +243,17 @@ export interface ActivityEntry {
 }
 
 export async function getRecentActivity(userId: string, take = 12): Promise<ActivityEntry[]> {
-  const [lessons, practice, mocks] = await Promise.all([
-    prisma.lessonProgress.findMany({
-      where: { userId, status: "COMPLETED" },
-      orderBy: { updatedAt: "desc" },
-      take,
-    }),
-    prisma.exerciseAttempt.findMany({
-      where: { userId, status: "COMPLETED", examSessionId: null },
-      orderBy: { completedAt: "desc" },
-      take,
-    }),
-    prisma.examSession.findMany({
-      where: { userId, status: "COMPLETED" },
-      orderBy: { completedAt: "desc" },
-      take,
-    }),
+  const [lessonRows, practice, mocks] = await Promise.all([
+    lessons.listCompleted(userId, take),
+    exercises.recentCompleted(userId, {}, take),
+    exercises.completedExamSessions(userId),
   ]);
 
   const entries: ActivityEntry[] = [
-    ...lessons.map((l) => ({
+    ...lessonRows.map((l) => ({
       id: `lesson-${l.id}`,
       kind: "lesson" as const,
-      at: l.updatedAt,
+      at: new Date(l.updatedAt),
       lessonSlug: l.lessonSlug,
       chapterId: l.chapterId,
       score: l.score,
@@ -288,17 +262,17 @@ export async function getRecentActivity(userId: string, take = 12): Promise<Acti
     ...practice.map((p) => ({
       id: `practice-${p.id}`,
       kind: "practice" as const,
-      at: p.completedAt ?? p.startedAt,
+      at: new Date(p.completedAt ?? p.startedAt),
       category: p.category,
       moduleId: p.moduleId,
       taskType: p.taskType,
       score: p.score,
       total: p.total,
     })),
-    ...mocks.map((m) => ({
+    ...mocks.slice(0, take).map((m) => ({
       id: `mock-${m.id}`,
       kind: "mock" as const,
-      at: m.completedAt ?? m.startedAt,
+      at: new Date(m.completedAt ?? m.startedAt),
       moduleId: m.moduleId,
       score: null,
       total: null,

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { progress, users } from "@/lib/repositories";
+import { adminDb, unwrap } from "@/lib/supabase/db";
 import { reconcileReportCard } from "@/lib/report-cards";
 import { addOfficialTestResult } from "@/lib/level";
 
@@ -22,10 +23,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
   const { id } = await params;
 
-  const reportCard = await prisma.reportCard.findUnique({ where: { id } });
-  if (!reportCard || reportCard.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  const reportCard = await progress.findReportCard(session.user.id, id);
+  if (!reportCard) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const parsed = ConfirmSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
@@ -33,17 +32,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
   const { sprogcenter, module, date, results } = parsed.data;
 
-  await prisma.reportCard.update({
-    where: { id },
-    data: {
-      status: "CONFIRMED",
-      confirmedAt: new Date(),
-      extractedSprogcenter: sprogcenter,
-      extractedModule: module,
-      extractedDate: new Date(date),
-      extractedResultsJson: JSON.stringify(results),
-    },
-  });
+  unwrap(
+    await adminDb()
+      .from("ReportCard")
+      .update({
+        status: "CONFIRMED",
+        confirmedAt: new Date().toISOString(),
+        extractedSprogcenter: sprogcenter,
+        extractedModule: module,
+        extractedDate: new Date(date).toISOString(),
+        extractedResultsJson: JSON.stringify(results),
+      })
+      .eq("id", id)
+      .select("id"),
+    "confirmReportCard"
+  );
 
   const changes = await reconcileReportCard(session.user.id, id);
 
@@ -56,9 +59,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   // Only create it once: re-confirming an already-confirmed card should not
   // stack up duplicate results.
-  const existing = await prisma.officialTestResult.findFirst({
-    where: { userId: session.user.id, reportCardId: id },
-  });
+  const existing = await users.findOfficialResultByReportCard(session.user.id, id);
   if (!existing) {
     await addOfficialTestResult(session.user.id, {
       testType: module === 5 ? "PD3" : "MODULTEST",

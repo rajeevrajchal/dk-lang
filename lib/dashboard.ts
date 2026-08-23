@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { progress as progressRepo } from "@/lib/repositories";
 import { getConstructStats, getWeakestConstruct, determineCurrentTier } from "@/lib/adaptive/engine";
 import { getModuleDashboardState, pickCurrentModuleId, type ModuleDashboardState } from "@/lib/unlock";
 import { SKILLS, type Skill } from "@/lib/constants";
@@ -58,10 +58,7 @@ export function hasContent(moduleId: number, skill: Skill) {
 }
 
 async function getVerifiedReportCards(userId: string) {
-  return prisma.reportCard.findMany({
-    where: { userId, status: "CONFIRMED" },
-    orderBy: { uploadedAt: "desc" },
-  });
+  return progressRepo.listReportCards(userId, "CONFIRMED");
 }
 
 export async function getSkillStatusesForModule(
@@ -113,12 +110,7 @@ export async function getDashboardData(userId: string, dict: Dictionary): Promis
 
   const skillStatuses = await getSkillStatusesForModule(userId, currentModuleId, dict);
 
-  const recentAttempts = await prisma.attempt.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-    include: { item: true },
-  });
+  const recentAttempts = await progressRepo.recentAttempts(userId, 10);
 
   const readingStatus = skillStatuses.find((s) => s.skill === "READING");
   let nextAction: DashboardData["nextAction"];
@@ -160,7 +152,8 @@ export async function getDashboardData(userId: string, dict: Dictionary): Promis
     skillStatuses,
     recentActivity: recentAttempts.map((a) => ({
       id: a.id,
-      createdAt: a.createdAt,
+      // PostgREST returns timestamps as ISO strings.
+      createdAt: new Date(a.createdAt),
       isCorrect: a.isCorrect,
       skill: a.item.skill,
       moduleId: a.item.moduleId,

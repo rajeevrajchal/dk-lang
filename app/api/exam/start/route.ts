@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { content, exercises } from "@/lib/repositories";
 import { MODULES } from "@/lib/curriculum/modules";
 
 const StartSchema = z.object({
@@ -33,24 +33,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unknown module" }, { status: 404 });
   }
 
-  const examSession = await prisma.examSession.create({
-    data: {
-      userId: session.user.id,
-      moduleId,
-      examType: mod.isFinalExam ? "PD3" : "MODULTEST",
-      status: "IN_PROGRESS",
-    },
+  const examSession = await exercises.createExamSession({
+    userId: session.user.id,
+    moduleId,
+    examType: mod.isFinalExam ? "PD3" : "MODULTEST",
+    status: "IN_PROGRESS",
   });
 
-  const picked: Awaited<ReturnType<typeof prisma.item.findMany>> = [];
+  const picked: Awaited<ReturnType<typeof content.examPoolAtTier>> = [];
   for (const [tierStr, wanted] of Object.entries(TIER_WEIGHTS)) {
     const tierId = Number(tierStr);
     // MATCHING items are excluded from the timed mock exam UI for now (the
     // exam page only renders MC/TF/GAP_FILL); they still appear in adaptive
     // practice mode via lib/adaptive/engine.ts.
-    const pool = await prisma.item.findMany({
-      where: { moduleId, skill, tierId, type: { not: "MATCHING" } },
-    });
+    const pool = await content.examPoolAtTier(moduleId, skill, tierId);
     const shuffled = pool.sort(() => Math.random() - 0.5).slice(0, wanted);
     picked.push(...shuffled);
   }

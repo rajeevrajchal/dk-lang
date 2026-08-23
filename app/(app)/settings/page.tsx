@@ -35,7 +35,7 @@ export default async function SettingsPage() {
           education: r.education,
           module: r.module,
           result: r.result,
-          takenAt: r.takenAt?.toISOString() ?? null,
+          takenAt: r.takenAt ?? null,
           source: r.source,
           note: r.note,
         }))}
