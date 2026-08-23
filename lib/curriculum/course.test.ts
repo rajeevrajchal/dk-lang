@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { THEORY_LESSONS, THEORY_BY_SLUG } from "@/lib/content-gen/theory";
+import { FOUNDATION_LESSONS } from "./foundation-lessons";
 import {
   ALL_LESSONS,
   CHAPTER_BY_ID,
@@ -68,9 +69,19 @@ describe("backward compatibility", () => {
     expect(original.primer).toBeUndefined();
   });
 
-  it("adds the foundation lessons without touching the originals", () => {
-    expect(ALL_LESSONS.length).toBe(THEORY_LESSONS.length + 4);
+  it("adds new lessons without touching the originals", () => {
+    // Asserted by composition rather than a count: reading and writing
+    // lessons are added to ALL_LESSONS over time, and a magic number would
+    // fail every time content is written while proving nothing. What must
+    // hold is that every original lesson is still present, by identity.
     for (const l of THEORY_LESSONS) expect(ALL_LESSONS).toContain(l);
+    for (const l of FOUNDATION_LESSONS) expect(ALL_LESSONS).toContain(l);
+    expect(ALL_LESSONS.length).toBeGreaterThanOrEqual(
+      THEORY_LESSONS.length + FOUNDATION_LESSONS.length
+    );
+    // No slug is defined twice — that would make LESSON_BY_SLUG ambiguous.
+    const slugs = ALL_LESSONS.map((l) => l.slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
   });
 });
 
@@ -302,7 +313,9 @@ describe("progression", () => {
 
   it("treats a chapter with a half-finished multi-lesson topic as in progress", () => {
     const modals = CHAPTER_BY_ID.get("ch-future-modals")!;
-    expect(modals.topics.length).toBe(2);
+    // The exact number of topics is incidental and grows as reading and
+    // writing lessons are added; what the test needs is more than one.
+    expect(modals.topics.length).toBeGreaterThan(1);
     const partial: ProgressMap = { [modals.topics[0].lessonSlug]: done(modals.topics[0].lessonSlug) };
     expect(chapterComplete(modals, partial)).toBe(false);
   });

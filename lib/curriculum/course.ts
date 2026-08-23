@@ -1,5 +1,7 @@
 import { THEORY_LESSONS, type TheoryLesson } from "@/lib/content-gen/theory";
 import { FOUNDATION_LESSONS } from "./foundation-lessons";
+import { READING_LESSONS } from "./reading-lessons";
+import { WRITING_LESSONS } from "./writing-lessons";
 import type { Course, CourseChapter } from "./course-types";
 
 // The Danish course: chapters you can work through from the beginning.
@@ -14,8 +16,20 @@ import type { Course, CourseChapter } from "./course-types";
 // subordinate clause before you know where 'ikke' normally sits. PD3 modules
 // hang off the side as milestones via `supportsModules`.
 
-/** Every lesson the course can reference: the originals plus the new ones. */
-export const ALL_LESSONS: TheoryLesson[] = [...FOUNDATION_LESSONS, ...THEORY_LESSONS];
+/**
+ * Every lesson the course can reference.
+ *
+ * The grammar lessons come first because they are the spine; the reading and
+ * writing lessons are added on the end rather than interleaved, because a
+ * lesson's place in the course is decided by the chapter that references it,
+ * not by its position in this array.
+ */
+export const ALL_LESSONS: TheoryLesson[] = [
+  ...FOUNDATION_LESSONS,
+  ...THEORY_LESSONS,
+  ...READING_LESSONS,
+  ...WRITING_LESSONS,
+];
 
 export const LESSON_BY_SLUG = new Map(ALL_LESSONS.map((l) => [l.slug, l]));
 
@@ -102,7 +116,13 @@ const CHAPTERS: CourseChapter[] = [
         lessonSlug: "present-tense",
         canDo: "Say what you do, using any regular verb.",
       },
-    ],
+          {
+        id: "tp-reading-anna",
+        title: "Read: Jeg hedder Anna",
+        lessonSlug: "reading-jeg-hedder-anna",
+        canDo: "Read a short introduction and understand who the person is.",
+      },
+],
   },
 
   {
@@ -124,7 +144,19 @@ const CHAPTERS: CourseChapter[] = [
         lessonSlug: "questions",
         canDo: "Ask where someone lives, what they do and when something happens.",
       },
-    ],
+          {
+        id: "tp-reading-beskeder",
+        title: "Read: messages, notices and adverts",
+        lessonSlug: "reading-beskeder-og-opslag",
+        canDo: "Get the practical facts out of an everyday Danish message.",
+      },
+      {
+        id: "tp-writing-besked",
+        title: "Write: a short message",
+        lessonSlug: "writing-en-kort-besked",
+        canDo: "Write a short message asking somebody for something.",
+      },
+],
   },
 
   {
@@ -168,7 +200,13 @@ const CHAPTERS: CourseChapter[] = [
         lessonSlug: "word-order",
         canDo: "Start a sentence with a time or place and still get the word order right.",
       },
-    ],
+          {
+        id: "tp-reading-hverdag",
+        title: "Read: Min hverdag",
+        lessonSlug: "reading-min-hverdag",
+        canDo: "Follow a description of a whole day, and see inversion working in it.",
+      },
+],
   },
 
   {
@@ -212,7 +250,13 @@ const CHAPTERS: CourseChapter[] = [
         lessonSlug: "past-tense",
         canDo: "Tell someone what you did yesterday or last year.",
       },
-    ],
+          {
+        id: "tp-reading-weekend",
+        title: "Read: Min weekend",
+        lessonSlug: "reading-min-weekend",
+        canDo: "Understand somebody telling you about their weekend.",
+      },
+],
   },
 
   {
@@ -240,7 +284,13 @@ const CHAPTERS: CourseChapter[] = [
         lessonSlug: "modal-verbs",
         canDo: "Say what you can, must and want to do.",
       },
-    ],
+          {
+        id: "tp-writing-email",
+        title: "Write: an email that changes an arrangement",
+        lessonSlug: "writing-en-email",
+        canDo: "Write an email cancelling something and proposing an alternative.",
+      },
+],
   },
 
   {
@@ -306,7 +356,13 @@ const CHAPTERS: CourseChapter[] = [
         lessonSlug: "connectors",
         canDo: "Show cause and contrast between two sentences.",
       },
-    ],
+          {
+        id: "tp-reading-danmark",
+        title: "Read: Derfor blev jeg i Danmark",
+        lessonSlug: "reading-derfor-blev-jeg-i-danmark",
+        canDo: "Follow an argument that gives reasons and weighs two sides.",
+      },
+],
   },
 
   {

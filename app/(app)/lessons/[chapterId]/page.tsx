@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { CHAPTER_BY_ID, LESSON_BY_SLUG } from "@/lib/curriculum/course";
+import { lessonKind } from "@/lib/content-gen/theory";
 import { loadLessonProgress } from "@/lib/curriculum/lesson-progress";
 import { lessonInProgress, lessonPassed } from "@/lib/curriculum/progress";
 import { getServerDictionary } from "@/lib/i18n/server";
@@ -62,6 +63,7 @@ export default async function ChapterPage({
       <ol className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
         {chapter.topics.map((topic, i) => {
           const lesson = LESSON_BY_SLUG.get(topic.lessonSlug);
+          const kind = lesson ? lessonKind(lesson) : "grammar";
           const result = progress[topic.lessonSlug];
           const done = lessonPassed(result);
           const started = lessonInProgress(result);
@@ -72,9 +74,14 @@ export default async function ChapterPage({
                 className="block p-5 hover:bg-slate-50"
               >
                 <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                  <p className="font-medium">
-                    <span className="text-slate-400 mr-2">{i + 1}.</span>
-                    {topic.title}
+                  <p className="font-medium flex items-baseline gap-2 flex-wrap">
+                    <span className="text-slate-400">{i + 1}.</span>
+                    <span>{topic.title}</span>
+                    {kind !== "grammar" && (
+                      <span className="text-[11px] font-medium rounded-full border border-slate-300 text-slate-500 px-2 py-0.5">
+                        {t.lessonKinds[kind]}
+                      </span>
+                    )}
                   </p>
                   {done ? (
                     <span className="text-xs font-medium rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-1">

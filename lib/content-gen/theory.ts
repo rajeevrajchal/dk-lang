@@ -15,7 +15,12 @@
 // item bank, but you can't read the passages without them, so they're taught.
 // Those carry `constructCodes: []`.
 
-import type { LessonExercise } from "@/lib/curriculum/course-types";
+import type {
+  LessonExercise,
+  LessonKind,
+  WritingModel,
+} from "@/lib/curriculum/course-types";
+import type { LearningText } from "@/lib/learning/text";
 
 export interface TheoryExample {
   danish: string;
@@ -65,6 +70,36 @@ export interface TheoryLesson {
   primer?: string;
   /** Practice attached to the lesson, in ladder order. */
   exercises?: LessonExercise[];
+
+  // ---------------------------------------------------------------------
+  // Lesson kind and its content.
+  //
+  // Also all optional, for the same reason: a lesson without `kind` is a
+  // grammar lesson, which is what all sixteen written before this were. A
+  // grammar lesson that gains a `text` starts showing it; one that does not
+  // renders exactly as it did.
+  // ---------------------------------------------------------------------
+
+  /** Defaults to "grammar" when absent — see LESSON_KINDS. */
+  kind?: LessonKind;
+  /**
+   * Danish to read, structured for word/sentence/paragraph study. A grammar
+   * lesson uses this to show the rule working in a real text; a reading lesson
+   * IS this.
+   */
+  texts?: LearningText[];
+  /** For writing lessons: the worked example, taken apart. */
+  writingModel?: WritingModel;
+  /**
+   * Which PD3 modules this lesson prepares for. Readiness metadata, not
+   * hierarchy — the course is ordered by grammar, not by module.
+   */
+  pd3Modules?: number[];
+}
+
+/** A lesson's kind, defaulting the way an unlabelled lesson is treated. */
+export function lessonKind(lesson: TheoryLesson): LessonKind {
+  return lesson.kind ?? "grammar";
 }
 
 export const THEORY_LESSONS: TheoryLesson[] = [
