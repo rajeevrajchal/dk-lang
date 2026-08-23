@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import { ExerciseBody, expectedAnswerKeys } from "./renderers";
+import { ExerciseBody, expectedAnswerKeys, wantsWideLayout } from "./renderers";
 import { OpgaveExplain } from "./OpgaveExplain";
 import { practiceHrefFor, summariseMock } from "@/lib/exercises/mock-summary";
 import type {
@@ -352,9 +352,11 @@ export function MockTestRunner({
   }, 0);
 
   const isLast = index === exercises.length - 1;
+  // Same rule as the practice runner: the side-by-side opgaver get the wider page.
+  const wide = wantsWideLayout(exercise.content);
 
   return (
-    <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-5">
+    <div className={`${wide ? "max-w-6xl" : "max-w-3xl"} mx-auto p-6 sm:p-8 space-y-5`}>
       <div className="flex items-center justify-between gap-3 flex-wrap border-b border-slate-200 pb-3">
         <span className="text-sm text-slate-500">
           {t.partProgress(index + 1, exercises.length)}

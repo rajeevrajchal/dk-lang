@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import { ExerciseBody, expectedAnswerKeys } from "./renderers";
+import { ExerciseBody, expectedAnswerKeys, wantsWideLayout } from "./renderers";
 import { OpgaveExplain } from "./OpgaveExplain";
 import { SpeakingConversation } from "./SpeakingConversation";
 import type { SpeakingContent } from "@/lib/exercises/types";
@@ -105,9 +105,12 @@ export function ExerciseRunner({
   const answered = expected.filter((k) => (response[k] ?? "").trim().length > 0).length;
   const canSubmit = expected.length === 0 || answered === expected.length;
   const autoScored = result?.total != null;
+  // The side-by-side opgaver need the room; everything else keeps the narrower
+  // measure, which is easier to read.
+  const wide = !!exercise && wantsWideLayout(exercise.content);
 
   return (
-    <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-6">
+    <div className={`${wide ? "max-w-6xl" : "max-w-3xl"} mx-auto p-6 sm:p-8 space-y-6`}>
       <Link
         href={backHref ?? `/class/${moduleId}`}
         className="text-sm text-slate-500 hover:underline"

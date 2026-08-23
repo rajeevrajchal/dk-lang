@@ -21,10 +21,26 @@ export interface RendererProps {
 
 const cardCls = "rounded-lg border border-slate-200 bg-white p-4";
 
+// The two matching opgaver are read side by side on a wide screen: the thing
+// you read on one side, the thing you answer on the other, so that finding an
+// answer stops being a scrolling exercise. Below `lg` they stack as before,
+// which is the only thing that fits on a phone.
+const splitCls = "grid gap-6 lg:grid-cols-2 items-start";
+
+/** The half that is only read — pinned, with its own scrollbar if it is long. */
+const referenceCls =
+  "lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto";
+
 // ---------------------------------------------------------------------------
 // Læsning Opgave 1 — match people to adverts
 // ---------------------------------------------------------------------------
-function Task1({ content, response, setResponse, disabled, dict }: RendererProps) {
+function Task1({
+  content,
+  response,
+  setResponse,
+  disabled,
+  dict,
+}: RendererProps) {
   const c = content as Omit<ReadingTask1Content, "answers" | "rationales">;
   const t = dict.exercises;
 
@@ -37,61 +53,77 @@ function Task1({ content, response, setResponse, disabled, dict }: RendererProps
         <p className="mt-1 text-sm text-slate-700">{c.example.personText}</p>
       </div>
 
-      <section>
-        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-          {t.people}
-        </h3>
-        <div className="space-y-3">
-          {c.people.map((p) => (
-            <div key={p.id} className={cardCls}>
-              <div className="flex gap-3">
-                <span className="text-sm font-semibold text-slate-900 shrink-0">{p.id}.</span>
-                <p className="text-sm text-slate-700 leading-relaxed">{p.text}</p>
+      <div className={splitCls}>
+        {/* Left: the people, each carrying its own answer. */}
+        <section>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+            {t.people}
+          </h3>
+          <div className="space-y-3">
+            {c.people.map((p) => (
+              <div key={p.id} className={cardCls}>
+                <div className="flex gap-3">
+                  <span className="text-sm font-semibold text-slate-900 shrink-0">
+                    {p.id}.
+                  </span>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    {p.text}
+                  </p>
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <label className="text-xs text-slate-500">
+                    {t.chooseAd}:
+                  </label>
+                  <select
+                    disabled={disabled}
+                    value={response[p.id] ?? ""}
+                    onChange={(e) =>
+                      setResponse({ ...response, [p.id]: e.target.value })
+                    }
+                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-60"
+                  >
+                    <option value="">–</option>
+                    {c.ads
+                      .filter((a) => a.id !== c.example.adId)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.id}
+                        </option>
+                      ))}
+                  </select>
+                </div>
               </div>
-              <div className="mt-3 flex items-center gap-2">
-                <label className="text-xs text-slate-500">{t.chooseAd}:</label>
-                <select
-                  disabled={disabled}
-                  value={response[p.id] ?? ""}
-                  onChange={(e) => setResponse({ ...response, [p.id]: e.target.value })}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-60"
-                >
-                  <option value="">–</option>
-                  {c.ads
-                    .filter((a) => a.id !== c.example.adId)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.id}
-                      </option>
-                    ))}
-                </select>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
 
-      <section>
-        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-          {t.ads}
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {c.ads.map((a) => (
-            <div
-              key={a.id}
-              className={`${cardCls} ${a.id === c.example.adId ? "bg-slate-50" : ""}`}
-            >
-              <div className="flex gap-2 items-baseline">
-                <span className="text-sm font-bold text-slate-900">{a.id}</span>
-                <p className="text-sm font-semibold text-slate-900">{a.title}</p>
+        {/* Right: the adverts being matched against, kept in view throughout. */}
+        <section className={referenceCls}>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+            {t.ads}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
+            {c.ads.map((a) => (
+              <div
+                key={a.id}
+                className={`${cardCls} ${a.id === c.example.adId ? "bg-slate-50" : ""}`}
+              >
+                <div className="flex gap-2 items-baseline">
+                  <span className="text-sm font-bold text-slate-900">
+                    {a.id}
+                  </span>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {a.title}
+                  </p>
+                </div>
+                <p className="mt-1.5 text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                  {a.body}
+                </p>
               </div>
-              <p className="mt-1.5 text-xs text-slate-600 leading-relaxed whitespace-pre-line">
-                {a.body}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
@@ -99,8 +131,17 @@ function Task1({ content, response, setResponse, disabled, dict }: RendererProps
 // ---------------------------------------------------------------------------
 // Læsning Opgave 2 — the sentence that does not belong
 // ---------------------------------------------------------------------------
-function Task2({ content, response, setResponse, disabled, dict }: RendererProps) {
-  const c = content as Extract<PublicExerciseContent, { kind: "reading_task_2_wrong_sentence" }>;
+function Task2({
+  content,
+  response,
+  setResponse,
+  disabled,
+  dict,
+}: RendererProps) {
+  const c = content as Extract<
+    PublicExerciseContent,
+    { kind: "reading_task_2_wrong_sentence" }
+  >;
   const t = dict.exercises;
 
   return (
@@ -115,7 +156,11 @@ function Task2({ content, response, setResponse, disabled, dict }: RendererProps
           {c.example.sentences.map((s, i) => (
             <span
               key={i}
-              className={i === c.example.wrongIndex ? "line-through text-red-600" : "text-slate-700"}
+              className={
+                i === c.example.wrongIndex
+                  ? "line-through text-red-600"
+                  : "text-slate-700"
+              }
             >
               {s}{" "}
             </span>
@@ -125,7 +170,9 @@ function Task2({ content, response, setResponse, disabled, dict }: RendererProps
 
       {c.sections.map((section) => (
         <div key={section.id} className={cardCls}>
-          <p className="text-xs font-semibold text-slate-400 mb-2">({section.id})</p>
+          <p className="text-xs font-semibold text-slate-400 mb-2">
+            ({section.id})
+          </p>
           <div className="space-y-1">
             {section.sentences.map((s, i) => {
               const selected = response[section.id] === String(i);
@@ -134,7 +181,9 @@ function Task2({ content, response, setResponse, disabled, dict }: RendererProps
                   key={i}
                   type="button"
                   disabled={disabled}
-                  onClick={() => setResponse({ ...response, [section.id]: String(i) })}
+                  onClick={() =>
+                    setResponse({ ...response, [section.id]: String(i) })
+                  }
                   className={`block w-full text-left text-sm leading-relaxed rounded px-2 py-1 transition ${
                     selected
                       ? "bg-slate-900 text-white"
@@ -155,7 +204,13 @@ function Task2({ content, response, setResponse, disabled, dict }: RendererProps
 // ---------------------------------------------------------------------------
 // Læsning Opgave 3 — missing words from a word bank
 // ---------------------------------------------------------------------------
-function Task3({ content, response, setResponse, disabled, dict }: RendererProps) {
+function Task3({
+  content,
+  response,
+  setResponse,
+  disabled,
+  dict,
+}: RendererProps) {
   const c = content as Omit<ReadingTask3Content, "answers" | "rationales">;
   const t = dict.exercises;
 
@@ -166,7 +221,7 @@ function Task3({ content, response, setResponse, disabled, dict }: RendererProps
     new Set(
       Object.entries(response)
         .filter(([k, v]) => k !== String(blankIndex) && v)
-        .map(([, v]) => v)
+        .map(([, v]) => v),
     );
 
   const blankCount = c.textSegments.length - 1;
@@ -174,10 +229,14 @@ function Task3({ content, response, setResponse, disabled, dict }: RendererProps
   return (
     <div className="space-y-5">
       <div className="rounded-lg bg-slate-100 p-4">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t.example}</p>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          {t.example}
+        </p>
         <p className="mt-1 text-sm text-slate-700">
           {c.exampleSentence.split("___")[0]}
-          <span className="font-semibold underline underline-offset-2">{c.exampleWord}</span>
+          <span className="font-semibold underline underline-offset-2">
+            {c.exampleWord}
+          </span>
           {c.exampleSentence.split("___")[1] ?? ""}
         </p>
       </div>
@@ -191,7 +250,9 @@ function Task3({ content, response, setResponse, disabled, dict }: RendererProps
                 <select
                   disabled={disabled}
                   value={response[String(i)] ?? ""}
-                  onChange={(e) => setResponse({ ...response, [String(i)]: e.target.value })}
+                  onChange={(e) =>
+                    setResponse({ ...response, [String(i)]: e.target.value })
+                  }
                   className="mx-1 rounded-md border border-slate-400 bg-white px-2 py-0.5 text-sm font-medium disabled:opacity-60"
                   aria-label={t.blankLabel(i + 1)}
                 >
@@ -217,12 +278,15 @@ function Task3({ content, response, setResponse, disabled, dict }: RendererProps
         <p className="text-xs text-slate-500 mb-3">{t.wordBankNote}</p>
         <div className="flex flex-wrap gap-2">
           {c.wordBank.map((w) => {
-            const used = Object.values(response).includes(w) || w === c.exampleWord;
+            const used =
+              Object.values(response).includes(w) || w === c.exampleWord;
             return (
               <span
                 key={w}
                 className={`text-sm px-2.5 py-1 rounded-md ${
-                  used ? "text-slate-400 line-through" : "bg-slate-100 text-slate-800"
+                  used
+                    ? "text-slate-400 line-through"
+                    : "bg-slate-100 text-slate-800"
                 }`}
               >
                 {w}
@@ -239,70 +303,89 @@ function Task3({ content, response, setResponse, disabled, dict }: RendererProps
 // Læsning Opgave 4 — which of the three people
 // ---------------------------------------------------------------------------
 function Task4({ content, response, setResponse, disabled }: RendererProps) {
-  const c = content as Extract<PublicExerciseContent, { kind: "reading_task_4_people_matching" }>;
+  const c = content as Extract<
+    PublicExerciseContent,
+    { kind: "reading_task_4_people_matching" }
+  >;
 
   return (
     <div className="space-y-6">
       <h3 className="font-semibold text-center">{c.heading}</h3>
 
-      <div className="space-y-3">
-        {c.people.map((p) => (
-          <div key={p.id} className={cardCls}>
-            <p className="text-sm font-semibold text-slate-900">
-              {p.id}. {p.name}
-            </p>
-            <p className="mt-1.5 text-sm text-slate-700 leading-relaxed">{p.text}</p>
-          </div>
-        ))}
-      </div>
+      <div className={splitCls}>
+        {/* Left: the three people, kept in view while the questions are answered. */}
+        <div className={`space-y-3 ${referenceCls}`}>
+          {c.people.map((p) => (
+            <div key={p.id} className={cardCls}>
+              <p className="text-sm font-semibold text-slate-900">
+                {p.id}. {p.name}
+              </p>
+              <p className="mt-1.5 text-sm text-slate-700 leading-relaxed">
+                {p.text}
+              </p>
+            </div>
+          ))}
+        </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200">
-              <th className="text-left py-2 pr-4 font-medium text-slate-500"></th>
-              {c.people.map((p) => (
-                <th key={p.id} className="py-2 px-2 font-medium text-slate-700 text-center">
-                  {p.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              <td className="py-2.5 pr-4 text-slate-500">0. {c.example.question}</td>
-              {c.people.map((p) => (
-                <td key={p.id} className="py-2.5 px-2 text-center">
-                  {p.id === c.example.personId ? (
-                    <span className="font-bold text-slate-900">X</span>
-                  ) : (
-                    <span className="text-slate-300">–</span>
-                  )}
-                </td>
-              ))}
-            </tr>
-            {c.questions.map((q, qi) => (
-              <tr key={q.id} className="border-b border-slate-100 last:border-0">
-                <td className="py-2.5 pr-4 text-slate-800">
-                  {qi + 1}. {q.question}
+        {/* Right: the questions, answered against the three names. */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="text-left py-2 pr-4 font-medium text-slate-500"></th>
+                {c.people.map((p) => (
+                  <th
+                    key={p.id}
+                    className="py-2 px-2 font-medium text-slate-700 text-center"
+                  >
+                    {p.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-slate-100 bg-slate-50">
+                <td className="py-2.5 pr-4 text-slate-500">
+                  0. {c.example.question}
                 </td>
                 {c.people.map((p) => (
                   <td key={p.id} className="py-2.5 px-2 text-center">
-                    <input
-                      type="radio"
-                      name={`q-${q.id}`}
-                      disabled={disabled}
-                      checked={response[q.id] === p.id}
-                      onChange={() => setResponse({ ...response, [q.id]: p.id })}
-                      className="h-4 w-4 accent-slate-900"
-                      aria-label={`${q.question} — ${p.name}`}
-                    />
+                    {p.id === c.example.personId ? (
+                      <span className="font-bold text-slate-900">X</span>
+                    ) : (
+                      <span className="text-slate-300">–</span>
+                    )}
                   </td>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+              {c.questions.map((q, qi) => (
+                <tr
+                  key={q.id}
+                  className="border-b border-slate-100 last:border-0"
+                >
+                  <td className="py-2.5 pr-4 text-slate-800">
+                    {qi + 1}. {q.question}
+                  </td>
+                  {c.people.map((p) => (
+                    <td key={p.id} className="py-2.5 px-2 text-center">
+                      <input
+                        type="radio"
+                        name={`q-${q.id}`}
+                        disabled={disabled}
+                        checked={response[q.id] === p.id}
+                        onChange={() =>
+                          setResponse({ ...response, [q.id]: p.id })
+                        }
+                        className="h-4 w-4 accent-slate-900"
+                        aria-label={`${q.question} — ${p.name}`}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -311,7 +394,13 @@ function Task4({ content, response, setResponse, disabled }: RendererProps) {
 // ---------------------------------------------------------------------------
 // Skrivning
 // ---------------------------------------------------------------------------
-function Writing({ content, response, setResponse, disabled, dict }: RendererProps) {
+function Writing({
+  content,
+  response,
+  setResponse,
+  disabled,
+  dict,
+}: RendererProps) {
   const c = content as WritingContent;
   const t = dict.exercises;
   const text = response.text ?? "";
@@ -320,9 +409,13 @@ function Writing({ content, response, setResponse, disabled, dict }: RendererPro
   return (
     <div className="space-y-5">
       <div className={cardCls}>
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{t.situation}</p>
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+          {t.situation}
+        </p>
         <p className="mt-1 text-sm text-slate-700">{c.situation}</p>
-        <p className="mt-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">{t.task}</p>
+        <p className="mt-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+          {t.task}
+        </p>
         <p className="mt-1 text-sm text-slate-700">{c.task}</p>
       </div>
 
@@ -333,7 +426,10 @@ function Writing({ content, response, setResponse, disabled, dict }: RendererPro
           </p>
           <ul className="mt-3 space-y-1">
             {c.incomingEmail.questions.map((q) => (
-              <li key={q} className="text-sm font-medium text-slate-900 underline underline-offset-2">
+              <li
+                key={q}
+                className="text-sm font-medium text-slate-900 underline underline-offset-2"
+              >
                 {q}
               </li>
             ))}
@@ -357,7 +453,11 @@ function Writing({ content, response, setResponse, disabled, dict }: RendererPro
           className="w-full rounded-md border border-slate-200 p-3 text-sm leading-relaxed disabled:opacity-70"
         />
         <div className="mt-2 flex items-center justify-between text-xs">
-          <span className={words < c.minWords ? "text-amber-700" : "text-emerald-700"}>
+          <span
+            className={
+              words < c.minWords ? "text-amber-700" : "text-emerald-700"
+            }
+          >
             {t.wordCount(words)}
           </span>
           <span className="text-slate-400">{t.minWordsNote(c.minWords)}</span>
@@ -412,7 +512,9 @@ function Speaking({ content, dict }: RendererProps) {
                   : s.role === "partner"
                     ? t.rolePartner
                     : t.roleSolo}
-                {s.approxMinutes ? ` · ${t.approxMinutes(s.approxMinutes)}` : ""}
+                {s.approxMinutes
+                  ? ` · ${t.approxMinutes(s.approxMinutes)}`
+                  : ""}
               </p>
               <p className="mt-1 text-sm text-slate-700">{s.instruction}</p>
             </li>
@@ -425,7 +527,9 @@ function Speaking({ content, dict }: RendererProps) {
           checklist to be worked through. */}
       {c.mindmap && (
         <div className="rounded-xl border-2 border-slate-300 bg-white p-6 text-center">
-          <p className="text-lg font-semibold text-slate-900">{c.mindmap.title}</p>
+          <p className="text-lg font-semibold text-slate-900">
+            {c.mindmap.title}
+          </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             {c.mindmap.categories.map((cat) => (
               <span
@@ -448,7 +552,9 @@ function Speaking({ content, dict }: RendererProps) {
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               {t.sharedContext}
             </p>
-            <p className="mt-1 text-sm text-slate-700">{c.informationGap.sharedContext}</p>
+            <p className="mt-1 text-sm text-slate-700">
+              {c.informationGap.sharedContext}
+            </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className={cardCls}>
@@ -488,7 +594,9 @@ function Speaking({ content, dict }: RendererProps) {
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
                 {t.topicOption(i + 1)}
               </p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">{topic.title}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">
+                {topic.title}
+              </p>
               <ul className="mt-2 space-y-1">
                 {topic.prompts.map((p) => (
                   <li key={p} className="text-sm text-slate-600">
@@ -505,7 +613,9 @@ function Speaking({ content, dict }: RendererProps) {
       {c.preferenceOptions && (
         <div>
           {c.preferenceTopic && (
-            <p className="mb-3 text-sm font-semibold text-slate-900">{c.preferenceTopic}</p>
+            <p className="mb-3 text-sm font-semibold text-slate-900">
+              {c.preferenceTopic}
+            </p>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {c.preferenceOptions.map((o) => (
@@ -533,7 +643,9 @@ function Speaking({ content, dict }: RendererProps) {
         <ol className="space-y-3">
           {c.questions.map((q, i) => (
             <li key={q} className="flex gap-3">
-              <span className="text-sm font-semibold text-slate-400 shrink-0">{i + 1}.</span>
+              <span className="text-sm font-semibold text-slate-400 shrink-0">
+                {i + 1}.
+              </span>
               <span className="text-sm text-slate-800">{q}</span>
             </li>
           ))}
@@ -588,6 +700,18 @@ export function ExerciseBody(props: RendererProps) {
     default:
       return null;
   }
+}
+
+/**
+ * Whether this exercise lays itself out in two columns and so wants more room
+ * than the usual reading measure. The renderer owns the layout; a runner only
+ * needs to know how wide to make the page around it.
+ */
+export function wantsWideLayout(content: PublicExerciseContent): boolean {
+  return (
+    content.kind === "reading_task_1_matching" ||
+    content.kind === "reading_task_4_people_matching"
+  );
 }
 
 /** How many answers this exercise still expects, for the submit gate. */
