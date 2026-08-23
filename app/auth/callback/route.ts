@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveSupabaseUser } from "@/lib/auth/identity";
+import { classifyAuthError, type AuthErrorCode } from "@/lib/auth/errors";
 
 // Where Google sends the learner back to.
 //
@@ -19,25 +20,29 @@ export async function GET(request: Request) {
     ? requested
     : "/dashboard";
 
-  // Supabase reports a refused or cancelled sign-in this way.
-  const oauthError = url.searchParams.get("error_description") ?? url.searchParams.get("error");
-  if (oauthError) {
-    return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(oauthError)}`, url.origin)
-    );
+  /** Only known codes reach the login page — never provider text from the URL. */
+  const fail = (reason: AuthErrorCode) =>
+    NextResponse.redirect(new URL(`/login?error=${reason}`, url.origin));
+
+  // Supabase reports a refused or cancelled sign-in this way. The provider's
+  // own wording is logged but never rendered: it is attacker-influencable, and
+  // a login page that will display arbitrary text is a phishing surface.
+  const providerError = url.searchParams.get("error_description") ?? url.searchParams.get("error");
+  if (providerError) {
+    console.warn("[auth/callback] provider returned an error:", providerError);
+    return fail("oauth_failed");
   }
 
-  if (!code) {
-    return NextResponse.redirect(new URL("/login?error=missing_code", url.origin));
-  }
+  if (!code) return fail("missing_code");
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data.user?.email) {
-    return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error?.message ?? "sign_in_failed")}`, url.origin)
-    );
+    console.warn("[auth/callback] code exchange failed:", error?.message);
+    // An expired recovery or confirmation link is the common case here, and
+    // the learner can act on it by asking for another.
+    return fail(error ? classifyAuthError(error) : "oauth_failed");
   }
 
   try {
@@ -58,7 +63,7 @@ export async function GET(request: Request) {
     // Do not leave them holding a Supabase session with no application user —
     // every page would then fail in a confusing way.
     await supabase.auth.signOut();
-    return NextResponse.redirect(new URL("/login?error=account_link_failed", url.origin));
+    return fail("account_link_failed");
   }
 
   return NextResponse.redirect(new URL(next, url.origin));

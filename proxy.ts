@@ -13,7 +13,10 @@ import { NextResponse, type NextRequest } from "next/server";
 // whether a credible session exists and leaves identity resolution to
 // lib/auth, which runs where the database is.
 
-const PUBLIC_PATHS = ["/login", "/register", "/api/register"];
+// /auth/* covers the OAuth callback, the forgot-password form and the
+// reset-password page. The last one is reached holding a recovery session, so
+// it must not be treated as "already signed in" and bounced to the dashboard.
+const PUBLIC_PATHS = ["/login"];
 
 function supabaseConfigured(): boolean {
   return (
@@ -75,6 +78,9 @@ export default async function proxy(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Signed-in learners have no business on the sign-in form. /auth/reset is
+  // deliberately not included: arriving there WITH a session is the whole
+  // point of the flow.
   if (signedIn && pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
   }
