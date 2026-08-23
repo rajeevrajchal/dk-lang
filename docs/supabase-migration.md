@@ -362,3 +362,61 @@ on conflict (id) do nothing;
 
 Order matters: `rls.sql` reads the `User` table to build `app_user_id()`, and
 `functions.sql` references tables that must already exist.
+
+
+---
+
+# Working around the email rate limit
+
+Supabase's built-in SMTP allows only a handful of messages an hour and is
+explicitly for testing. With **Confirm email** on (the default), *every* sign-up
+sends one too — not just password resets — so a few attempts exhaust the quota
+and everything afterwards fails with `over_email_send_rate_limit`.
+
+`scripts/auth-link.ts` sidesteps it entirely. `generateLink` asks the Auth API
+for the same link the email would have contained and returns it instead of
+posting it, which never touches SMTP:
+
+```bash
+# A reset link you can paste into the browser. No email sent.
+npx tsx scripts/auth-link.ts recovery you@example.com
+
+# A one-click sign-in link. No password needed.
+npx tsx scripts/auth-link.ts magiclink you@example.com
+
+# Or set a password directly, no link at all.
+npx tsx scripts/auth-link.ts password you@example.com 'your-password'
+```
+
+The links sign somebody in. Treat one like a password: it does not belong in a
+chat, a ticket or a commit.
+
+## Stopping it happening
+
+**For development** — turn off Authentication → Settings → **Confirm email**.
+Sign-ups then complete immediately and send nothing, which is usually what you
+want locally.
+
+**For production** — configure custom SMTP under Authentication → Settings →
+SMTP. The built-in sender is not usable for real traffic; a dozen genuine
+sign-ups in an hour would hit the cap.
+
+# Enabling Google
+
+`google` is reported as disabled in `/auth/v1/settings`, so the Google button
+will fail until it is turned on:
+
+1. Google Cloud Console → Credentials → OAuth client ID (Web application).
+2. Authorised redirect URI:
+   `https://<project-ref>.supabase.co/auth/v1/callback`
+3. Supabase → Authentication → Providers → **Google**: paste the client ID and
+   secret.
+4. Supabase → Authentication → URL Configuration → Redirect URLs: add
+   `http://localhost:3000/auth/callback` and the deployed equivalent.
+
+Check it took effect:
+
+```bash
+curl -s "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/settings" \
+  -H "apikey: $NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" | grep -o '"google":[a-z]*'
+```
