@@ -10,7 +10,18 @@ import { useI18n } from "@/lib/i18n/LocaleProvider";
 // environment set up shows the email/password form on its own rather than a
 // button that throws when pressed.
 
-export function GoogleSignIn({ callbackUrl = "/dashboard" }: { callbackUrl?: string }) {
+export function GoogleSignIn({
+  callbackUrl = "/dashboard",
+  /**
+   * The "or" divider separates this from the password form below. With no form
+   * to separate from it is a rule under a lone button, so the caller turns it
+   * off rather than this component guessing.
+   */
+  showDivider = true,
+}: {
+  callbackUrl?: string;
+  showDivider?: boolean;
+}) {
   const { dict } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,11 +65,13 @@ export function GoogleSignIn({ callbackUrl = "/dashboard" }: { callbackUrl?: str
 
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
-      <div className="mt-6 flex items-center gap-3">
-        <span className="h-px flex-1 bg-slate-200" />
-        <span className="text-xs uppercase tracking-wide text-slate-400">{dict.login.or}</span>
-        <span className="h-px flex-1 bg-slate-200" />
-      </div>
+      {showDivider && (
+        <div className="mt-6 flex items-center gap-3">
+          <span className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs uppercase tracking-wide text-slate-400">{dict.login.or}</span>
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
+      )}
     </div>
   );
 }

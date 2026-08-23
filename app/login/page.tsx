@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, passwordAuthEnabled } from "@/lib/supabase/client";
 import { classifyAuthError, isAuthErrorCode, type AuthErrorCode } from "@/lib/auth/errors";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { GoogleSignIn } from "@/components/auth/GoogleSignIn";
@@ -44,6 +44,10 @@ function AuthForm() {
   );
   const [loading, setLoading] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+
+  // With passwords off, Google is the only way in and everything below the
+  // button is hidden — form, tabs, divider and forgot-password link.
+  const showPassword = passwordAuthEnabled();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -111,8 +115,10 @@ function AuthForm() {
     <AuthCard>
       {errorCode && <div className="mt-4"><ErrorNote>{t.errors[errorCode]}</ErrorNote></div>}
 
-      <GoogleSignIn callbackUrl={callbackUrl} />
+      <GoogleSignIn callbackUrl={callbackUrl} showDivider={showPassword} />
 
+      {!showPassword ? null : (
+      <>
       <div className="mt-6 flex rounded-lg bg-slate-100 p-1 text-sm">
         {(["login", "register"] as Mode[]).map((m) => (
           <button
@@ -176,6 +182,8 @@ function AuthForm() {
           {mode === "login" ? t.submitLogin : t.submitRegister}
         </SubmitButton>
       </form>
+      </>
+      )}
     </AuthCard>
   );
 }

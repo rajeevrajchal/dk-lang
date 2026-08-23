@@ -40,3 +40,19 @@ export function supabaseConfigured(): boolean {
     )
   );
 }
+
+/**
+ * Whether to offer email and password alongside Google.
+ *
+ * Off hides the password form, the create-account tab, the "or" divider and
+ * the forgot-password link, leaving Google as the only way in. That is a
+ * reasonable end state — it removes password resets, confirmation emails and
+ * Supabase's SMTP rate limit from the product entirely.
+ *
+ * It is a one-way door while it is off, though: with no password route and
+ * Google not enabled on the project, nobody can sign in at all. So it defaults
+ * to ON and has to be turned off deliberately, once Google is known to work.
+ */
+export function passwordAuthEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_AUTH_PASSWORD !== "off";
+}
