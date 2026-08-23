@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { generateStructured } from "@/lib/ai/generate";
+import { aiAvailable } from "@/lib/ai/registry";
 import { z } from "zod";
 import type { ExerciseVariant } from "./types";
 import { extractExplainableText } from "./explainable";
@@ -86,15 +86,8 @@ Produce three things:
 Write every explanation in English. Keep the danish, surface and lemma fields in Danish.`;
 }
 
-let cachedClient: Anthropic | null = null;
-function getClient(): Anthropic | null {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-  if (!cachedClient) cachedClient = new Anthropic();
-  return cachedClient;
-}
-
 export function explanationAvailable(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY;
+  return aiAvailable();
 }
 
 export interface ExplanationOutcome {
@@ -103,16 +96,16 @@ export interface ExplanationOutcome {
 }
 
 /**
- * Generates the breakdown for one exercise's text. Streams, because a full
- * sentence-and-word pass over a long opgave is a lot of output and a
- * non-streaming request would risk the HTTP timeout.
+ * Generates the breakdown for one exercise's text.
+ *
+ * Streams, because a full sentence-and-word pass over a long opgave is a lot
+ * of output and a non-streaming request would risk the HTTP timeout before the
+ * first byte arrives. The awaited result is the same either way — this is
+ * about the connection staying alive, not about rendering partial output.
  */
 export async function generateExplanation(
   variant: ExerciseVariant
 ): Promise<ExplanationOutcome> {
-  const client = getClient();
-  if (!client) return { explanation: null, reason: "no ANTHROPIC_API_KEY set" };
-
   const blocks = extractExplainableText(variant);
   if (!blocks || blocks.length === 0) {
     return { explanation: null, reason: "this exercise has no continuous text to explain" };
@@ -120,32 +113,17 @@ export async function generateExplanation(
 
   const taskLabel = `${variant.title} (${variant.taskType})`;
 
-  try {
-    const stream = client.messages.stream(
-      {
-        model: "claude-opus-5",
-        max_tokens: 64000,
-        thinking: { type: "adaptive" },
-        output_config: { effort: "high", format: zodOutputFormat(ExplanationSchema) },
-        system: SYSTEM,
-        messages: [{ role: "user", content: buildPrompt(blocks, taskLabel) }],
-      },
-      { timeout: 240_000 }
-    );
+  const { object, reason } = await generateStructured({
+    task: "exercise-explanation",
+    schema: ExplanationSchema,
+    system: SYSTEM,
+    prompt: buildPrompt(blocks, taskLabel),
+    stream: true,
+  });
 
-    const message = await stream.finalMessage();
-    if (message.stop_reason === "refusal") {
-      return { explanation: null, reason: "request was declined" };
-    }
-    return { explanation: message.parsed_output ?? null };
-  } catch (err) {
-    const msg =
-      err instanceof Anthropic.APIError
-        ? `API error ${err.status}: ${err.message}`
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
-    console.warn(`[explain] failed for ${variant.variantId}:`, msg);
-    return { explanation: null, reason: msg };
+  if (!object) {
+    console.warn(`[explain] failed for ${variant.variantId}: ${reason}`);
+    return { explanation: null, reason };
   }
+  return { explanation: object };
 }

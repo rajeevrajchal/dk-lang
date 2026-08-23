@@ -30,7 +30,7 @@ const EMPTY_EXTRACTION: ExtractedReportCard = {
 };
 
 async function extractWithAnthropicVision(
-  _filePath: string,
+  _fileBytes: Uint8Array,
   _mimeType: string
 ): Promise<ExtractedReportCard> {
   // Real implementation would send the file to a vision-capable model with
@@ -43,14 +43,16 @@ async function extractWithAnthropicVision(
 }
 
 export async function extractReportCard(
-  filePath: string,
+  // Bytes rather than a path: the file lives in Supabase Storage, so there is
+  // no local path to read. Callers hand over what they already have in memory.
+  fileBytes: Uint8Array,
   mimeType: string
 ): Promise<ExtractedReportCard> {
   const provider = process.env.OCR_PROVIDER;
 
   if (provider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
     try {
-      return await extractWithAnthropicVision(filePath, mimeType);
+      return await extractWithAnthropicVision(fileBytes, mimeType);
     } catch {
       // Fall through to the manual-entry stub rather than failing the
       // upload outright — the learner can always type the fields in by

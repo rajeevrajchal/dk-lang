@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { generateStructured } from "@/lib/ai/generate";
+import { aiAvailable } from "@/lib/ai/registry";
 import { z } from "zod";
 import type { Gloss, LearningText } from "@/lib/learning/text";
 import { glossaryIndex, lookupKey } from "@/lib/learning/text";
@@ -172,15 +172,8 @@ export function contextFor(
 // The generated path
 // ---------------------------------------------------------------------------
 
-let cachedClient: Anthropic | null = null;
-function getClient(): Anthropic | null {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-  if (!cachedClient) cachedClient = new Anthropic();
-  return cachedClient;
-}
-
 export function generationAvailable(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY;
+  return aiAvailable();
 }
 
 const SYSTEM = `Du hjælper en voksen kursist, der læser dansk. Kursisten læser engelsk flydende, så forklaringerne skrives på ENGELSK. Det danske bliver stående på dansk — det er dét, der skal læres.
@@ -263,43 +256,20 @@ export interface ExplainOutcome {
 }
 
 export async function generateExplanation(req: ExplainRequest): Promise<ExplainOutcome> {
-  const client = getClient();
-  if (!client) return { explanation: null, reason: "no ANTHROPIC_API_KEY set" };
+  // Two task configs, not one. The default is the cheapest thing in the
+  // registry — low effort, a hard 900-token cap — because the learner clicked
+  // one word and wants to get back to reading; that cap is part of the
+  // product, not a saving. Asking for more lifts it deliberately.
+  const { object, reason } = await generateStructured({
+    task: req.depth === "DEEP" ? "reading-explanation-deep" : "reading-explanation",
+    schema: ExplanationSchema,
+    system: SYSTEM,
+    prompt: buildPrompt(req),
+  });
 
-  try {
-    // `parse` rather than `create`, so the SDK validates against the schema and
-    // hands back a typed object — the same helper lib/exercises/generator.ts
-    // uses.
-    const message = await client.messages.parse(
-      {
-        model: "claude-opus-5",
-        // Small on purpose. The cap is part of the product: a request that
-        // cannot run long cannot turn a word click into a lecture.
-        max_tokens: req.depth === "DEEP" ? 2000 : 900,
-        output_config: {
-          effort: req.depth === "DEEP" ? "medium" : "low",
-          format: zodOutputFormat(ExplanationSchema) as ReturnType<
-            typeof zodOutputFormat<never>
-          >,
-        },
-        system: SYSTEM,
-        messages: [{ role: "user", content: buildPrompt(req) }],
-      },
-      { timeout: 60_000 }
-    );
-
-    if (message.stop_reason === "refusal") {
-      return { explanation: null, reason: "request was declined" };
-    }
-    return { explanation: (message.parsed_output ?? null) as ReadingExplanation | null };
-  } catch (err) {
-    const msg =
-      err instanceof Anthropic.APIError
-        ? `API error ${err.status}: ${err.message}`
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
-    console.warn(`[reading/explain] failed for ${req.scope.kind}:`, msg);
-    return { explanation: null, reason: msg };
+  if (!object) {
+    console.warn(`[reading/explain] failed for ${req.scope.kind}: ${reason}`);
+    return { explanation: null, reason };
   }
+  return { explanation: object };
 }

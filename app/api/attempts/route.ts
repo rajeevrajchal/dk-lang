@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { content, srs } from "@/lib/repositories";
 import { gradeResponse } from "@/lib/grading";
 import { recordAttemptEffects } from "@/lib/adaptive/engine";
 import type { ItemTypeCode, Skill } from "@/lib/constants";
@@ -25,22 +25,20 @@ export async function POST(req: Request) {
   }
   const { itemId, response, timeMs, examSessionId } = parsed.data;
 
-  const item = await prisma.item.findUnique({ where: { id: itemId } });
+  const item = await content.findItem(itemId);
   if (!item) {
     return NextResponse.json({ error: "Item not found" }, { status: 404 });
   }
 
   const isCorrect = gradeResponse(item.type as ItemTypeCode, item.answerJson, response);
 
-  await prisma.attempt.create({
-    data: {
-      userId: session.user.id,
-      itemId,
-      examSessionId,
-      responseJson: JSON.stringify(response),
-      isCorrect,
-      timeMs,
-    },
+  await srs.createAttempt({
+    userId: session.user.id,
+    itemId,
+    examSessionId: examSessionId ?? null,
+    responseJson: JSON.stringify(response),
+    isCorrect,
+    timeMs: timeMs ?? null,
   });
 
   await recordAttemptEffects(session.user.id, itemId, item.skill as Skill, isCorrect);

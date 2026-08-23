@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { progress } from "@/lib/repositories";
+import { downloadReportCard } from "@/lib/supabase/storage";
 
 // Auth-gated file read — this is the only way to get bytes back for an
 // uploaded report card. Never linked to directly; access control mirrors
@@ -14,17 +13,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
   const { id } = await params;
 
-  const reportCard = await prisma.reportCard.findUnique({ where: { id } });
-  if (!reportCard || reportCard.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  // Scoped by userId in the repository: an id alone must not fetch somebody
+  // else's document.
+  const reportCard = await progress.findReportCard(session.user.id, id);
+  if (!reportCard) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // filePath is always under storage/reportcards/<userId>/... (see
-  // app/api/reports/upload/route.ts); the ignore comment just stops the
-  // bundler from tracing the whole project as a dependency of this dynamic
-  // read.
-  const absolutePath = path.join(/* turbopackIgnore: true */ process.cwd(), reportCard.filePath);
-  const bytes = await fs.readFile(absolutePath);
+  // filePath is the object key in the private report-cards bucket, always
+  // namespaced under the owning user's id (see app/api/reports/upload).
+  const bytes = await downloadReportCard(reportCard.filePath);
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type": reportCard.mimeType,

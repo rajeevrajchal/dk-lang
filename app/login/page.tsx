@@ -1,143 +1,197 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { createClient, passwordAuthEnabled } from "@/lib/supabase/client";
+import { classifyAuthError, isAuthErrorCode, type AuthErrorCode } from "@/lib/auth/errors";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { GoogleSignIn } from "@/components/auth/GoogleSignIn";
+import { AuthCard, ErrorNote, Field, SubmitButton } from "@/components/auth/AuthCard";
 
-function LoginForm() {
+// Sign in, or create an account.
+//
+// Both talk to Supabase Auth from the browser, which is what sets the session
+// cookies the server reads. That matters more than it looks: without a
+// Supabase JWT, every Row Level Security policy denies the request, so an
+// account that cannot get one is an account that can see nothing.
+//
+// Registration used to POST to /api/register, which called the admin API with
+// the service-role key. That route is gone. A public endpoint holding a key
+// that bypasses RLS is a bad trade for what it bought — and `signUp` is
+// rate-limited by Supabase, honours the project's email-confirmation setting,
+// and returns a session directly instead of needing a second sign-in call.
+
+type Mode = "login" | "register";
+
+function AuthForm() {
   const { dict } = useI18n();
+  const t = dict.login;
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  // /auth/callback redirects here with ?error=<code> on a failed OAuth round
+  // trip. Only known codes are rendered — see lib/auth/errors.ts for why.
+  const urlError = searchParams.get("error");
+
+  const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<AuthErrorCode | null>(
+    isAuthErrorCode(urlError) ? urlError : urlError ? "unknown" : null
+  );
   const [loading, setLoading] = useState(false);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+
+  // With passwords off, Google is the only way in and everything below the
+  // button is hidden — form, tabs, divider and forgot-password link.
+  const showPassword = passwordAuthEnabled();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setErrorCode(null);
+
+    if (password.length < 8) {
+      setErrorCode("weak_password");
+      return;
+    }
+
     setLoading(true);
+    const supabase = createClient();
 
     try {
       if (mode === "register") {
-        const res = await fetch("/api/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, name }),
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: name ? { full_name: name } : undefined,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
+          },
         });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || dict.login.errorCreateAccount);
+        if (error) {
+          setErrorCode(classifyAuthError(error));
+          return;
+        }
+        // No session means the project requires email confirmation. Say so
+        // rather than appearing to do nothing.
+        if (!data.session) {
+          setAwaitingConfirmation(true);
+          return;
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          setErrorCode(classifyAuthError(error));
+          return;
         }
       }
 
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        throw new Error(dict.login.errorInvalid);
-      }
-
+      // The application row is created on the first authenticated request by
+      // resolveSupabaseUser, so there is nothing to create here — one code
+      // path whether the learner arrived via Google or a password.
       router.push(callbackUrl);
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : dict.login.errorGeneric);
+    } catch {
+      setErrorCode("unknown");
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <div className="relative min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <div className="absolute top-4 right-4">
-        <LocaleSwitcher />
-      </div>
-      <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-        <h1 className="text-xl font-semibold text-slate-900">{dict.appName}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.login.subtitle}</p>
+  if (awaitingConfirmation) {
+    return (
+      <AuthCard title={t.checkEmailTitle} subtitle={t.checkEmailNote} backHref="/login">
+        <p className="mt-6 text-sm text-slate-700">
+          {t.checkEmailBody} <span className="font-medium">{email}</span>
+        </p>
+      </AuthCard>
+    );
+  }
 
-        <div className="mt-6 flex rounded-lg bg-slate-100 p-1 text-sm">
+  return (
+    <AuthCard>
+      {errorCode && <div className="mt-4"><ErrorNote>{t.errors[errorCode]}</ErrorNote></div>}
+
+      <GoogleSignIn callbackUrl={callbackUrl} showDivider={showPassword} />
+
+      {!showPassword ? null : (
+      <>
+      <div className="mt-6 flex rounded-lg bg-slate-100 p-1 text-sm">
+        {(["login", "register"] as Mode[]).map((m) => (
           <button
+            key={m}
             type="button"
+            onClick={() => {
+              setMode(m);
+              setErrorCode(null);
+            }}
             className={`flex-1 rounded-md py-1.5 font-medium ${
-              mode === "login" ? "bg-white shadow-sm text-slate-900" : "text-slate-500"
+              mode === m ? "bg-white shadow-sm text-slate-900" : "text-slate-500"
             }`}
-            onClick={() => setMode("login")}
           >
-            {dict.login.loginTab}
+            {m === "login" ? t.loginTab : t.registerTab}
           </button>
-          <button
-            type="button"
-            className={`flex-1 rounded-md py-1.5 font-medium ${
-              mode === "register" ? "bg-white shadow-sm text-slate-900" : "text-slate-500"
-            }`}
-            onClick={() => setMode("register")}
-          >
-            {dict.login.registerTab}
-          </button>
+        ))}
+      </div>
+
+      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        {mode === "register" && (
+          <Field
+            label={t.nameLabel}
+            value={name}
+            autoComplete="name"
+            onChange={(e) => setName(e.target.value)}
+          />
+        )}
+
+        <Field
+          label={t.emailLabel}
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <div>
+          <Field
+            label={t.passwordLabel}
+            type="password"
+            required
+            minLength={8}
+            // Tells a password manager whether to offer a saved password or
+            // generate a new one.
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          {mode === "login" && (
+            <Link
+              href="/auth/forgot"
+              className="mt-1.5 inline-block text-xs text-slate-500 hover:underline"
+            >
+              {t.forgotLink}
+            </Link>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          {mode === "register" && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700">{dict.login.nameLabel}</label>
-              <input
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-slate-700">{dict.login.emailLabel}</label>
-            <input
-              type="email"
-              required
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">{dict.login.passwordLabel}</label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-slate-900 text-white text-sm font-medium py-2 hover:bg-slate-800 disabled:opacity-50"
-          >
-            {loading ? dict.login.submitting : mode === "login" ? dict.login.submitLogin : dict.login.submitRegister}
-          </button>
-        </form>
-      </div>
-    </div>
+        <SubmitButton loading={loading}>
+          {mode === "login" ? t.submitLogin : t.submitRegister}
+        </SubmitButton>
+      </form>
+      </>
+      )}
+    </AuthCard>
   );
 }
 
 export default function LoginPage() {
   return (
     <Suspense>
-      <LoginForm />
+      <AuthForm />
     </Suspense>
   );
 }

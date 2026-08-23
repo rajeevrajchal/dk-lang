@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/db";
+import { progress } from "@/lib/repositories";
+import { adminDb, unwrap } from "@/lib/supabase/db";
 import type { Skill } from "@/lib/constants";
 
 const DISCIPLINE_TO_SKILL: Record<string, Skill> = {
@@ -25,7 +26,14 @@ export async function reconcileReportCard(
   userId: string,
   reportCardId: string
 ): Promise<ReconciliationChange[]> {
-  const reportCard = await prisma.reportCard.findUniqueOrThrow({ where: { id: reportCardId } });
+  // Admin client: reconciliation runs on the learner's behalf but reads a row
+  // by id, and this must not silently return nothing if a policy changes.
+  const cards = unwrap(
+    await adminDb().from("ReportCard").select("*").eq("id", reportCardId),
+    "reconcileReportCard"
+  );
+  const reportCard = cards[0];
+  if (!reportCard) throw new Error(`report card ${reportCardId} not found`);
   const moduleId = reportCard.extractedModule;
   if (!moduleId) return [];
 
@@ -40,9 +48,9 @@ export async function reconcileReportCard(
     if (!skill) continue;
 
     const officialPassed = result === "pass";
-    const existing = await prisma.moduleSkillStatus.findUnique({
-      where: { userId_moduleId_skill: { userId, moduleId, skill } },
-    });
+    const statuses = await progress.moduleSkillStatuses(userId);
+    const existing =
+      statuses.find((s) => s.moduleId === moduleId && s.skill === skill) ?? null;
 
     const discrepancy = existing != null && existing.inAppPassed !== officialPassed;
     const discrepancyNote = discrepancy
@@ -51,25 +59,11 @@ export async function reconcileReportCard(
         }. Resultatbeviset er den gældende sandhed.`
       : null;
 
-    await prisma.moduleSkillStatus.upsert({
-      where: { userId_moduleId_skill: { userId, moduleId, skill } },
-      update: {
-        officialPassed,
-        officialSourceId: reportCard.id,
-        officialSetAt: new Date(),
-        discrepancy,
-        discrepancyNote,
-      },
-      create: {
-        userId,
-        moduleId,
-        skill,
-        officialPassed,
-        officialSourceId: reportCard.id,
-        officialSetAt: new Date(),
-        discrepancy: false,
-        discrepancyNote: null,
-      },
+    await progress.applyOfficialResult(userId, moduleId, skill, {
+      officialPassed,
+      officialSourceId: reportCard.id,
+      discrepancy,
+      discrepancyNote,
     });
 
     changes.push({
@@ -81,10 +75,14 @@ export async function reconcileReportCard(
     });
   }
 
-  await prisma.reportCard.update({
-    where: { id: reportCard.id },
-    data: { reconciliationJson: JSON.stringify(changes) },
-  });
+  unwrap(
+    await adminDb()
+      .from("ReportCard")
+      .update({ reconciliationJson: JSON.stringify(changes) })
+      .eq("id", reportCard.id)
+      .select("id"),
+    "reconcileReportCard(update)"
+  );
 
   return changes;
 }

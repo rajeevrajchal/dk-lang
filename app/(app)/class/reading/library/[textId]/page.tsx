@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { reading } from "@/lib/repositories";
 import { readingText } from "@/lib/reading/registry";
 import { allSentences } from "@/lib/learning/text";
 import { CONSTRUCTS } from "@/lib/content-gen/constructs";
@@ -25,9 +25,7 @@ export default async function ReadingTextPage({
   if (!entry) notFound();
 
   const session = await auth();
-  const progress = await prisma.readingProgress.findUnique({
-    where: { userId_textId: { userId: session!.user.id, textId } },
-  });
+  const progress = await reading.findProgress(session!.user.id, textId);
 
   // Grammar noticed in this text, from the codes the sentences carry — no
   // analysis, no model call, just what the content already says. Each links to

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { getUserLevel, listOfficialTestResults } from "@/lib/level";
@@ -6,7 +7,7 @@ import { TranslateHelperToggle } from "@/components/TranslateHelperToggle";
 import { LevelSection } from "@/components/profile/LevelSection";
 import { InterestsPicker } from "@/components/reading/InterestsPicker";
 import { parseInterests } from "@/lib/reading/interests";
-import { prisma } from "@/lib/db";
+import { users } from "@/lib/repositories";
 
 // Settings is where facts about the learner live: who they are, what level
 // they are at, and which real tests they have sat. The learning areas read
@@ -15,13 +16,10 @@ import { prisma } from "@/lib/db";
 export default async function SettingsPage() {
   const session = await auth();
   const dict = await getServerDictionary();
-  const [level, officialResults, profile] = await Promise.all([
+  const [level, officialResults, interestsJson] = await Promise.all([
     getUserLevel(session!.user.id),
     listOfficialTestResults(session!.user.id),
-    prisma.userProfile.findUnique({
-      where: { userId: session!.user.id },
-      select: { interestsJson: true },
-    }),
+    users.getInterestsJson(session!.user.id),
   ]);
 
   return (
@@ -38,7 +36,7 @@ export default async function SettingsPage() {
           education: r.education,
           module: r.module,
           result: r.result,
-          takenAt: r.takenAt?.toISOString() ?? null,
+          takenAt: r.takenAt ?? null,
           source: r.source,
           note: r.note,
         }))}
@@ -48,7 +46,7 @@ export default async function SettingsPage() {
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
           {dict.reading.yourInterests}
         </h2>
-        <InterestsPicker initial={parseInterests(profile?.interestsJson)} />
+        <InterestsPicker initial={parseInterests(interestsJson)} />
       </section>
 
       <section>
@@ -74,7 +72,10 @@ export default async function SettingsPage() {
           <form
             action={async () => {
               "use server";
-              await signOut({ redirectTo: "/login" });
+              // signOut clears the Supabase cookies; the redirect is separate
+              // now that there is no NextAuth wrapper to do both.
+              await signOut();
+              redirect("/login");
             }}
           >
             <button className="text-sm text-slate-600 hover:underline">{dict.settings.signOut}</button>

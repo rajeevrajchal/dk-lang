@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { generateStructured } from "@/lib/ai/generate";
+import { aiAvailable } from "@/lib/ai/registry";
 import { ExaminerTurnSchema, type ExaminerTurnGenerated } from "./schemas";
 import type { SpeakingContent, ExerciseVariant } from "./types";
 import {
@@ -22,17 +22,9 @@ import {
 // into a natural Danish question. That is what makes the follow-up build on
 // the last answer instead of reading out a pre-generated list.
 
-const MODEL = "claude-opus-5";
-
-let cachedClient: Anthropic | null = null;
-function getClient(): Anthropic | null {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-  if (!cachedClient) cachedClient = new Anthropic();
-  return cachedClient;
-}
 
 export function examinerAvailable(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY;
+  return aiAvailable();
 }
 
 const CORE = `Du spiller en rolle i en simuleret dansk modultest (Danskuddannelse 3).
@@ -166,34 +158,21 @@ export async function nextExaminerTurn(
   state: SpeakingState,
   lastAnswer: string | null
 ): Promise<ExaminerOutcome> {
-  const client = getClient();
-  if (!client) return { turn: null, reason: "no ANTHROPIC_API_KEY set" };
+  // Model, effort and token budget come from the task config — see
+  // lib/ai/registry.ts. A failed turn is expected rather than exceptional:
+  // scriptedExaminerTurn below carries the conversation when it happens.
+  const { object, reason } = await generateStructured({
+    task: "examiner-turn",
+    schema: ExaminerTurnSchema,
+    system: CORE,
+    prompt: buildPrompt(variant, state, lastAnswer),
+  });
 
-  try {
-    const message = await client.messages.parse(
-      {
-        model: MODEL,
-        max_tokens: 2000,
-        thinking: { type: "adaptive" },
-        output_config: { effort: "medium", format: zodOutputFormat(ExaminerTurnSchema) },
-        system: CORE,
-        messages: [{ role: "user", content: buildPrompt(variant, state, lastAnswer) }],
-      },
-      { timeout: 60_000 }
-    );
-
-    if (message.stop_reason === "refusal") return { turn: null, reason: "declined" };
-    return { turn: message.parsed_output ?? null };
-  } catch (err) {
-    const msg =
-      err instanceof Anthropic.APIError
-        ? `API error ${err.status}: ${err.message}`
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
-    console.warn(`[examiner] turn failed for ${variant.variantId}:`, msg);
-    return { turn: null, reason: msg };
+  if (!object) {
+    console.warn(`[examiner] turn failed for ${variant.variantId}: ${reason}`);
+    return { turn: null, reason };
   }
+  return { turn: object };
 }
 
 /**

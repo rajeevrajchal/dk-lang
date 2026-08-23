@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { users } from "@/lib/repositories";
 import { READING_TOPICS } from "@/lib/reading/library";
 import { parseInterests } from "@/lib/reading/interests";
 
@@ -21,11 +21,8 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const profile = await prisma.userProfile.findUnique({
-    where: { userId: session.user.id },
-    select: { interestsJson: true },
-  });
-  return NextResponse.json({ interests: parseInterests(profile?.interestsJson) });
+  const interestsJson = await users.getInterestsJson(session.user.id);
+  return NextResponse.json({ interests: parseInterests(interestsJson) });
 }
 
 export async function POST(req: Request) {
@@ -40,11 +37,7 @@ export async function POST(req: Request) {
   }
   const json = JSON.stringify(parsed.data.interests);
 
-  await prisma.userProfile.upsert({
-    where: { userId: session.user.id },
-    update: { interestsJson: json },
-    create: { userId: session.user.id, interestsJson: json },
-  });
+  await users.setInterestsJson(session.user.id, json);
 
   return NextResponse.json({ interests: parsed.data.interests });
 }

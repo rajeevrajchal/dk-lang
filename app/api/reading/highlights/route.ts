@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { reading } from "@/lib/repositories";
 
 // Highlighted sentences.
 //
@@ -29,9 +29,7 @@ export async function GET(req: Request) {
   const textId = new URL(req.url).searchParams.get("textId");
 
   return NextResponse.json(
-    await prisma.readingHighlight.findMany({
-      where: { userId: session.user.id, ...(textId ? { textId } : {}) },
-    })
+    await reading.listHighlights(session.user.id, textId ?? undefined)
   );
 }
 
@@ -46,19 +44,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
   const { textId, sentenceIndex, color } = parsed.data;
-  const userId = session.user.id;
-  const where = { userId_textId_sentenceIndex: { userId, textId, sentenceIndex } };
 
-  if (color === null) {
-    await prisma.readingHighlight.deleteMany({ where: { userId, textId, sentenceIndex } });
-    return NextResponse.json({ ok: true, removed: true });
-  }
-
-  return NextResponse.json(
-    await prisma.readingHighlight.upsert({
-      where,
-      update: { color },
-      create: { userId, textId, sentenceIndex, color },
-    })
-  );
+  // A null colour removes the highlight — the same tap that made it takes it
+  // away. The repository owns that rule.
+  const row = await reading.setHighlight(session.user.id, textId, sentenceIndex, color);
+  if (!row) return NextResponse.json({ ok: true, removed: true });
+  return NextResponse.json(row);
 }

@@ -48,3 +48,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Data snapshot taken during the Supabase migration. Contains real user
+# rows (emails, password hashes) — never commit it.
+/prisma/data-migration/snapshot.json

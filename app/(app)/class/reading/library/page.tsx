@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { reading, users } from "@/lib/repositories";
 import { READING_LIBRARY } from "@/lib/reading/registry";
 import { facetCounts, recommend, toSummary } from "@/lib/reading/library";
 import { parseInterests } from "@/lib/reading/interests";
@@ -25,9 +25,9 @@ export default async function ReadingLibraryPage() {
   const dict = await getServerDictionary();
   const t = dict.reading;
 
-  const [progressRows, profile, level, lessons] = await Promise.all([
-    prisma.readingProgress.findMany({ where: { userId } }),
-    prisma.userProfile.findUnique({ where: { userId }, select: { interestsJson: true } }),
+  const [progressRows, interestsJson, level, lessons] = await Promise.all([
+    reading.listProgress(userId),
+    users.getInterestsJson(userId),
     getUserLevel(userId),
     loadLessonProgress(userId),
   ]);
@@ -42,7 +42,7 @@ export default async function ReadingLibraryPage() {
     if (row.status === "COMPLETED") completedIds.add(row.textId);
   }
 
-  const interests = parseInterests(profile?.interestsJson);
+  const interests = parseInterests(interestsJson);
 
   // How far through the course they are, mapped onto the 1-5 reading scale.
   // A learner three chapters in should be offered level 1-2, not level 4.

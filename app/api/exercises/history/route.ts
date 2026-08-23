@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { exercises } from "@/lib/repositories";
 import { TASK_NUMBER, VARIANT_BY_ID } from "@/lib/exercises/registry";
 import type { TaskType } from "@/lib/exercises/types";
 
@@ -14,16 +14,11 @@ export async function GET(req: Request) {
   const moduleId = Number(searchParams.get("moduleId"));
   const category = searchParams.get("category");
 
-  const rows = await prisma.exerciseAttempt.findMany({
-    where: {
-      userId: session.user.id,
-      status: "COMPLETED",
-      ...(moduleId ? { moduleId } : {}),
-      ...(category ? { category } : {}),
-    },
-    orderBy: { completedAt: "desc" },
-    take: 30,
-  });
+  const rows = await exercises.recentCompleted(
+    session.user.id,
+    { ...(moduleId ? { moduleId } : {}), ...(category ? { category } : {}) },
+    30
+  );
 
   return NextResponse.json(
     rows.map((r) => ({

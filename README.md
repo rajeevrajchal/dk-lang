@@ -74,6 +74,10 @@ long-lived personal tool, not a one-off:
 | Concern | Choice | Why |
 |---|---|---|
 | Framework | Next.js 16 (App Router) + TypeScript | One deployable for UI + API routes; no separate backend to run/deploy. |
+| Database | Supabase PostgreSQL via `supabase-js` | Queries go through `lib/repositories/*` carrying the learner's JWT, so Row Level Security is the authorization boundary. Prisma owns the schema and migrations only. |
+| Files | Supabase Storage (private bucket) | Report cards are personal documents; no public URL, downloads are auth-gated. |
+| Auth | Supabase Auth (Google) + NextAuth (email/password) | Both behind one `auth()`. Existing accounts keep their ids and data when they switch to Google. |
+| AI | Vercel AI SDK → Anthropic / OpenAI | No vendor SDK in the codebase; `lib/ai/registry.ts` picks a model per task. With no API key every feature falls back to authored content. |
 | Auth | NextAuth (Auth.js) v5, Credentials provider | Email/password is enough for a single-learner tool; the Prisma adapter tables are still modeled so a second learner is a config change, not a migration. |
 | Database | SQLite via Prisma, dev; swap to Postgres for a real deploy | Zero-config locally — `npm install && npx prisma migrate dev` and you're running. Prisma's schema is nearly identical across both; the only casualty is native enums (see below). |
 | File storage | Local disk under `storage/reportcards/`, outside `public/` | Report cards carry PII (name, sometimes CPR-adjacent identifiers). Access is gated by the same auth as everything else (`app/api/reports/[id]/file/route.ts`), never a public/guessable URL. Swap to S3-compatible storage behind the same route for a real deploy. |
@@ -146,6 +150,10 @@ npm install
 npx prisma migrate dev      # creates dev.db and runs prisma/seed.ts
 npm run dev
 ```
+
+> **Database:** this app now runs on Supabase PostgreSQL rather than SQLite.
+> You need a Supabase project and the two connection strings before the app
+> will start — see `docs/supabase-migration.md` for the setup steps.
 
 Register an account at `/login`, and you land on the dashboard already
 diagnosed into Modul 2 reading at Tier 2 (see `lib/adaptive/engine.ts` for

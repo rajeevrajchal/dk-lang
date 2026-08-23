@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { exercises } from "@/lib/repositories";
 import {
   pickAuthoredVariantOfType,
   selectNextVariant,
@@ -71,11 +71,9 @@ export async function POST(req: Request) {
 
   // Only completed attempts count as history — an abandoned one shouldn't burn
   // a task type or a topic.
-  const history = await prisma.exerciseAttempt.findMany({
-    where: { userId: session.user.id, moduleId, category, status: "COMPLETED" },
-    select: { variantId: true, taskType: true, topic: true, completedAt: true },
-    orderBy: { completedAt: "asc" },
-  });
+  const history = (
+    await exercises.completedHistory(session.user.id, { moduleId, category })
+  ).map((h) => ({ ...h, completedAt: h.completedAt ? new Date(h.completedAt) : null }));
 
   let variant: ExerciseVariant | null = null;
   let generated = false;
@@ -121,8 +119,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const attempt = await prisma.exerciseAttempt.create({
-    data: {
+  const attempt = await exercises.createAttempt({
       userId: session.user.id,
       moduleId,
       category,
@@ -134,7 +131,6 @@ export async function POST(req: Request) {
       // The answer key is stored server-side here and stripped from the
       // response below; it is only revealed once the learner submits.
       variantJson: generated ? JSON.stringify(variant) : null,
-    },
   });
 
   return NextResponse.json({

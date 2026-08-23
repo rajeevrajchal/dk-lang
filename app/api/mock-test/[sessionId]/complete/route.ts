@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { exercises } from "@/lib/repositories";
 import { applyInAppExamResult, EXAM_PASS_THRESHOLD } from "@/lib/unlock";
 import { VARIANT_BY_ID } from "@/lib/exercises/registry";
 import { isExplainable } from "@/lib/exercises/explainable";
@@ -18,13 +18,8 @@ export async function POST(
   }
   const { sessionId } = await params;
 
-  const examSession = await prisma.examSession.findUnique({
-    where: { id: sessionId },
-    include: { exerciseAttempts: { orderBy: { orderIndex: "asc" } } },
-  });
-  if (!examSession || examSession.userId !== session.user.id) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  const examSession = await exercises.findExamSession(session.user.id, sessionId);
+  if (!examSession) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const parts = examSession.exerciseAttempts.map((attempt) => {
     const variant: ExerciseVariant | undefined = attempt.variantJson
@@ -64,14 +59,9 @@ export async function POST(
   const writingPart = parts.find((p) => p.category === "WRITING");
 
   if (examSession.status !== "COMPLETED") {
-    await prisma.examSession.update({
-      where: { id: sessionId },
-      data: {
-        status: "COMPLETED",
-        completedAt: new Date(),
-        scoresJson: JSON.stringify({ READING: readingScore }),
-        passedJson: JSON.stringify({ READING: readingPassed }),
-      },
+    await exercises.completeExamSession(session.user.id, sessionId, {
+      scoresJson: JSON.stringify({ READING: readingScore }),
+      passedJson: JSON.stringify({ READING: readingPassed }),
     });
 
     // Reading is the only discipline this test can score objectively, so it is

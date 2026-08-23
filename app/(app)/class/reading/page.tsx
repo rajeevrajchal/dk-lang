@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { reading } from "@/lib/repositories";
 import { READING_LIBRARY } from "@/lib/reading/registry";
 import { SkillModules } from "@/components/class/SkillModules";
 import { getServerDictionary } from "@/lib/i18n/server";
@@ -18,10 +18,7 @@ export default async function ReadingPage() {
   const dict = await getServerDictionary();
   const t = dict.reading;
 
-  const progress = await prisma.readingProgress.findMany({
-    where: { userId: session!.user.id },
-    select: { textId: true, status: true },
-  });
+  const progress = await reading.listProgress(session!.user.id);
   const readCount = progress.filter((p) => p.status === "COMPLETED").length;
 
   return (

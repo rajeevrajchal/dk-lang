@@ -1,18 +1,31 @@
 // Danish Modultest / PD3 Prep App — data model
-// Boring choice: SQLite for zero-config dev; swap `provider` to "postgresql"
-// and set DATABASE_URL for a real deployment. SQLite has no native enum
-// support in Prisma, so "enum-shaped" fields below are plain Strings whose
-// allowed values are validated at the app layer (see lib/constants.ts) —
-// switching to Postgres later can promote them to real Prisma enums without
-// touching application code.
+//
+// Runs on Supabase PostgreSQL. Prisma is the query layer and owns migrations;
+// Supabase provides the database, authentication and file storage. See
+// docs/supabase-migration.md for how the two fit together and why the app
+// talks to Postgres through Prisma rather than through supabase-js.
+//
+// The "enum-shaped" fields below are still plain Strings validated at the app
+// layer (lib/constants.ts), exactly as they were on SQLite. Promoting them to
+// native Postgres enums is a real improvement and is deliberately NOT part of
+// this migration: it would change write semantics — every insert would have to
+// match the type exactly, and adding a value later needs its own migration —
+// and this change set's job is to move infrastructure without altering
+// behaviour. Tracked as follow-up in docs/supabase-migration.md.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
+  // Pooled connection (PgBouncer, port 6543) for the application: Supabase
+  // pools transactions, which is what a serverless deployment needs.
+  url = env("DATABASE_URL")
+  // Direct connection (port 5432) for migrations. Prisma Migrate needs
+  // session-level state a transaction pooler does not provide, so pointing
+  // both at the pooler makes `migrate deploy` fail.
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------
@@ -27,6 +40,20 @@ model User {
   passwordHash  String?
   name          String?
   createdAt     DateTime  @default(now())
+
+  // Link to the Supabase Auth identity (auth.users.id, a UUID), set the first
+  // time this person signs in with Google.
+  //
+  // A separate column rather than making it the primary key: `id` is a cuid
+  // referenced by fifteen foreign keys and thousands of existing rows, and
+  // rewriting it to a UUID would mean rewriting all of them. Mapping instead
+  // means an existing learner keeps every attempt, note and lesson they have
+  // ever recorded when they switch to signing in with Google.
+  //
+  // Null for accounts that only ever use email and password.
+  supabaseUserId String? @unique
+  // Where the account came from, for showing the right thing in Settings.
+  authProvider   String  @default("credentials") // credentials | google
 
   accounts          Account[]
   sessions          Session[]
