@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db, adminDb, rpc, unwrap, isNoRows } from "@/lib/supabase/db";
-import type { Tables } from "@/lib/supabase/database.types";
+import type { ExplanationKey, Tables } from "@/types";
 
 // The reading library's learner data: what has been read, saved, noted and
 // highlighted, plus the shared explanation cache.
@@ -16,18 +16,18 @@ import type { Tables } from "@/lib/supabase/database.types";
 // Progress
 // ---------------------------------------------------------------------------
 
-export async function listProgress(userId: string): Promise<Tables<"ReadingProgress">[]> {
+export const listProgress = async (userId: string): Promise<Tables<"ReadingProgress">[]> => {
   const supabase = await db();
   return unwrap(
     await supabase.from("ReadingProgress").select("*").eq("userId", userId),
     "listProgress"
   );
-}
+};
 
-export async function findProgress(
+export const findProgress = async (
   userId: string,
   textId: string
-): Promise<Tables<"ReadingProgress"> | null> {
+): Promise<Tables<"ReadingProgress"> | null> => {
   const supabase = await db();
   const { data, error } = await supabase
     .from("ReadingProgress")
@@ -39,7 +39,7 @@ export async function findProgress(
   // Not found is an expected answer here, not a failure.
   if (error && !isNoRows(error)) throw new Error(`[supabase] findProgress: ${error.message}`);
   return data ?? null;
-}
+};
 
 /**
  * Records opening, finishing, bookmarking or reading time.
@@ -50,7 +50,7 @@ export async function findProgress(
  * again. Doing that as read-then-write from here would lose reading time when
  * two tabs are open on the same text.
  */
-export async function upsertProgress(
+export const upsertProgress = async (
   userId: string,
   textId: string,
   input: {
@@ -59,7 +59,7 @@ export async function upsertProgress(
     mark?: string | null;
     addSeconds?: number;
   }
-): Promise<Tables<"ReadingProgress">> {
+): Promise<Tables<"ReadingProgress">> => {
   const supabase = await db();
   const rows = await rpc(supabase, "reading_progress_upsert", {
     p_user_id: userId,
@@ -70,16 +70,16 @@ export async function upsertProgress(
     p_add_seconds: input.addSeconds ?? null,
   });
   return rows[0];
-}
+};
 
 // ---------------------------------------------------------------------------
 // Notes
 // ---------------------------------------------------------------------------
 
-export async function listNotes(
+export const listNotes = async (
   userId: string,
   textId?: string
-): Promise<Tables<"ReadingNote">[]> {
+): Promise<Tables<"ReadingNote">[]> => {
   const supabase = await db();
   let query = supabase
     .from("ReadingNote")
@@ -88,9 +88,9 @@ export async function listNotes(
     .order("createdAt", { ascending: false });
   if (textId) query = query.eq("textId", textId);
   return unwrap(await query, "listNotes");
-}
+};
 
-export async function createNote(
+export const createNote = async (
   userId: string,
   data: {
     textId: string;
@@ -99,7 +99,7 @@ export async function createNote(
     quote: string | null;
     body: string;
   }
-): Promise<Tables<"ReadingNote">> {
+): Promise<Tables<"ReadingNote">> => {
   const supabase = await db();
   const rows = unwrap(
     await supabase
@@ -109,9 +109,9 @@ export async function createNote(
     "createNote"
   );
   return rows[0];
-}
+};
 
-export async function deleteNote(userId: string, id: string): Promise<boolean> {
+export const deleteNote = async (userId: string, id: string): Promise<boolean> => {
   const supabase = await db();
   const rows = unwrap(
     // Scoped by userId as well as id, and `select()` reports what was actually
@@ -120,29 +120,29 @@ export async function deleteNote(userId: string, id: string): Promise<boolean> {
     "deleteNote"
   );
   return rows.length > 0;
-}
+};
 
 // ---------------------------------------------------------------------------
 // Highlights
 // ---------------------------------------------------------------------------
 
-export async function listHighlights(
+export const listHighlights = async (
   userId: string,
   textId?: string
-): Promise<Tables<"ReadingHighlight">[]> {
+): Promise<Tables<"ReadingHighlight">[]> => {
   const supabase = await db();
   let query = supabase.from("ReadingHighlight").select("*").eq("userId", userId);
   if (textId) query = query.eq("textId", textId);
   return unwrap(await query, "listHighlights");
-}
+};
 
 /** A null colour removes the highlight — the same action that made it. */
-export async function setHighlight(
+export const setHighlight = async (
   userId: string,
   textId: string,
   sentenceIndex: number,
   color: string | null
-): Promise<Tables<"ReadingHighlight"> | null> {
+): Promise<Tables<"ReadingHighlight"> | null> => {
   const supabase = await db();
 
   if (color === null) {
@@ -171,7 +171,7 @@ export async function setHighlight(
     "setHighlight"
   );
   return rows[0];
-}
+};
 
 // ---------------------------------------------------------------------------
 // Explanation cache
@@ -182,17 +182,9 @@ export async function setHighlight(
 // it); written through the admin client, since it belongs to nobody.
 // ---------------------------------------------------------------------------
 
-export interface ExplanationKey {
-  textId: string;
-  scopeKind: string;
-  scopeId: string;
-  level: number;
-  depth: string;
-}
-
-export async function findCachedExplanation(
+export const findCachedExplanation = async (
   key: ExplanationKey
-): Promise<Tables<"ReadingExplanation"> | null> {
+): Promise<Tables<"ReadingExplanation"> | null> => {
   const supabase = await db();
   const { data, error } = await supabase
     .from("ReadingExplanation")
@@ -208,9 +200,9 @@ export async function findCachedExplanation(
     throw new Error(`[supabase] findCachedExplanation: ${error.message}`);
   }
   return data ?? null;
-}
+};
 
-export async function cacheExplanation(key: ExplanationKey, json: string): Promise<void> {
+export const cacheExplanation = async (key: ExplanationKey, json: string): Promise<void> => {
   // Upsert rather than insert: two learners can race on the same sentence.
   unwrap(
     await adminDb()
@@ -222,4 +214,4 @@ export async function cacheExplanation(key: ExplanationKey, json: string): Promi
       .select("id"),
     "cacheExplanation"
   );
-}
+};

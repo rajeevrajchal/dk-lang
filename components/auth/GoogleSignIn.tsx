@@ -10,7 +10,7 @@ import { useI18n } from "@/lib/i18n/LocaleProvider";
 // environment set up shows the email/password form on its own rather than a
 // button that throws when pressed.
 
-export function GoogleSignIn({
+export const GoogleSignIn = ({
   callbackUrl = "/dashboard",
   /**
    * The "or" divider separates this from the password form below. With no form
@@ -21,14 +21,14 @@ export function GoogleSignIn({
 }: {
   callbackUrl?: string;
   showDivider?: boolean;
-}) {
+}) => {
   const { dict } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!supabaseConfigured()) return null;
 
-  async function signInWithGoogle() {
+  const signInWithGoogle = async () => {
     setLoading(true);
     setError(null);
     try {
@@ -49,7 +49,7 @@ export function GoogleSignIn({
       setError(err instanceof Error ? err.message : dict.login.errorGeneric);
       setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="mt-6">
@@ -74,10 +74,10 @@ export function GoogleSignIn({
       )}
     </div>
   );
-}
+};
 
 /** Google's mark, inline so the page makes no third-party request for it. */
-function GoogleMark() {
+const GoogleMark = () => {
   return (
     <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden focusable="false">
       <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z" />
@@ -86,4 +86,4 @@ function GoogleMark() {
       <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58Z" />
     </svg>
   );
-}
+};

@@ -1,4 +1,4 @@
-import type { ExerciseVariant } from "./types";
+import type { ExerciseVariant } from "@/types";
 
 // Pulling the Danish prose out of a variant, kept separate from explain.ts so
 // it carries no Anthropic SDK import. The registry and the API responses need
@@ -10,9 +10,9 @@ import type { ExerciseVariant } from "./types";
  * order the learner read it in. Returns null when there is nothing to explain
  * — speaking prompts, and writing tasks where the learner supplies the text.
  */
-export function extractExplainableText(
+export const extractExplainableText = (
   variant: ExerciseVariant
-): { label: string; danish: string }[] | null {
+): { label: string; danish: string }[] | null => {
   const c = variant.content;
 
   switch (c.kind) {
@@ -50,9 +50,9 @@ export function extractExplainableText(
     default:
       return null;
   }
-}
+};
 
-export function isExplainable(variant: ExerciseVariant): boolean {
+export const isExplainable = (variant: ExerciseVariant): boolean => {
   const blocks = extractExplainableText(variant);
   return !!blocks && blocks.length > 0;
-}
+};

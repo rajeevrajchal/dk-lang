@@ -8,17 +8,17 @@ import { THEORY_BY_CONSTRUCT } from "@/lib/content-gen/theory";
 import { CONSTRUCTS } from "@/lib/content-gen/constructs";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 
-function constructName(code: string): string {
+const constructName = (code: string): string => {
   return CONSTRUCTS.find((c) => c.code === code)?.name ?? code;
-}
+};
 
-export function ExplainPanel({
+export const ExplainPanel = ({
   passageId,
   moduleId,
 }: {
   passageId: string | null;
   moduleId: number;
-}) {
+}) => {
   const { dict } = useI18n();
   const [open, setOpen] = useState(false);
 
@@ -166,4 +166,4 @@ export function ExplainPanel({
       )}
     </div>
   );
-}
+};

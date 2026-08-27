@@ -1,8 +1,7 @@
 import "server-only";
 
 import { db, rpc, unwrap } from "@/lib/supabase/db";
-import type { Tables } from "@/lib/supabase/database.types";
-import type { Skill } from "@/lib/constants";
+import type { AttemptWithItem, Skill, Tables } from "@/types";
 
 // Skill progress and module readiness — the item-level drill, and the
 // in-app/official split the whole unlock model rests on.
@@ -11,10 +10,6 @@ import type { Skill } from "@/lib/constants";
 // Item attempts (the adaptive reading drill)
 // ---------------------------------------------------------------------------
 
-export interface AttemptWithItem extends Tables<"Attempt"> {
-  item: Tables<"Item">;
-}
-
 /**
  * Recent attempts with the item they answered.
  *
@@ -22,7 +17,7 @@ export interface AttemptWithItem extends Tables<"Attempt"> {
  * foreign-key naming, and joining in application code keeps the query honest
  * about what it costs.
  */
-export async function recentAttempts(userId: string, take = 10): Promise<AttemptWithItem[]> {
+export const recentAttempts = async (userId: string, take = 10): Promise<AttemptWithItem[]> => {
   const supabase = await db();
   const attempts = unwrap(
     await supabase
@@ -50,13 +45,13 @@ export async function recentAttempts(userId: string, take = 10): Promise<Attempt
       return item ? { ...a, item } : null;
     })
     .filter((a): a is AttemptWithItem => a !== null);
-}
+};
 
 /** Reading attempts since a date — for the dashboard's reading habit. */
-export async function readingAttemptsSince(
+export const readingAttemptsSince = async (
   userId: string,
   since: Date
-): Promise<Pick<Tables<"Attempt">, "createdAt">[]> {
+): Promise<Pick<Tables<"Attempt">, "createdAt">[]> => {
   const supabase = await db();
   const attempts = unwrap(
     await supabase
@@ -82,7 +77,7 @@ export async function readingAttemptsSince(
   const readingIds = new Set(readingItems.map((i) => i.id));
 
   return attempts.filter((a) => readingIds.has(a.itemId)).map((a) => ({ createdAt: a.createdAt }));
-}
+};
 
 // ---------------------------------------------------------------------------
 // Module / skill status
@@ -91,15 +86,15 @@ export async function readingAttemptsSince(
 // measured, and what a real examiner decided. See docs/unlock-logic.md.
 // ---------------------------------------------------------------------------
 
-export async function moduleSkillStatuses(
+export const moduleSkillStatuses = async (
   userId: string
-): Promise<Tables<"ModuleSkillStatus">[]> {
+): Promise<Tables<"ModuleSkillStatus">[]> => {
   const supabase = await db();
   return unwrap(
     await supabase.from("ModuleSkillStatus").select("*").eq("userId", userId),
     "moduleSkillStatuses"
   );
-}
+};
 
 /**
  * Records what the app's own mock test showed.
@@ -109,13 +104,13 @@ export async function moduleSkillStatuses(
  * written from a practice score. The separation is enforced by the function's
  * shape rather than by remembering.
  */
-export async function applyInAppResult(
+export const applyInAppResult = async (
   userId: string,
   moduleId: number,
   skill: Skill,
   score: number,
   passed: boolean
-): Promise<Tables<"ModuleSkillStatus">> {
+): Promise<Tables<"ModuleSkillStatus">> => {
   const supabase = await db();
   const rows = await rpc(supabase, "module_skill_apply_in_app", {
     p_user_id: userId,
@@ -125,10 +120,10 @@ export async function applyInAppResult(
     p_passed: passed,
   });
   return rows[0];
-}
+};
 
 /** Records what a confirmed report card said. Never touches `inApp*`. */
-export async function applyOfficialResult(
+export const applyOfficialResult = async (
   userId: string,
   moduleId: number,
   skill: Skill,
@@ -138,7 +133,7 @@ export async function applyOfficialResult(
     discrepancy: boolean;
     discrepancyNote: string | null;
   }
-): Promise<Tables<"ModuleSkillStatus">> {
+): Promise<Tables<"ModuleSkillStatus">> => {
   const supabase = await db();
   const existing = unwrap(
     await supabase
@@ -172,16 +167,16 @@ export async function applyOfficialResult(
     "applyOfficialResult"
   );
   return rows[0];
-}
+};
 
 // ---------------------------------------------------------------------------
 // Report cards
 // ---------------------------------------------------------------------------
 
-export async function listReportCards(
+export const listReportCards = async (
   userId: string,
   status?: string
-): Promise<Tables<"ReportCard">[]> {
+): Promise<Tables<"ReportCard">[]> => {
   const supabase = await db();
   let query = supabase
     .from("ReportCard")
@@ -190,16 +185,16 @@ export async function listReportCards(
     .order("uploadedAt", { ascending: false });
   if (status) query = query.eq("status", status);
   return unwrap(await query, "listReportCards");
-}
+};
 
-export async function findReportCard(
+export const findReportCard = async (
   userId: string,
   id: string
-): Promise<Tables<"ReportCard"> | null> {
+): Promise<Tables<"ReportCard"> | null> => {
   const supabase = await db();
   const rows = unwrap(
     await supabase.from("ReportCard").select("*").eq("id", id).eq("userId", userId),
     "findReportCard"
   );
   return rows[0] ?? null;
-}
+};

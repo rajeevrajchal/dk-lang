@@ -8,20 +8,18 @@ import {
   resumePoint,
 } from "@/lib/curriculum/progress";
 import { getServerDictionary } from "@/lib/i18n/server";
-import {
-  LessonSidebar,
-  type SidebarChapter,
-} from "@/components/lessons/LessonSidebar";
+import { LessonSidebar } from "@/components/lessons/LessonSidebar";
+import type { SidebarChapter } from "@/types";
 
 // The Lessons area wraps every lesson page in the course sidebar, so the
 // learner can always see the shape of the course and where they are in it.
 // The state is computed here, once, from the same pure functions the pages use.
 
-export default async function LessonsLayout({
+const LessonsLayout = async ({
   children,
 }: {
   children: React.ReactNode;
-}) {
+}) => {
   const session = await auth();
   const dict = await getServerDictionary();
   const progress = await loadLessonProgress(session!.user.id);
@@ -58,4 +56,6 @@ export default async function LessonsLayout({
       <div className="flex-1 overflow-y-auto">{children}</div>
     </div>
   );
-}
+};
+
+export default LessonsLayout;

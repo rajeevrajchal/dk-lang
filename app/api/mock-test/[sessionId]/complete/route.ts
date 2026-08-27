@@ -5,13 +5,13 @@ import { applyInAppExamResult, EXAM_PASS_THRESHOLD } from "@/lib/unlock";
 import { VARIANT_BY_ID } from "@/lib/exercises/registry";
 import { isExplainable } from "@/lib/exercises/explainable";
 import { gradeExercise } from "@/lib/exercises/grading";
-import { TASK_NUMBER } from "@/lib/exercises/types";
-import type { ExerciseResponse, ExerciseVariant, TaskType } from "@/lib/exercises/types";
+import { TASK_NUMBER } from "@/lib/exercises/constants";
+import type { ExerciseResponse, ExerciseVariant, TaskType } from "@/types";
 
-export async function POST(
+export const POST = async (
   _req: Request,
   { params }: { params: Promise<{ sessionId: string }> }
-) {
+) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -95,4 +95,4 @@ export async function POST(
       : null,
     parts,
   });
-}
+};

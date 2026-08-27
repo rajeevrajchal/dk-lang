@@ -14,7 +14,13 @@ import {
 } from "./schemas";
 import { validateVariant } from "./validate";
 import { demandsForModule, stagesForTaskType } from "./speaking-patterns";
-import type { ExerciseCategory, ExerciseVariant, TaskType } from "./types";
+import type {
+  ExerciseCategory,
+  ExerciseVariant,
+  GenerationOutcome,
+  GenerationSlot,
+  TaskType,
+} from "@/types";
 
 // LLM generation of modultest-style exercises.
 //
@@ -25,9 +31,9 @@ import type { ExerciseCategory, ExerciseVariant, TaskType } from "./types";
 // fails too the caller falls back to the hand-authored pool, so the app keeps
 // working without an API key or when the API is down.
 
-export function llmGenerationAvailable(): boolean {
+export const llmGenerationAvailable = (): boolean => {
   return aiAvailable();
-}
+};
 
 // ---------------------------------------------------------------------------
 // Prompts
@@ -48,7 +54,7 @@ Sværhedsgraden skal komme fra, at kursisten skal FORSTÅ og SAMMENHOLDE oplysni
 
 Alt indhold skal være på dansk. Kun feltet 'english' i usefulPhrases er på engelsk.`;
 
-function task1Prompt(topic: string, avoid: string[]): string {
+const task1Prompt = (topic: string, avoid: string[]): string => {
   return `Skriv en Læsning Opgave 1: kursisten skal matche personer med annoncer.
 
 Emne denne gang: ${topic}.
@@ -67,10 +73,10 @@ Regler, der gør opgaven fair og løsbar:
 4. Annoncerne skal indeholde konkrete detaljer: pris i kroner, antal værelser eller m², bydel eller by, tidspunkter, hvem det henvender sig til, betingelser.
 5. Eksemplets annonce A må ikke være svaret på nogen af de 4 personer.
 
-For hvert svar skriver du en kort begrundelse på dansk (rationale), der forklarer, hvorfor netop den annonce passer, og gerne hvorfor en nærliggende annonce ikke gør.`;
-}
+For hvert svar skriver du en kort begrundelse (rationale) PÅ ENGELSK, der forklarer, hvorfor netop den annonce passer, og hvorfor en nærliggende annonce ikke gør. Kursisten skal kunne læse forklaringen uden besvær — det er det danske, der skal læres, ikke forklaringen. Citer gerne de danske ord, der afgør det; de bliver stående på dansk.`;
+};
 
-function task2Prompt(topic: string, avoid: string[]): string {
+const task2Prompt = (topic: string, avoid: string[]): string => {
   return `Skriv en Læsning Opgave 2: i hvert afsnit er der én sætning, der ikke passer.
 
 Emne denne gang: ${topic}.
@@ -92,10 +98,10 @@ Dårligt eksempel: et afsnit om en børnehave, hvor den forkerte sætning er "Hu
 
 Kursisten skal altså holde afsnittets oplysninger op mod hinanden for at finde fejlen.
 
-For hvert afsnit skriver du i 'why' på dansk, hvilke oplysninger i afsnittet den forkerte sætning modsiger.`;
-}
+For hvert afsnit skriver du i 'why' PÅ ENGELSK, hvilke oplysninger i afsnittet den forkerte sætning modsiger. Selve de danske sætninger citeres på dansk, men forklaringen er engelsk, så kursisten kan læse den.`;
+};
 
-function task3Prompt(topic: string, avoid: string[]): string {
+const task3Prompt = (topic: string, avoid: string[]): string => {
   return `Skriv en Læsning Opgave 3: kursisten skal skrive de ord, der mangler, fra en ordbank.
 
 Emne denne gang: ${topic}.
@@ -116,10 +122,10 @@ Regler:
 5. De 4 ubrugte ord skal være ord, der ser plausible ud i teksten, men som ikke passer noget sted.
 6. Sørg for, at tekststykkerne sat sammen med svarene giver en helt naturlig, sammenhængende dansk tekst. Tegnsætning og mellemrum skal passe (tekststykker slutter typisk med et mellemrum før hullet).
 
-For hvert svar skriver du en kort begrundelse på dansk (rationale): hvorfor netop det ord, og gerne hvorfor et nærliggende ord i banken ikke passer.`;
-}
+For hvert svar skriver du en kort begrundelse (rationale) PÅ ENGELSK: hvorfor netop det ord — grammatikken og sammenhængen — og hvorfor et nærliggende ord i banken ikke passer. De danske ord citeres på dansk; forklaringen er engelsk.`;
+};
 
-function task4Prompt(topic: string, avoid: string[]): string {
+const task4Prompt = (topic: string, avoid: string[]): string => {
   return `Skriv en Læsning Opgave 4: kursisten skal finde ud af, hvem af tre personer hvert spørgsmål handler om.
 
 Emne denne gang: ${topic}.
@@ -137,10 +143,10 @@ DET VIGTIGSTE — spørgsmålene skal kræve forståelse, ikke ordgenkendelse:
 3. Mindst to forskellige personer skal være svaret på tværs af de 5 spørgsmål — gerne alle tre.
 4. Hver person skal have mindst ét klart, men indirekte formuleret særtræk, som ét spørgsmål rammer.
 
-For hvert spørgsmål skriver du i 'why' på dansk, hvad i personens tekst der gør ham eller hende til svaret, og gerne hvorfor en anden person kunne forveksles.`;
-}
+For hvert spørgsmål skriver du i 'why' PÅ ENGELSK, hvad i personens tekst der gør ham eller hende til svaret, og hvorfor en anden person kunne forveksles. Citer den danske sætning, der afgør det, på dansk — forklaringen omkring den er engelsk.`;
+};
 
-function writingPrompt(taskType: TaskType, topic: string, avoid: string[]): string {
+const writingPrompt = (taskType: TaskType, topic: string, avoid: string[]): string => {
   const kind =
     taskType === "writing_email"
       ? "en e-mail, som kursisten skal svare på"
@@ -167,7 +173,7 @@ ${
 - mustInclude: 4-6 konkrete punkter, som kursistens tekst skal indeholde. Det sidste punkt må gerne stille et grammatisk krav, fx "mindst én sætning i datid".
 
 Spørgsmålene og punkterne skal kunne besvares af en voksen på A2-niveau ud fra sit eget liv. Ingen abstrakte eller holdningsprægede emner.`;
-}
+};
 
 // ---------------------------------------------------------------------------
 // Speaking opgave prompts, assembled in layers
@@ -180,14 +186,14 @@ Spørgsmålene og punkterne skal kunne besvares af en voksen på A2-niveau ud fr
 // new module layer, not a rewritten prompt.
 // ---------------------------------------------------------------------------
 
-function moduleLayer(moduleId: number): string {
+const moduleLayer = (moduleId: number): string => {
   const demands = demandsForModule(moduleId)
     .map((d) => DEMAND_DESCRIPTIONS[d])
     .join("\n  - ");
   return `MODUL ${moduleId}.
 Kommunikationskrav på dette modul — eksaminator må stille spørgsmål af disse typer og ikke sværere:
   - ${demands}`;
-}
+};
 
 const DEMAND_DESCRIPTIONS: Record<string, string> = {
   factual: "konkrete oplysninger: Hvad? Hvor? Hvornår? Hvem? Hvor ofte?",
@@ -198,7 +204,7 @@ const DEMAND_DESCRIPTIONS: Record<string, string> = {
   experience: "erfaring: Hvad er din erfaring med...? Har du prøvet det?",
 };
 
-function mindmapPrompt(moduleId: number, topic: string, avoid: string[]): string {
+const mindmapPrompt = (moduleId: number, topic: string, avoid: string[]): string => {
   return `${moduleLayer(moduleId)}
 
 OPGAVETYPE: Mindmap-præsentation (Opgave 1).
@@ -215,9 +221,9 @@ Lav:
 - questions: 4-6 spørgsmål, eksaminator kan åbne med bagefter. Konkrete, og de skal handle om emnet.
 - followUps: 3-5 opfølgende spørgsmål.
 - usefulPhrases: 4-6 vendinger, kursisten kan bruge, med engelsk betydning.`;
-}
+};
 
-function informationGapPrompt(moduleId: number, topic: string, avoid: string[]): string {
+const informationGapPrompt = (moduleId: number, topic: string, avoid: string[]): string => {
   return `${moduleLayer(moduleId)}
 
 OPGAVETYPE: Informationsudveksling (Opgave 2).
@@ -242,9 +248,9 @@ ABSOLUTTE KRAV — opgaven virker ikke uden dem:
 4. Udvekslingen skal gå BEGGE veje — begge parter mangler noget.
 
 - questions, followUps, usefulPhrases: som normalt, men de skal handle om at spørge og svare.`;
-}
+};
 
-function preparedTopicPrompt(moduleId: number, topic: string, avoid: string[]): string {
+const preparedTopicPrompt = (moduleId: number, topic: string, avoid: string[]): string => {
   return `${moduleLayer(moduleId)}
 
 OPGAVETYPE: Forberedt emne (Opgave 1).
@@ -260,9 +266,9 @@ Lav:
 - followUps: 3-5 spørgsmål, der beder kursisten om at UDDYBE, ikke om nye fakta: "Vil du fortælle lidt mere om...?", "Kan du give et eksempel?", "Hvorfor det?", "Hvad synes du om...?", "Hvad er din erfaring med...?"
   Formulér dem så de passer til emnet — brug dem ikke ordret.
 - usefulPhrases: 4-6 vendinger til at forklare og begrunde med.`;
-}
+};
 
-function picturePreferencePrompt(moduleId: number, topic: string, avoid: string[]): string {
+const picturePreferencePrompt = (moduleId: number, topic: string, avoid: string[]): string => {
   return `${moduleLayer(moduleId)}
 
 OPGAVETYPE: Valg og begrundelse med fire muligheder (Opgave 2).
@@ -278,9 +284,9 @@ Lav:
 - questions: 4-6 spørgsmål til pardiskussionen.
 - followUps: 3-5 spørgsmål fra eksaminator bagefter, om kursistens egne erfaringer og grunde.
 - usefulPhrases: 4-6 vendinger til at udtrykke præference og begrundelse med, fx "Jeg vil helst...", "Det bedste ved ... er, at...", "Jeg foretrækker ..., fordi ...".`;
-}
+};
 
-function speakingPrompt(taskType: TaskType, topic: string, avoid: string[]): string {
+const speakingPrompt = (taskType: TaskType, topic: string, avoid: string[]): string => {
   const kind =
     taskType === "speaking_interview"
       ? "en samtale, hvor eksaminator stiller spørgsmål"
@@ -303,7 +309,7 @@ Regler for niveauet:
 1. Spørgsmålene skal spænde over nutid, datid OG fremtid — fx "Hvad laver du...", "Hvad lavede du sidste weekend...", "Hvad skal du...". Det er de tider, der prøves på Modul 2.
 2. Spørg om kursistens eget konkrete hverdagsliv. Aldrig abstrakte diskussionsspørgsmål som "Hvad er konsekvenserne af globaliseringen?" eller "Hvad synes du om det danske samfund?".
 3. Et spørgsmål må gerne bede om en simpel begrundelse ("hvorfor kan du godt lide det?"), men ikke om en argumentation.`;
-}
+};
 
 // ---------------------------------------------------------------------------
 // Topic pools — what the generator rotates through per task type
@@ -383,26 +389,26 @@ const TOPICS: Record<string, string[]> = {
   ],
 };
 
-function pickTopic(taskType: TaskType, usedTopics: string[]): string {
+const pickTopic = (taskType: TaskType, usedTopics: string[]): string => {
   const pool = TOPICS[taskType] ?? ["Hverdagsliv"];
   const unused = pool.filter((t) => !usedTopics.includes(t));
   const from = unused.length > 0 ? unused : pool;
   return from[Math.floor(Math.random() * from.length)];
-}
+};
 
 // ---------------------------------------------------------------------------
 // Generation
 // ---------------------------------------------------------------------------
 
-function shortTopic(topic: string): string {
+const shortTopic = (topic: string): string => {
   return topic.split(" — ")[0];
-}
+};
 
-function newVariantId(taskType: TaskType): string {
+const newVariantId = (taskType: TaskType): string => {
   return `gen-${taskType.replace(/[^a-z0-9]/gi, "").slice(0, 12)}-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2, 7)}`;
-}
+};
 
 const READING_INSTRUCTIONS: Record<string, (title: string) => string[]> = {
   reading_task_1_matching: () => [
@@ -439,19 +445,19 @@ const READING_INSTRUCTIONS: Record<string, (title: string) => string[]> = {
  * exception. Which model runs this, how hard it thinks and how many tokens it
  * gets are all decided by the "exercise-generation" task in lib/ai/registry.ts.
  */
-async function callModel(
+const callModel = async (
   system: string,
   prompt: string,
   schema: Parameters<typeof generateStructured>[0]["schema"]
-): Promise<{ object: unknown | null; reason?: string; retryable: boolean }> {
+): Promise<{ object: unknown | null; reason?: string; retryable: boolean }> => {
   return generateStructured({ task: "exercise-generation", schema, system, prompt });
-}
+};
 
 /**
  * Builds the ExerciseVariant for one generated payload. Exported so the
  * mapping can be exercised against sample payloads without calling the API.
  */
-export function toVariant(
+export const toVariant = (
   taskType: TaskType,
   category: ExerciseCategory,
   moduleId: number,
@@ -459,7 +465,7 @@ export function toVariant(
   // Payload shape is checked by the Zod schema before we get here.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   gen: any
-): ExerciseVariant {
+): ExerciseVariant => {
   const base = {
     variantId: newVariantId(taskType),
     category,
@@ -586,9 +592,9 @@ export function toVariant(
       };
     }
   }
-}
+};
 
-function promptFor(taskType: TaskType, topic: string, avoid: string[], moduleId: number): string {
+const promptFor = (taskType: TaskType, topic: string, avoid: string[], moduleId: number): string => {
   switch (taskType) {
     case "reading_task_1_matching":
       return task1Prompt(topic, avoid);
@@ -613,9 +619,9 @@ function promptFor(taskType: TaskType, topic: string, avoid: string[], moduleId:
     default:
       return speakingPrompt(taskType, topic, avoid);
   }
-}
+};
 
-function schemaFor(taskType: TaskType) {
+const schemaFor = (taskType: TaskType) => {
   switch (taskType) {
     case "reading_task_1_matching":
       return Task1Schema;
@@ -640,26 +646,62 @@ function schemaFor(taskType: TaskType) {
     default:
       return SpeakingSchema;
   }
-}
-
-export interface GenerationOutcome {
-  variant: ExerciseVariant | null;
-  /** Why generation didn't produce a usable exercise, for logging. */
-  reason?: string;
-}
+};
 
 /**
  * Generates one exercise. Returns null (with a reason) rather than throwing —
  * the caller falls back to the authored pool so a missing key or a bad night
  * for the API never blocks practice.
  */
-export async function generateExercise(
+/**
+ * The extra instructions a numbered slot adds to a prompt: how hard this one
+ * has to be, and what it must not resemble.
+ *
+ * Written in Danish like the rest of the prompts, and concrete about
+ * difficulty — "svær" on its own produces the same exercise with rarer nouns,
+ * which is not a harder exercise. The band descriptions name the grammar that
+ * actually raises the difficulty of a Danish text.
+ */
+const slotGuidance = (slot: GenerationSlot): string => {
+  const lines = [
+    "",
+    "",
+    `DENNE OPGAVE ER NR. ${slot.taskNumber} AF ${slot.totalTasks} I RÆKKEN.`,
+    `SVÆRHEDSGRAD: ${slot.difficulty}.`,
+    `Hvad det betyder her: ${slot.difficultyGuidance}`,
+  ];
+
+  if (slot.existingTitles.length > 0) {
+    lines.push(
+      "",
+      "KURSISTEN HAR ALLEREDE DISSE OPGAVER I SAMME KATEGORI:",
+      ...slot.existingTitles.slice(0, 25).map((t) => `- ${t}`),
+      "",
+      "Din opgave skal være GENUINT anderledes end dem. Det er ikke nok at skifte navne eller bynavn ud. Lav noget andet: en anden situation, en anden slags tekst, andre grammatiske konstruktioner, en anden slags spørgsmål og andre distraktorer. Hvis din idé ligger tæt på en af ovenstående, så vælg en anden idé."
+    );
+  }
+
+  return lines.join("\n");
+};
+
+export const generateExercise = async (
   taskType: TaskType,
   category: ExerciseCategory,
   moduleId: number,
   usedTopics: string[],
-  attempts = 2
-): Promise<GenerationOutcome> {
+  attempts = 2,
+  /**
+   * What slot this is being written for, when it is being written for one.
+   *
+   * A numbered task is not a loose exercise: it sits at a fixed point on a
+   * fifty-step difficulty ladder, and it has to differ from the tasks already
+   * in that ladder in more than its nouns. Both of those are facts the model
+   * cannot infer from the task type, so they are handed to it — which is what
+   * makes "generate with AI" a step inside the category structure rather than
+   * a separate feature that happens to produce exercises.
+   */
+  slot?: GenerationSlot
+): Promise<GenerationOutcome> => {
   if (!llmGenerationAvailable()) {
     return {
       variant: null,
@@ -673,6 +715,7 @@ export async function generateExercise(
   for (let i = 0; i < attempts; i++) {
     const topic = pickTopic(taskType, usedTopics);
     let prompt = promptFor(taskType, topic, usedTopics.map(shortTopic), moduleId);
+    if (slot) prompt += slotGuidance(slot);
 
     // On the retry, tell the model exactly what was wrong last time.
     if (problems.length > 0) {
@@ -714,4 +757,4 @@ export async function generateExercise(
   }
 
   return { variant: null, reason: problems.join("; ") || "generation failed" };
-}
+};

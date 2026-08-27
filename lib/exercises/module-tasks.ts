@@ -1,9 +1,6 @@
 import { speakingTasksForModule } from "./speaking-patterns";
-import {
-  TASK_TYPES_BY_CATEGORY,
-  type ExerciseCategory,
-  type TaskType,
-} from "./types";
+import { TASK_TYPES_BY_CATEGORY } from "./constants";
+import type { ExerciseCategory, TaskType } from "@/types";
 
 // Which task types each module is examined with, per category.
 //
@@ -15,7 +12,7 @@ import {
 // what Modul 2 reading IS.
 //
 // A module with no entry for a category falls back to the category-wide list
-// in types.ts, which is exactly what every module did before this file
+// in constants.ts, which is exactly what every module did before this file
 // existed. Nothing regresses; modules whose real structure we have not
 // verified simply keep the old behaviour rather than getting an invented one.
 
@@ -56,10 +53,10 @@ const WRITING_TASKS_BY_MODULE: Record<number, TaskType[]> = {
  * Speaking delegates to speaking-patterns.ts so there is one definition of the
  * speaking composition, not two.
  */
-export function tasksForModule(
+export const tasksForModule = (
   moduleId: number,
   category: ExerciseCategory
-): TaskType[] | null {
+): TaskType[] | null => {
   switch (category) {
     case "SPEAKING":
       return speakingTasksForModule(moduleId);
@@ -69,27 +66,27 @@ export function tasksForModule(
       return WRITING_TASKS_BY_MODULE[moduleId] ?? null;
     default:
       // Listening has no module compositions because it has no content — see
-      // the note in types.ts.
+      // the note in constants.ts.
       return null;
   }
-}
+};
 
 /**
  * The ordered task types to serve for a module/category: the module's own
  * composition where one exists, otherwise the category-wide list.
  */
-export function orderedTaskTypes(
+export const orderedTaskTypes = (
   moduleId: number,
   category: ExerciseCategory
-): TaskType[] {
+): TaskType[] => {
   return tasksForModule(moduleId, category) ?? TASK_TYPES_BY_CATEGORY[category];
-}
+};
 
 /** Whether a task type is one this module actually examines. */
-export function moduleUsesTaskType(
+export const moduleUsesTaskType = (
   moduleId: number,
   category: ExerciseCategory,
   taskType: TaskType
-): boolean {
+): boolean => {
   return orderedTaskTypes(moduleId, category).includes(taskType);
-}
+};

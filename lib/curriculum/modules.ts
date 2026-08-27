@@ -1,16 +1,3 @@
-export interface ModuleDef {
-  id: number;
-  slug: string;
-  name: string;
-  cefrGoal: string;
-  description: string;
-  isFinalExam: boolean;
-  isOralOnly: boolean;
-  order: number;
-  topics: ("ARBEJDE" | "UDDANNELSE" | "HVERDAGSLIV" | "MEDBORGERSKAB")[];
-  tiersSpanned: number[];
-}
-
 // The five-module map required by the structural spec. Modul 1 is oral-only
 // (no reading/writing modultest). Modul 2-4 each end in a three-discipline
 // modultest (mundtlig/læsning/skrivning). Modul 5 is not a routine
@@ -19,6 +6,8 @@ export interface ModuleDef {
 //
 // `description` is learner-facing (shown on the dashboard), so it's Danish
 // like the rest of the app UI.
+import type { ModuleDef } from "@/types";
+
 export const MODULES: ModuleDef[] = [
   {
     id: 1,

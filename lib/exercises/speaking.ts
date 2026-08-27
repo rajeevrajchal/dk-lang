@@ -1,5 +1,5 @@
-import type { ExerciseVariant } from "./types";
 import { stagesForTaskType } from "./speaking-patterns";
+import type { ExerciseVariant } from "@/types";
 
 // Tale / samtale — DU3 Modul 2 level speaking prompts.
 //

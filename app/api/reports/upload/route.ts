@@ -19,7 +19,7 @@ const ALLOWED_MIME: Record<string, string> = {
 };
 const MAX_BYTES = 15 * 1024 * 1024;
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -82,4 +82,4 @@ export async function POST(req: Request) {
   const updated = updatedRows[0];
 
   return NextResponse.json(updated);
-}
+};

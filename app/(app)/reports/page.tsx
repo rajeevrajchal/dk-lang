@@ -2,26 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import type { Dictionary } from "@/lib/i18n/dictionaries";
+import type { Dictionary, ReportCard } from "@/types";
 
-interface ReportCard {
-  id: string;
-  filePath: string;
-  mimeType: string;
-  uploadedAt: string;
-  status: "PENDING_EXTRACTION" | "PENDING_CONFIRMATION" | "CONFIRMED" | "REJECTED";
-  extractedSprogcenter: string | null;
-  extractedModule: number | null;
-  extractedDate: string | null;
-  extractedResultsJson: string | null;
-  extractionConfidence: number | null;
-}
-
-function disciplinesForModule(moduleId: number): string[] {
+const disciplinesForModule = (moduleId: number): string[] => {
   return moduleId === 5 ? ["skriftlig", "mundtlig"] : ["mundtlig", "laesning", "skrivning"];
-}
+};
 
-function ConfirmForm({ card, dict, onDone }: { card: ReportCard; dict: Dictionary; onDone: () => void }) {
+const ConfirmForm = ({ card, dict, onDone }: { card: ReportCard; dict: Dictionary; onDone: () => void }) => {
   const t = dict.reports.confirmForm;
   const [sprogcenter, setSprogcenter] = useState(card.extractedSprogcenter ?? "");
   const [moduleId, setModuleId] = useState(card.extractedModule ?? 2);
@@ -36,7 +23,7 @@ function ConfirmForm({ card, dict, onDone }: { card: ReportCard; dict: Dictionar
 
   const disciplines = disciplinesForModule(moduleId);
 
-  async function submit() {
+  const submit = async () => {
     setSaving(true);
     setError(null);
     try {
@@ -52,7 +39,7 @@ function ConfirmForm({ card, dict, onDone }: { card: ReportCard; dict: Dictionar
     } finally {
       setSaving(false);
     }
-  }
+  };
 
   return (
     <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
@@ -140,27 +127,27 @@ function ConfirmForm({ card, dict, onDone }: { card: ReportCard; dict: Dictionar
       </button>
     </div>
   );
-}
+};
 
-export default function ReportsPage() {
+const ReportsPage = () => {
   const { dict } = useI18n();
   const [cards, setCards] = useState<ReportCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  async function load() {
+  const load = async () => {
     setLoading(true);
     const res = await fetch("/api/reports");
     setCards(await res.json());
     setLoading(false);
-  }
+  };
 
   useEffect(() => {
     load();
   }, []);
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
@@ -177,7 +164,7 @@ export default function ReportsPage() {
       setUploading(false);
       e.target.value = "";
     }
-  }
+  };
 
   return (
     <div className="max-w-2xl mx-auto p-6 sm:p-8 space-y-6">
@@ -241,4 +228,6 @@ export default function ReportsPage() {
       )}
     </div>
   );
-}
+};
+
+export default ReportsPage;

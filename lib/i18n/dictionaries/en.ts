@@ -8,6 +8,9 @@ export const en = {
   appName: "Dansk Modultest Prep",
 
   nav: {
+    verbs: "Verbs",
+    mistakes: "Mistakes",
+    history: "History",
     dashboard: "Dashboard",
     lessons: "Lessons",
     class: "Class",
@@ -842,4 +845,3 @@ export const en = {
   } as Record<number, { name: string; cefrGoal: string; description: string }>,
 };
 
-export type Dictionary = typeof en;

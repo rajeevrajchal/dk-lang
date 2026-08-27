@@ -1,7 +1,12 @@
 import { ALL_LESSONS } from "@/lib/curriculum/course";
-import type { LearningText, ReadingLevel } from "@/lib/learning/text";
 import { LIBRARY_TEXTS } from "./texts";
-import type { Phrase, ReadingText, ReadingTopic } from "./library";
+import type {
+  LearningText,
+  ReadingLevel,
+  ReadingText,
+  ReadingTextMeta,
+  ReadingTopic,
+} from "@/types";
 
 // Everything the learner can read, in one list.
 //
@@ -15,27 +20,17 @@ import type { Phrase, ReadingText, ReadingTopic } from "./library";
 
 const BY_ID = new Map(LIBRARY_TEXTS.map((t) => [t.id, t]));
 
-function libraryText(id: string): LearningText {
+const libraryText = (id: string): LearningText => {
   const text = BY_ID.get(id);
   if (!text) throw new Error(`reading: no library text "${id}"`);
   return text;
-}
+};
 
 // ---------------------------------------------------------------------------
 // Library-only texts, with the metadata the library needs
 // ---------------------------------------------------------------------------
 
-interface Meta {
-  id: string;
-  title: string;
-  danishTitle: string;
-  blurb: string;
-  topics: ReadingTopic[];
-  targetModules?: number[];
-  phrases?: Phrase[];
-}
-
-const LIBRARY_META: Meta[] = [
+const LIBRARY_META: ReadingTextMeta[] = [
   {
     id: "lib-en-dag-i-parken",
     title: "A day in the park",
@@ -127,7 +122,7 @@ const COURSE_TEXT_BLURBS: Record<string, string> = {
   "rt-derfor-blev-jeg": "Eleven years in Denmark, and why he stayed. An argument with two sides to it.",
 };
 
-function courseEntries(): ReadingText[] {
+const courseEntries = (): ReadingText[] => {
   const entries: ReadingText[] = [];
 
   for (const lesson of ALL_LESSONS) {
@@ -153,7 +148,7 @@ function courseEntries(): ReadingText[] {
   }
 
   return entries;
-}
+};
 
 // ---------------------------------------------------------------------------
 // The library
@@ -181,11 +176,11 @@ export const READING_LIBRARY: ReadingText[] = [
 
 export const READING_BY_ID = new Map(READING_LIBRARY.map((t) => [t.id, t]));
 
-export function readingText(id: string): ReadingText | undefined {
+export const readingText = (id: string): ReadingText | undefined => {
   return READING_BY_ID.get(id);
-}
+};
 
 /** Levels that actually have texts, for the filter UI. */
-export function availableLevels(): ReadingLevel[] {
+export const availableLevels = (): ReadingLevel[] => {
   return [...new Set(READING_LIBRARY.map((t) => t.level))].sort() as ReadingLevel[];
-}
+};

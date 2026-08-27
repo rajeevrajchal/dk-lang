@@ -1,19 +1,17 @@
-import type { ItemTypeCode } from "@/lib/constants";
+import type { ItemResponse, ItemTypeCode } from "@/types";
 
 // Response shapes sent from the client, keyed by item type:
 // MULTIPLE_CHOICE / TRUE_FALSE / GAP_FILL -> string
 // MATCHING -> string[] of "leftIndex:rightIndex" pairs
-export type ItemResponse = string | string[];
-
-function normalize(s: string): string {
+const normalize = (s: string): string => {
   return s.trim().toLowerCase();
-}
+};
 
-export function gradeResponse(
+export const gradeResponse = (
   type: ItemTypeCode,
   answerJson: string,
   response: ItemResponse
-): boolean {
+): boolean => {
   const answer: string[] = JSON.parse(answerJson);
 
   if (type === "MATCHING") {
@@ -30,4 +28,4 @@ export function gradeResponse(
   // accepted answers in `answer` (GAP_FILL may list synonyms).
   const responseStr = Array.isArray(response) ? response[0] ?? "" : response;
   return answer.some((a) => normalize(a) === normalize(responseStr));
-}
+};

@@ -3,15 +3,15 @@ import type {
   ExerciseResult,
   ExerciseVariant,
   GradedAnswer,
-} from "./types";
+} from "@/types";
 
-function normalize(s: string): string {
+const normalize = (s: string): string => {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
-}
+};
 
-export function countWords(text: string): number {
+export const countWords = (text: string): number => {
   return text.trim().split(/\s+/).filter(Boolean).length;
-}
+};
 
 /**
  * Grades a submitted exercise. Runs server-side only — the answers live in the
@@ -21,10 +21,10 @@ export function countWords(text: string): number {
  * objectively correct answer to compare against, so they are recorded as
  * completed and the learner self-checks against the task's checklist.
  */
-export function gradeExercise(
+export const gradeExercise = (
   variant: ExerciseVariant,
   response: ExerciseResponse
-): ExerciseResult {
+): ExerciseResult => {
   const content = variant.content;
   const answers: GradedAnswer[] = [];
 
@@ -118,4 +118,4 @@ export function gradeExercise(
     mistakes: answers.length - score,
     answers,
   };
-}
+};

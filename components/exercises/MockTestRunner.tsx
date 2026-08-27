@@ -8,63 +8,43 @@ import { OpgaveExplain } from "./OpgaveExplain";
 import { practiceHrefFor, summariseMock } from "@/lib/exercises/mock-summary";
 import type {
   ExerciseResponse,
-  GradedAnswer,
+  MockPartResult,
+  MockPhase,
+  MockResult,
   PublicExercise,
-} from "@/lib/exercises/types";
+} from "@/types";
 
-type Phase = "intro" | "preparing" | "running" | "result";
-
-interface PartResult {
-  attemptId: string;
-  orderIndex: number;
-  category: string;
-  taskType: string;
-  taskNumber: number | null;
-  topic: string;
-  title: string;
-  answered: boolean;
-  explainable: boolean;
-  score: number | null;
-  total: number | null;
-  mistakes: number | null;
-  answers: GradedAnswer[];
-  wordCount?: number;
-  minWords?: number;
-}
-
-interface MockResult {
-  reading: {
-    correct: number;
-    total: number;
-    score: number;
-    passed: boolean;
-    threshold: number;
-  };
-  writing: { answered: boolean; wordCount: number; minWords: number | null } | null;
-  parts: PartResult[];
-}
-
-function formatTime(seconds: number) {
+const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
-}
+};
 
-export function MockTestRunner({
-  moduleId,
+export const MockTestRunner = ({
   generationEnabled,
   backHref,
+  testNumber,
+  category,
+  title,
 }: {
-  moduleId: number;
   generationEnabled: boolean;
-  /** Where "back" goes. Defaults to the module hub, as it always did. */
+  /** Where "back" goes. */
   backHref?: string;
-}) {
+  /**
+   * Which numbered test to sit. Omitted, a fresh test is assembled — the
+   * behaviour this runner always had.
+   */
+  testNumber?: number;
+  /** Limits the test to one section. Omitted, it is the full test. */
+  category?: string;
+  /** Overrides the heading, so a section says what section it is. */
+  title?: string;
+}) => {
   const { dict } = useI18n();
   const t = dict.mockTest;
   const te = dict.exercises;
 
-  const [phase, setPhase] = useState<Phase>("intro");
+  const [phase, setPhase] = useState<MockPhase>("intro");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<PublicExercise[]>([]);
   const [index, setIndex] = useState(0);
@@ -73,45 +53,79 @@ export function MockTestRunner({
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [result, setResult] = useState<MockResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [unsentParts, setUnsentParts] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const finishingRef = useRef(false);
 
-  const finish = useCallback(
-    async (id: string) => {
-      // Guards the timer firing while the learner is already handing in.
-      if (finishingRef.current) return;
-      finishingRef.current = true;
-      if (timerRef.current) clearInterval(timerRef.current);
+  // The answers and the parts, held in refs as well as in state.
+  //
+  // `finish` reads them, and the countdown effect depends on `finish`. Reading
+  // them from state would make `finish` a new function on every keystroke,
+  // which tears down and recreates the interval - so the clock would restart
+  // its tick every time the learner typed a character. A ref keeps `finish`
+  // stable and the clock honest.
+  const responsesRef = useRef<Record<string, ExerciseResponse>>({});
+  const exercisesRef = useRef<PublicExercise[]>([]);
+  // Synced in an effect rather than during render: a ref written while
+  // rendering is not a render input and React says so. By the time anything
+  // can call `finish` - a click, or the countdown - the effect has run.
+  useEffect(() => {
+    responsesRef.current = responses;
+  }, [responses]);
+  useEffect(() => {
+    exercisesRef.current = exercises;
+  }, [exercises]);
 
-      // Submit every part first so nothing typed is lost, then grade the test.
-      await Promise.all(
-        exercises.map((ex) =>
-          fetch(`/api/exercises/${ex.attemptId}/submit`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ response: responses[ex.attemptId] ?? {} }),
-          }).catch(() => null)
-        )
-      );
+  const finish = useCallback(async (id: string) => {
+    // Guards the timer firing while the learner is already handing in.
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    if (timerRef.current) clearInterval(timerRef.current);
+    setError(null);
 
+    // Submit every part first so nothing typed is lost, then grade the test.
+    // A part that fails to submit is counted rather than swallowed: it would
+    // otherwise be scored as unanswered and the learner would never know why.
+    const outcomes = await Promise.all(
+      exercisesRef.current.map((ex) =>
+        fetch(`/api/exercises/${ex.attemptId}/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ response: responsesRef.current[ex.attemptId] ?? {} }),
+        })
+          .then((r) => r.ok)
+          .catch(() => false)
+      )
+    );
+    setUnsentParts(outcomes.filter((ok) => !ok).length);
+
+    try {
       const res = await fetch(`/api/mock-test/${id}/complete`, { method: "POST" });
       if (res.ok) {
         setResult(await res.json());
         setPhase("result");
-      } else {
-        setError("Could not finish the test.");
+        return;
       }
-    },
-    [exercises, responses]
-  );
+      setError("Could not hand the test in. Your answers are saved - try again.");
+    } catch {
+      setError("Could not hand the test in. Your answers are saved - try again.");
+    }
+    // Handing in failed, so it has to be possible to try again. Without this
+    // the guard above would refuse every further attempt and the learner would
+    // be stuck on a finished test they cannot submit.
+    finishingRef.current = false;
+  }, []);
 
-  async function start() {
+  const start = async () => {
     setPhase("preparing");
     setError(null);
+    // No module in the payload: the server reads it from the learner's
+    // profile. A mock test simulates the test they are preparing for, and
+    // which one that is has already been answered at onboarding.
     const res = await fetch("/api/mock-test/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ moduleId }),
+      body: JSON.stringify({ testNumber, category }),
     });
     if (!res.ok) {
       setError((await res.json().catch(() => ({}))).error ?? "Could not start the test.");
@@ -125,7 +139,7 @@ export function MockTestRunner({
     setIndex(0);
     setResponses({});
     setPhase("running");
-  }
+  };
 
   useEffect(() => {
     if (phase !== "running" || !sessionId) return;
@@ -147,14 +161,11 @@ export function MockTestRunner({
   if (phase === "intro") {
     return (
       <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-6">
-        <Link
-          href={backHref ?? `/class/${moduleId}`}
-          className="text-sm text-slate-500 hover:underline"
-        >
+        <Link href={backHref ?? "/mock"} className="text-sm text-slate-500 hover:underline">
           {te.backToModule}
         </Link>
         <div className="rounded-xl border-2 border-slate-900 bg-white p-8">
-          <h1 className="text-xl font-semibold">{t.title}</h1>
+          <h1 className="text-xl font-semibold">{title ?? t.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{t.subtitle}</p>
           <p className="mt-4 text-sm text-slate-700 leading-relaxed">{t.introBody}</p>
 
@@ -209,6 +220,18 @@ export function MockTestRunner({
       <div className="max-w-3xl mx-auto p-6 sm:p-8 space-y-6">
         <h1 className="text-xl font-semibold">{t.resultTitle}</h1>
 
+        {unsentParts > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-900">
+              {unsentParts} part{unsentParts === 1 ? "" : "s"} could not be sent
+            </p>
+            <p className="mt-1 text-sm text-amber-800">
+              Those parts are scored as unanswered below. It was a connection problem,
+              not your answers.
+            </p>
+          </div>
+        )}
+
         <section
           className={`rounded-xl border-2 p-6 ${
             result.reading.passed ? "border-emerald-600 bg-emerald-50" : "border-slate-900 bg-white"
@@ -251,7 +274,7 @@ export function MockTestRunner({
             above. Each weak area links to the Class practice for exactly that
             task type — the point of a mock test is to tell you what to go and
             work on. */}
-        <MockBreakdown parts={result.parts} moduleId={moduleId} />
+        <MockBreakdown parts={result.parts} />
 
         <section>
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
@@ -316,7 +339,7 @@ export function MockTestRunner({
 
         <div className="flex gap-3 flex-wrap">
           <Link
-            href={backHref ?? `/class/${moduleId}`}
+            href={backHref ?? "/mock"}
             className="rounded-md bg-slate-900 text-white text-sm font-medium px-5 py-2.5"
           >
             {t.backToModule}
@@ -443,7 +466,7 @@ export function MockTestRunner({
       </div>
     </div>
   );
-}
+};
 
 /**
  * "Strengths / needs practice" for a finished mock test.
@@ -452,7 +475,7 @@ export function MockTestRunner({
  * words") rather than a single number. Only scored opgaver appear: writing has
  * no examiner here, so it is not turned into a strength or a weakness.
  */
-function MockBreakdown({ parts, moduleId }: { parts: PartResult[]; moduleId: number }) {
+const MockBreakdown = ({ parts }: { parts: MockPartResult[] }) => {
   const { dict } = useI18n();
   const t = dict.mock;
   const te = dict.exercises;
@@ -466,9 +489,9 @@ function MockBreakdown({ parts, moduleId }: { parts: PartResult[]; moduleId: num
     );
   }
 
-  function label(taskType: string) {
+  const label = (taskType: string) => {
     return te.taskTypeNames[taskType] ?? te.categories[taskType] ?? taskType;
-  }
+  };
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
@@ -514,7 +537,7 @@ function MockBreakdown({ parts, moduleId }: { parts: PartResult[]; moduleId: num
                   </span>
                 </span>
                 <Link
-                  href={practiceHrefFor(e, moduleId)}
+                  href={practiceHrefFor(e)}
                   className="text-xs text-slate-500 underline hover:text-slate-900"
                 >
                   {dict.class2.title} →
@@ -526,4 +549,4 @@ function MockBreakdown({ parts, moduleId }: { parts: PartResult[]; moduleId: num
       )}
     </section>
   );
-}
+};

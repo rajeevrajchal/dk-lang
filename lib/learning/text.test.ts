@@ -1,17 +1,10 @@
 import { describe, expect, it } from "vitest";
-import {
-  allSentences,
-  glossaryIndex,
-  lookupKey,
-  plainText,
-  supportForLevel,
-  wordCount,
-  type LearningText,
-} from "./text";
+import { allSentences, glossaryIndex, lookupKey, plainText, supportForLevel, wordCount } from "./text";
 import { READING_LESSONS } from "@/lib/curriculum/reading-lessons";
 import { WRITING_LESSONS } from "@/lib/curriculum/writing-lessons";
 import { ALL_LESSONS, LESSON_BY_SLUG, courseLessonSlugs } from "@/lib/curriculum/course";
 import { lessonKind } from "@/lib/content-gen/theory";
+import type { LearningText } from "@/types";
 
 const sample: LearningText = {
   id: "t",

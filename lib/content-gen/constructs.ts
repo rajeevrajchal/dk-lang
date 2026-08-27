@@ -1,4 +1,4 @@
-import type { ConstructDef } from "./types";
+import type { ConstructDef } from "@/types";
 
 // Global construct catalogue. Every reading item is tagged with one or more
 // of these codes so the weak-area engine can report "you drop to 40% on

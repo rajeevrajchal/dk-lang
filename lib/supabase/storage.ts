@@ -17,29 +17,29 @@ import { adminDb } from "./db";
 export const REPORT_CARD_BUCKET = "report-cards";
 
 /** Object key for a learner's file. Namespaced so one listing cannot spill. */
-export function reportCardKey(userId: string, filename: string): string {
+export const reportCardKey = (userId: string, filename: string): string => {
   const safe = filename.replace(/[^\w.\-]/g, "_");
   return `${userId}/${Date.now()}-${safe}`;
-}
+};
 
-export async function uploadReportCard(
+export const uploadReportCard = async (
   key: string,
   bytes: ArrayBuffer | Uint8Array,
   contentType: string
-): Promise<void> {
+): Promise<void> => {
   const { error } = await adminDb()
     .storage.from(REPORT_CARD_BUCKET)
     .upload(key, bytes, { contentType, upsert: false });
   if (error) throw new Error(`[storage] upload ${key}: ${error.message}`);
-}
+};
 
-export async function downloadReportCard(key: string): Promise<ArrayBuffer> {
+export const downloadReportCard = async (key: string): Promise<ArrayBuffer> => {
   const { data, error } = await adminDb().storage.from(REPORT_CARD_BUCKET).download(key);
   if (error || !data) throw new Error(`[storage] download ${key}: ${error?.message}`);
   return data.arrayBuffer();
-}
+};
 
-export async function removeReportCard(key: string): Promise<void> {
+export const removeReportCard = async (key: string): Promise<void> => {
   const { error } = await adminDb().storage.from(REPORT_CARD_BUCKET).remove([key]);
   if (error) throw new Error(`[storage] remove ${key}: ${error.message}`);
-}
+};

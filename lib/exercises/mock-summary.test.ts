@@ -35,8 +35,10 @@ describe("summariseMock", () => {
     expect(summary.overall).toBeNull();
   });
 
-  it("links a weak task type to that exact Class practice", () => {
+  it("links a weak task type to that exact practice ladder, with no module in the URL", () => {
     const [weak] = summariseMock(parts).needsPractice;
-    expect(practiceHrefFor(weak, 2)).toBe("/class/reading/2/reading_task_2_wrong_sentence");
+    // The learner's module is known from their profile, so it is not in the
+    // address: the link goes straight to the practice type's fifty tasks.
+    expect(practiceHrefFor(weak)).toBe("/class/reading/odd-one-out");
   });
 });

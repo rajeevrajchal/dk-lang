@@ -1,15 +1,14 @@
 import { generateStructured } from "@/lib/ai/generate";
 import { aiAvailable } from "@/lib/ai/registry";
-import { ExaminerTurnSchema, type ExaminerTurnGenerated } from "./schemas";
-import type { SpeakingContent, ExerciseVariant } from "./types";
-import {
-  currentStage,
-  isStruggling,
-  nextDemand,
-  nextFocus,
-  uncoveredTargets,
-  type SpeakingState,
-} from "./speaking-state";
+import { ExaminerTurnSchema } from "./schemas";
+import { currentStage, isStruggling, nextDemand, nextFocus, uncoveredTargets } from "./speaking-state";
+import type {
+  ExaminerOutcome,
+  ExaminerTurnGenerated,
+  ExerciseVariant,
+  SpeakingContent,
+  SpeakingState,
+} from "@/types";
 
 // One examiner (or partner) turn.
 //
@@ -22,10 +21,9 @@ import {
 // into a natural Danish question. That is what makes the follow-up build on
 // the last answer instead of reading out a pre-generated list.
 
-
-export function examinerAvailable(): boolean {
+export const examinerAvailable = (): boolean => {
   return aiAvailable();
-}
+};
 
 const CORE = `Du spiller en rolle i en simuleret dansk modultest (Danskuddannelse 3).
 
@@ -59,11 +57,11 @@ const STAGE_GUIDANCE: Record<string, string> = {
     "Du er EKSAMINATOR. Pardiskussionen er slut, og du spørger nu til kursistens egne erfaringer og grunde.",
 };
 
-function buildPrompt(
+const buildPrompt = (
   variant: ExerciseVariant,
   state: SpeakingState,
   lastAnswer: string | null
-): string {
+): string => {
   const content = variant.content as SpeakingContent;
   const stage = currentStage(state);
   const demand = nextDemand(state);
@@ -141,23 +139,18 @@ function buildPrompt(
   );
 
   return layers.join("\n\n");
-}
-
-export interface ExaminerOutcome {
-  turn: ExaminerTurnGenerated | null;
-  reason?: string;
-}
+};
 
 /**
  * Asks for the next examiner/partner turn. Returns null with a reason rather
  * than throwing, so the caller can fall back to the exercise's pre-written
  * follow-up list and the conversation still goes somewhere without a key.
  */
-export async function nextExaminerTurn(
+export const nextExaminerTurn = async (
   variant: ExerciseVariant,
   state: SpeakingState,
   lastAnswer: string | null
-): Promise<ExaminerOutcome> {
+): Promise<ExaminerOutcome> => {
   // Model, effort and token budget come from the task config — see
   // lib/ai/registry.ts. A failed turn is expected rather than exceptional:
   // scriptedExaminerTurn below carries the conversation when it happens.
@@ -173,7 +166,7 @@ export async function nextExaminerTurn(
     return { turn: null, reason };
   }
   return { turn: object };
-}
+};
 
 /**
  * Offline stand-in for a turn, used when generation is unavailable.
@@ -182,10 +175,10 @@ export async function nextExaminerTurn(
  * skips what has been covered — so the conversation progresses sensibly
  * without an API key. It just cannot react to the specific words used.
  */
-export function scriptedExaminerTurn(
+export const scriptedExaminerTurn = (
   variant: ExerciseVariant,
   state: SpeakingState
-): ExaminerTurnGenerated {
+): ExaminerTurnGenerated => {
   const content = variant.content as SpeakingContent;
   const target = uncoveredTargets(state)[0];
   const stage = currentStage(state);
@@ -213,4 +206,4 @@ export function scriptedExaminerTurn(
     coveredByLastAnswer: [],
     stageComplete: asked.size >= pool.length,
   };
-}
+};

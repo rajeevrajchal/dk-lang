@@ -1,33 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { apiFetch, isApiError } from "@/lib/http/client";
+import { useAction } from "@/lib/hooks/useAction";
+import { useAsyncData } from "@/lib/hooks/useAsyncData";
+import { ActionButton, EmptyState, ErrorState, SkeletonCard, SkeletonList } from "@/components/ui/states";
+import { SideNotes } from "@/components/ui/SideNotes";
+import { AnswerFeedbackList } from "./AnswerFeedbackList";
 import { ExerciseBody, expectedAnswerKeys, wantsWideLayout } from "./renderers";
 import { OpgaveExplain } from "./OpgaveExplain";
 import { SpeakingConversation } from "./SpeakingConversation";
-import type { SpeakingContent } from "@/lib/exercises/types";
 import type {
+  AnswerFeedback,
+  ApiError,
   ExerciseCategory,
   ExerciseResponse,
   ExerciseResult,
+  HistoryRow,
   PublicExercise,
-} from "@/lib/exercises/types";
+  SpeakingContent,
+} from "@/types";
 
-interface HistoryRow {
-  id: string;
-  category: string;
-  taskType: string;
-  taskNumber: number | null;
-  topic: string;
-  title: string;
-  score: number | null;
-  total: number | null;
-  mistakes: number | null;
-  completedAt: string | null;
-}
+type Result = ExerciseResult & { feedback?: AnswerFeedback[] };
 
-export function ExerciseRunner({
+export const ExerciseRunner = ({
   moduleId,
   category,
   generationEnabled = false,
@@ -43,63 +41,75 @@ export function ExerciseRunner({
   /** Where "back" goes. Defaults to the module hub, as it always did. */
   backHref?: string;
   backLabel?: string;
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.exercises;
 
   const [exercise, setExercise] = useState<PublicExercise | null>(null);
   const [response, setResponse] = useState<ExerciseResponse>({});
-  const [result, setResult] = useState<ExerciseResult | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [unavailable, setUnavailable] = useState(false);
-  const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [loadError, setLoadError] = useState<ApiError | null>(null);
 
-  const loadHistory = useCallback(async () => {
-    const res = await fetch(`/api/exercises/history?moduleId=${moduleId}&category=${category}`);
-    if (res.ok) setHistory(await res.json());
-  }, [moduleId, category]);
+  // Generating an opgave takes a while, and a reply to a request the learner
+  // has already moved on from must never overwrite the current exercise.
+  const requestRef = useRef<AbortController | null>(null);
+
+  const history = useAsyncData<HistoryRow[]>(
+    `/api/exercises/history?moduleId=${moduleId}&category=${category}`,
+    { keepPreviousData: true }
+  );
 
   const loadNext = useCallback(async () => {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+
     setLoading(true);
+    setLoadError(null);
     setResult(null);
     setResponse({});
-    const res = await fetch("/api/exercises/next", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // mode "class" is the default on the server too; sending it explicitly
-      // keeps the request readable next to the mock test's own start call.
-      body: JSON.stringify({ moduleId, category, taskType, mode: "class" }),
-    });
-    if (res.ok) {
-      setExercise(await res.json());
-      setUnavailable(false);
-    } else {
+
+    try {
+      const next = await apiFetch<PublicExercise>("/api/exercises/next", {
+        signal: controller.signal,
+        // mode "class" is the default on the server too; sending it explicitly
+        // keeps the request readable next to the mock test's own start call.
+        json: { moduleId, category, taskType, mode: "class" },
+      });
+      if (controller.signal.aborted) return;
+      setExercise(next);
+    } catch (err) {
+      if (controller.signal.aborted || (err as Error)?.name === "AbortError") return;
       setExercise(null);
-      setUnavailable(true);
+      setLoadError(
+        isApiError(err) ? err : { status: 0, message: "Could not load an exercise." }
+      );
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
     }
-    setLoading(false);
   }, [moduleId, category, taskType]);
 
   useEffect(() => {
-    loadNext();
-    loadHistory();
-  }, [loadNext, loadHistory]);
+    void loadNext();
+    return () => requestRef.current?.abort();
+  }, [loadNext]);
 
-  async function submit() {
-    if (!exercise) return;
-    setSubmitting(true);
-    const res = await fetch(`/api/exercises/${exercise.attemptId}/submit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ response }),
+  const submitAnswers = useCallback(async () => {
+    if (!exercise) return null;
+    const data = await apiFetch<Result>(`/api/exercises/${exercise.attemptId}/submit`, {
+      json: { response },
     });
-    if (res.ok) {
-      setResult(await res.json());
-      await loadHistory();
-    }
-    setSubmitting(false);
-  }
+    setResult(data);
+    // The history list is now out of date; reloading it is not what the
+    // learner is waiting for, so it is not awaited.
+    history.reload();
+    return data;
+  }, [exercise, response, history]);
+
+  // The guard lives in the hook, checked synchronously — a second click in the
+  // same tick would otherwise still see `submitting === false` and get through.
+  const submit = useAction(submitAnswers);
 
   const expected = exercise ? expectedAnswerKeys(exercise.content) : [];
   const answered = expected.filter((k) => (response[k] ?? "").trim().length > 0).length;
@@ -118,25 +128,40 @@ export function ExerciseRunner({
         {backLabel ?? t.backToModule}
       </Link>
 
-      {loading &&
-        (generationEnabled ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-6">
-            <p className="text-sm font-medium text-slate-700">
-              <span className="inline-block animate-pulse">{t.generating}</span>
-            </p>
-            <p className="mt-1 text-xs text-slate-500">{t.generatingNote}</p>
-          </div>
-        ) : (
-          <p className="text-sm text-slate-500">{t.loading}</p>
-        ))}
-
-      {unavailable && !loading && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6">
-          <h1 className="font-semibold">{t.categories[category]}</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            {category === "LISTENING" ? t.listeningUnavailable : t.noneAvailable}
-          </p>
+      {loading && (
+        <div className="space-y-4" role="status" aria-busy="true">
+          {generationEnabled && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6">
+              <p className="text-sm font-medium text-slate-700">
+                <span className="inline-block animate-pulse">{t.generating}</span>
+              </p>
+              <p className="mt-1 text-xs text-slate-500">{t.generatingNote}</p>
+            </div>
+          )}
+          {/* A skeleton shaped like the opgave that is coming, so the page does
+              not jump when it arrives. */}
+          <SkeletonCard lines={2} />
+          <SkeletonList rows={2} lines={4} />
         </div>
+      )}
+
+      {loadError && !loading && (
+        <ErrorState
+          error={loadError}
+          onRetry={() => void loadNext()}
+          title={
+            loadError.status === 404
+              ? t.categories[category]
+              : "Could not load an exercise"
+          }
+        />
+      )}
+
+      {!loading && !loadError && !exercise && (
+        <EmptyState
+          title={t.categories[category]}
+          body={category === "LISTENING" ? t.listeningUnavailable : t.noneAvailable}
+        />
       )}
 
       {exercise && !loading && (
@@ -177,6 +202,13 @@ export function ExerciseRunner({
             </ul>
           </div>
 
+          {/* Two tips at most, matched to this opgave. Before the exercise
+              rather than after it: an exam tip read afterwards is a post-mortem. */}
+          <SideNotes
+            context={{ taskType: exercise.taskType, surface: "reading" }}
+            title="Before you start"
+          />
+
           <ExerciseBody
             content={exercise.content}
             response={response}
@@ -198,19 +230,30 @@ export function ExerciseRunner({
             )}
 
           {!result && (
-            <div className="flex items-center justify-between gap-3 flex-wrap border-t border-slate-200 pt-5">
-              {expected.length > 0 && (
-                <span className="text-sm text-slate-500">
-                  {t.answeredProgress(answered, expected.length)}
-                </span>
+            <div className="space-y-3 border-t border-slate-200 pt-5">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                {expected.length > 0 && (
+                  <span className="text-sm text-slate-500">
+                    {t.answeredProgress(answered, expected.length)}
+                  </span>
+                )}
+                <ActionButton
+                  onClick={() => void submit.run()}
+                  pending={submit.pending}
+                  disabled={!canSubmit}
+                  pendingLabel="Checking your answers…"
+                >
+                  {exercise.category === "SPEAKING" ? t.markDone : t.submit}
+                </ActionButton>
+              </div>
+              {submit.error && (
+                <ErrorState
+                  error={submit.error}
+                  onRetry={() => void submit.run()}
+                  title="Your answers were not submitted"
+                  retryLabel="Submit again"
+                />
               )}
-              <button
-                onClick={submit}
-                disabled={!canSubmit || submitting}
-                className="rounded-md bg-slate-900 text-white text-sm font-medium px-5 py-2.5 disabled:opacity-40"
-              >
-                {exercise.category === "SPEAKING" ? t.markDone : t.submit}
-              </button>
             </div>
           )}
 
@@ -231,27 +274,21 @@ export function ExerciseRunner({
                       : t.mistakesLine(result.mistakes ?? 0)}
                   </p>
 
-                  <ul className="space-y-3 pt-2">
-                    {result.answers.map((a) => (
-                      <li
-                        key={a.key}
-                        className={`rounded-lg p-3 ${
-                          a.isCorrect ? "bg-emerald-50" : "bg-red-50"
-                        }`}
-                      >
-                        <p className="text-sm font-medium text-slate-900">
-                          {a.isCorrect ? "✓" : "✗"} {a.label}
-                        </p>
-                        {!a.isCorrect && (
-                          <p className="mt-1 text-xs text-slate-600">
-                            {t.yourAnswer}: {a.given ?? t.notAnswered} · {t.correctAnswer}:{" "}
-                            <span className="font-medium">{a.expected}</span>
-                          </p>
-                        )}
-                        {a.why && <p className="mt-1 text-xs text-slate-600">{a.why}</p>}
-                      </li>
-                    ))}
-                  </ul>
+                  <AnswerFeedbackList
+                    attemptId={exercise.attemptId}
+                    answers={result.answers}
+                    initialFeedback={result.feedback ?? []}
+                  />
+
+                  {(result.mistakes ?? 0) > 0 && (
+                    <p className="text-xs text-slate-500">
+                      These mistakes are saved to your{" "}
+                      <Link href="/mistakes" className="font-medium underline">
+                        review list
+                      </Link>{" "}
+                      so you can come back to them.
+                    </p>
+                  )}
                 </>
               ) : exercise.category === "WRITING" ? (
                 <>
@@ -269,26 +306,39 @@ export function ExerciseRunner({
 
               {exercise.explainable && <OpgaveExplain attemptId={exercise.attemptId} />}
 
-              <button
-                onClick={loadNext}
-                className="mt-2 rounded-md bg-slate-900 text-white text-sm font-medium px-5 py-2.5"
-              >
-                {t.nextExercise}
-              </button>
+              <ActionButton onClick={() => void loadNext()}>{t.nextExercise}</ActionButton>
             </div>
           )}
         </>
       )}
 
       <section className="border-t border-slate-200 pt-6">
-        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
-          {t.history}
-        </h2>
-        {history.length === 0 ? (
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+            {t.history}
+          </h2>
+          <Link href="/history" className="text-xs text-slate-500 hover:underline">
+            Full history →
+          </Link>
+        </div>
+
+        {history.status === "loading" && !history.data && <SkeletonList rows={2} lines={1} />}
+
+        {history.status === "error" && (
+          <ErrorState
+            error={history.error}
+            onRetry={history.reload}
+            title="Could not load your history"
+          />
+        )}
+
+        {history.data && history.data.length === 0 && (
           <p className="text-sm text-slate-400">{t.historyEmpty}</p>
-        ) : (
+        )}
+
+        {history.data && history.data.length > 0 && (
           <ul className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
-            {history.map((h) => (
+            {history.data.map((h) => (
               <li key={h.id} className="p-3 px-4 flex items-center justify-between gap-3 text-sm">
                 <span className="text-slate-700">
                   {t.categories[h.category] ?? h.category}
@@ -307,4 +357,4 @@ export function ExerciseRunner({
       </section>
     </div>
   );
-}
+};

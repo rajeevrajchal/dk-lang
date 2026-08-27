@@ -1,6 +1,6 @@
 import { progress } from "@/lib/repositories";
 import { MODULES } from "@/lib/curriculum/modules";
-import type { Skill } from "@/lib/constants";
+import type { DisciplineStatus, ModuleDashboardState, Skill } from "@/types";
 
 // ----------------------------------------------------------------------------
 // Module/level unlock state machine.
@@ -25,34 +25,14 @@ export const PD3_SKILLS: Skill[] = ["WRITING", "SPEAKING"];
 
 export const EXAM_PASS_THRESHOLD = 0.7;
 
-export interface DisciplineStatus {
-  skill: Skill;
-  inAppPassed: boolean;
-  inAppScore: number | null;
-  officialPassed: boolean | null; // null = no verified record
-  discrepancy: boolean;
-  discrepancyNote: string | null;
-}
-
-export interface ModuleDashboardState {
-  moduleId: number;
-  name: string;
-  isFinalExam: boolean;
-  isOralOnly: boolean;
-  practiceUnlocked: boolean;
-  disciplines: DisciplineStatus[];
-  inAppFullyPassed: boolean; // all required disciplines passed in-app
-  officiallyFullyPassed: boolean | null; // null if not fully verified yet
-}
-
-function requiredSkillsFor(moduleId: number): Skill[] {
+const requiredSkillsFor = (moduleId: number): Skill[] => {
   const mod = MODULES.find((m) => m.id === moduleId);
   if (!mod) return [];
   if (mod.isOralOnly) return [];
   return mod.isFinalExam ? PD3_SKILLS : MODULTEST_SKILLS;
-}
+};
 
-export async function getModuleDashboardState(userId: string): Promise<ModuleDashboardState[]> {
+export const getModuleDashboardState = async (userId: string): Promise<ModuleDashboardState[]> => {
   const allStatus = await progress.moduleSkillStatuses(userId);
 
   const byModule = new Map<number, typeof allStatus>();
@@ -103,26 +83,26 @@ export async function getModuleDashboardState(userId: string): Promise<ModuleDas
   }
 
   return results;
-}
+};
 
 // "Current module": the lowest-numbered non-oral module that's unlocked for
 // practice but not yet fully passed in-app. Falls back to the last module if
 // everything is passed.
-export function pickCurrentModuleId(moduleStates: ModuleDashboardState[]): number {
+export const pickCurrentModuleId = (moduleStates: ModuleDashboardState[]): number => {
   const current =
     moduleStates.find((m) => !m.isOralOnly && m.practiceUnlocked && !m.inAppFullyPassed) ??
     moduleStates[moduleStates.length - 1];
   return current.moduleId;
-}
+};
 
 // Called when a mock modultest/PD3 ExamSession is completed. Sets the
 // in-app signal only — never touches officialPassed.
-export async function applyInAppExamResult(
+export const applyInAppExamResult = async (
   userId: string,
   moduleId: number,
   skill: Skill,
   score: number,
   passed: boolean
-) {
+) => {
   await progress.applyInAppResult(userId, moduleId, skill, score, passed);
-}
+};

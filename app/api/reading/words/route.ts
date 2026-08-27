@@ -29,7 +29,7 @@ const PatchSchema = z.object({
   learned: z.boolean().optional(),
 });
 
-export async function GET(req: Request) {
+export const GET = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -39,9 +39,9 @@ export async function GET(req: Request) {
   return NextResponse.json(
     await vocabulary.listSavedWords(session.user.id, sourceTextId ?? undefined)
   );
-}
+};
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -56,9 +56,9 @@ export async function POST(req: Request) {
   const word = await vocabulary.saveWord(session.user.id, parsed.data);
 
   return NextResponse.json(word);
-}
+};
 
-export async function PATCH(req: Request) {
+export const PATCH = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -76,9 +76,9 @@ export async function PATCH(req: Request) {
   });
   if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(updated);
-}
+};
 
-export async function DELETE(req: Request) {
+export const DELETE = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -89,4 +89,4 @@ export async function DELETE(req: Request) {
   const deleted = await vocabulary.deleteSavedWord(session.user.id, id);
   if (!deleted) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
-}
+};

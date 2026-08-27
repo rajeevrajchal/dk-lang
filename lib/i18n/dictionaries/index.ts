@@ -1,11 +1,9 @@
-import type { Locale } from "../config";
-import { en, type Dictionary } from "./en";
+import { en } from "./en";
 import { da } from "./da";
-
-export type { Dictionary };
+import type { Dictionary, Locale } from "@/types";
 
 const dictionaries: Record<Locale, Dictionary> = { en, da };
 
-export function getDictionary(locale: Locale): Dictionary {
+export const getDictionary = (locale: Locale): Dictionary => {
   return dictionaries[locale];
-}
+};

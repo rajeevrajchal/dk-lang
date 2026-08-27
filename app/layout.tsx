@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description: "Danskuddannelse 3 (Modul 1-5) og PD3 eksamensforberedelse",
 };
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
+const RootLayout = async ({ children }: LayoutProps<"/">) => {
   const [locale, translateHelperDefault] = await Promise.all([
     getLocale(),
     getTranslateHelperDefault(),
@@ -42,4 +42,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </body>
     </html>
   );
-}
+};
+
+export default RootLayout;

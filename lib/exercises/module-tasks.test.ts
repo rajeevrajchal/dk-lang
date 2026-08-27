@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { moduleUsesTaskType, orderedTaskTypes, tasksForModule } from "./module-tasks";
 import { speakingTasksForModule } from "./speaking-patterns";
-import { TASK_TYPES_BY_CATEGORY } from "./types";
+import { TASK_TYPES_BY_CATEGORY } from "./constants";
 import { selectNextTaskType, selectableTaskTypes } from "./registry";
 
 // Module-shaped task selection: the thing that stops Class reading practice

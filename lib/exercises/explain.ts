@@ -1,8 +1,8 @@
 import { generateStructured } from "@/lib/ai/generate";
 import { aiAvailable } from "@/lib/ai/registry";
 import { z } from "zod";
-import type { ExerciseVariant } from "./types";
 import { extractExplainableText } from "./explainable";
+import type { ExerciseVariant, ExplanationOutcome } from "@/types";
 
 export { extractExplainableText };
 
@@ -47,15 +47,13 @@ export const ExplanationSchema = z.object({
     .max(90),
 });
 
-export type Explanation = z.infer<typeof ExplanationSchema>;
-
 const SYSTEM = `Du forklarer dansk for en voksen kursist på Danskuddannelse 3, Modul 2 (niveau A2), som læser engelsk flydende.
 
 Forklaringerne skrives på ENGELSK, fordi kursisten skal kunne forstå dem uden besvær. De danske eksempler og citater bliver stående på dansk — det er dem, der skal læres.
 
 Du forklarer, hvordan sproget faktisk fungerer: hvorfor verbet står, hvor det står, hvorfor et adjektiv har -t eller -e, hvad en endelse betyder, hvordan et ord skifter form sammen med andre ord. Aldrig blot en oversættelse.`;
 
-function buildPrompt(blocks: { label: string; danish: string }[], taskLabel: string): string {
+const buildPrompt = (blocks: { label: string; danish: string }[], taskLabel: string): string => {
   const text = blocks.map((b) => `[${b.label}]\n${b.danish}`).join("\n\n");
 
   return `Here is the Danish text from ${taskLabel}. Explain it completely for the learner.
@@ -84,16 +82,11 @@ Produce three things:
    Include every word that carries meaning or shows an inflection worth noticing — nouns, verbs, adjectives, adverbs, pronouns, conjunctions. You may skip a word the second time it appears in exactly the same form. Do not skip a word just because it is common: 'er', 'har', 'og', 'men', 'når' all matter at this level.
 
 Write every explanation in English. Keep the danish, surface and lemma fields in Danish.`;
-}
+};
 
-export function explanationAvailable(): boolean {
+export const explanationAvailable = (): boolean => {
   return aiAvailable();
-}
-
-export interface ExplanationOutcome {
-  explanation: Explanation | null;
-  reason?: string;
-}
+};
 
 /**
  * Generates the breakdown for one exercise's text.
@@ -103,9 +96,9 @@ export interface ExplanationOutcome {
  * first byte arrives. The awaited result is the same either way — this is
  * about the connection staying alive, not about rendering partial output.
  */
-export async function generateExplanation(
+export const generateExplanation = async (
   variant: ExerciseVariant
-): Promise<ExplanationOutcome> {
+): Promise<ExplanationOutcome> => {
   const blocks = extractExplainableText(variant);
   if (!blocks || blocks.length === 0) {
     return { explanation: null, reason: "this exercise has no continuous text to explain" };
@@ -126,4 +119,4 @@ export async function generateExplanation(
     return { explanation: null, reason };
   }
   return { explanation: object };
-}
+};

@@ -8,13 +8,13 @@ import { useI18n } from "@/lib/i18n/LocaleProvider";
 // again — the only other way it changes is an official test result they record
 // in Settings.
 
-export function OnboardingForm({
+export const OnboardingForm = ({
   initialEducation,
   initialModule,
 }: {
   initialEducation: string | null;
   initialModule: number | null;
-}) {
+}) => {
   const router = useRouter();
   const { dict } = useI18n();
   const t = dict.onboarding;
@@ -24,7 +24,7 @@ export function OnboardingForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
 
-  async function save(skip: boolean) {
+  const save = async (skip: boolean) => {
     setSaving(true);
     setError(false);
     const res = skip
@@ -42,7 +42,7 @@ export function OnboardingForm({
     }
     router.push("/dashboard");
     router.refresh();
-  }
+  };
 
   return (
     <div className="space-y-8">
@@ -130,4 +130,4 @@ export function OnboardingForm({
       </div>
     </div>
   );
-}
+};

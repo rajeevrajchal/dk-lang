@@ -1,4 +1,4 @@
-import type { ExerciseVariant } from "./types";
+import type { ExerciseVariant } from "@/types";
 
 // Skrivning — realistic DU3 Modul 2 writing tasks.
 //

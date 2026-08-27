@@ -1,6 +1,6 @@
-import type { ExerciseVariant } from "./types";
 import { gradeExercise } from "./grading";
 import { stagesForTaskType } from "./speaking-patterns";
+import type { ExerciseVariant, ValidationResult } from "@/types";
 
 // Semantic validation for generated exercises.
 //
@@ -13,12 +13,7 @@ import { stagesForTaskType } from "./speaking-patterns";
 // Every rule here is one a learner would hit as a bug. Anything that fails is
 // regenerated (see generator.ts), never shown.
 
-export interface ValidationResult {
-  ok: boolean;
-  errors: string[];
-}
-
-export function validateVariant(variant: ExerciseVariant): ValidationResult {
+export const validateVariant = (variant: ExerciseVariant): ValidationResult => {
   const errors: string[] = [];
   const c = variant.content;
 
@@ -234,10 +229,10 @@ export function validateVariant(variant: ExerciseVariant): ValidationResult {
   }
 
   return { ok: errors.length === 0, errors };
-}
+};
 
 /** true = key self-grades clean, false = it doesn't, null = not auto-scored. */
-function selfGrade(variant: ExerciseVariant): boolean | null {
+const selfGrade = (variant: ExerciseVariant): boolean | null => {
   const c = variant.content;
   let response: Record<string, string>;
 
@@ -261,4 +256,4 @@ function selfGrade(variant: ExerciseVariant): boolean | null {
   const result = gradeExercise(variant, response);
   if (result.total == null) return null;
   return result.score === result.total;
-}
+};

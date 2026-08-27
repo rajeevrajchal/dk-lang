@@ -6,7 +6,7 @@ import { downloadReportCard } from "@/lib/supabase/storage";
 // Auth-gated file read — this is the only way to get bytes back for an
 // uploaded report card. Never linked to directly; access control mirrors
 // the account's auth rather than a guessable/public URL.
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -28,4 +28,4 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       "Cache-Control": "private, no-store",
     },
   });
-}
+};

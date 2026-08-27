@@ -19,20 +19,20 @@ const ResultSchema = z.object({
   note: z.string().max(500).nullable().optional(),
 });
 
-export async function GET() {
+export const GET = async () => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return NextResponse.json(await listOfficialTestResults(session.user.id));
-}
+};
 
 /**
  * Records a real test the learner sat. Self-reported: the app takes their word
  * for it and says so in the UI, exactly as it does for a report card it has
  * OCR'd but not verified.
  */
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -49,9 +49,9 @@ export async function POST(req: Request) {
     takenAt: takenAt ? new Date(takenAt) : null,
   });
   return NextResponse.json(row);
-}
+};
 
-export async function DELETE(req: Request) {
+export const DELETE = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -63,4 +63,4 @@ export async function DELETE(req: Request) {
   const removed = await deleteOfficialTestResult(session.user.id, id);
   if (!removed) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
-}
+};

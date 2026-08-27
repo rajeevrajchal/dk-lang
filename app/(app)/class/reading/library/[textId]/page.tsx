@@ -15,11 +15,11 @@ import { TextReader } from "@/components/reading/TextReader";
 // where that grammar is taught, and whether the learner has read it before.
 // The client component then does nothing but read and record.
 
-export default async function ReadingTextPage({
+const ReadingTextPage = async ({
   params,
 }: {
   params: Promise<{ textId: string }>;
-}) {
+}) => {
   const { textId } = await params;
   const entry = readingText(textId);
   if (!entry) notFound();
@@ -69,4 +69,6 @@ export default async function ReadingTextPage({
       initialBookmarked={progress?.bookmarked ?? false}
     />
   );
-}
+};
+
+export default ReadingTextPage;

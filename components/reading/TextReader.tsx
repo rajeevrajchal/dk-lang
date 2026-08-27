@@ -3,11 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import { InteractiveText, type Focus } from "./InteractiveText";
-import { LearningPanel, type NoteRow, type PanelTab, type SavedWordRow } from "./LearningPanel";
-import type { ReadingExplanation } from "@/lib/reading/explain";
-import type { Phrase } from "@/lib/reading/library";
-import type { LearningText } from "@/lib/learning/text";
+import { InteractiveText } from "./InteractiveText";
+import { LearningPanel } from "./LearningPanel";
+import type {
+  Focus,
+  LearningText,
+  NoteRow,
+  PanelTab,
+  Phrase,
+  ReadingExplanation,
+  SavedWordRow,
+} from "@/types";
 
 // The reading page: the text on the left, the teacher on the right.
 //
@@ -18,7 +24,7 @@ import type { LearningText } from "@/lib/learning/text";
 
 const HIGHLIGHT_CYCLE = ["YELLOW", "BLUE", "GREEN", "RED", null] as const;
 
-export function TextReader({
+export const TextReader = ({
   textId,
   text,
   phrases,
@@ -36,7 +42,7 @@ export function TextReader({
   courseChapterName: string | null;
   initialCompleted: boolean;
   initialBookmarked: boolean;
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.reading;
 
@@ -114,7 +120,7 @@ export function TextReader({
 
   // ---- explaining --------------------------------------------------------
 
-  function scopeFor(f: Focus) {
+  const scopeFor = (f: Focus) => {
     if (!f) return null;
     if (f.kind === "word") {
       return { scopeKind: "WORD" as const, scopeId: f.token, selection: f.token };
@@ -131,7 +137,7 @@ export function TextReader({
       scopeId: String(f.index),
       selection: String(f.index),
     };
-  }
+  };
 
   const explainFocus = useCallback(
     async (f: Focus, opts: { depth?: "DEFAULT" | "DEEP"; question?: string } = {}) => {
@@ -169,7 +175,7 @@ export function TextReader({
   // the text already knows — a glossed word or a translated sentence costs
   // nothing, so making the learner press "Explain" for it would be busywork.
   // Anything else waits for them to ask.
-  function onFocusChange(next: Focus) {
+  const onFocusChange = (next: Focus) => {
     setFocus(next);
     setExplanation(null);
     setExplainError(null);
@@ -183,11 +189,11 @@ export function TextReader({
       next.kind === "sentence" ||
       next.kind === "paragraph";
     if (answeredByText) void explainFocus(next);
-  }
+  };
 
   // ---- saving ------------------------------------------------------------
 
-  async function saveWord() {
+  const saveWord = async () => {
     if (focus?.kind !== "word") return;
     const clean = focus.token.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
     const res = await post("/api/reading/words", {
@@ -203,9 +209,9 @@ export function TextReader({
     if (!res.ok) return;
     const saved: SavedWordRow = await res.json();
     setWords((w) => [saved, ...w.filter((x) => x.id !== saved.id)]);
-  }
+  };
 
-  async function savePhrase(phrase: Phrase) {
+  const savePhrase = async (phrase: Phrase) => {
     const res = await post("/api/reading/words", {
       kind: "PHRASE",
       danish: phrase.lemma,
@@ -217,9 +223,9 @@ export function TextReader({
     if (!res.ok) return;
     const saved: SavedWordRow = await res.json();
     setWords((w) => [saved, ...w.filter((x) => x.id !== saved.id)]);
-  }
+  };
 
-  async function addNote(body: string) {
+  const addNote = async (body: string) => {
     const anchor = focus
       ? focus.kind === "word"
         ? { anchorKind: "WORD", anchorId: focus.token, quote: focus.sentence?.danish }
@@ -232,26 +238,26 @@ export function TextReader({
     if (!res.ok) return;
     const saved: NoteRow = await res.json();
     setNotes((n) => [saved, ...n]);
-  }
+  };
 
-  async function deleteNote(id: string) {
+  const deleteNote = async (id: string) => {
     const res = await fetch(`/api/reading/notes?id=${id}`, { method: "DELETE" });
     if (res.ok) setNotes((n) => n.filter((x) => x.id !== id));
-  }
+  };
 
-  async function deleteWord(id: string) {
+  const deleteWord = async (id: string) => {
     const res = await fetch(`/api/reading/words?id=${id}`, { method: "DELETE" });
     if (res.ok) setWords((w) => w.filter((x) => x.id !== id));
-  }
+  };
 
-  async function toggleLearned(id: string, learned: boolean) {
+  const toggleLearned = async (id: string, learned: boolean) => {
     const res = await post("/api/reading/words", { id, learned }, "PATCH");
     if (res.ok) setWords((w) => w.map((x) => (x.id === id ? { ...x, learned } : x)));
-  }
+  };
 
   // Cycles through the colours and then off, so one repeated action both
   // makes and removes a highlight.
-  async function cycleHighlight(sentenceIndex: number) {
+  const cycleHighlight = async (sentenceIndex: number) => {
     const current = highlights[sentenceIndex] ?? null;
     const idx = HIGHLIGHT_CYCLE.indexOf(current as (typeof HIGHLIGHT_CYCLE)[number]);
     const next = HIGHLIGHT_CYCLE[(idx + 1) % HIGHLIGHT_CYCLE.length];
@@ -263,18 +269,18 @@ export function TextReader({
       return copy;
     });
     await post("/api/reading/highlights", { textId, sentenceIndex, color: next });
-  }
+  };
 
-  async function toggleBookmark() {
+  const toggleBookmark = async () => {
     const next = !bookmarked;
     setBookmarked(next);
     await post("/api/reading/progress", { textId, bookmarked: next });
-  }
+  };
 
-  async function markComplete() {
+  const markComplete = async () => {
     setCompleted(true);
     await post("/api/reading/progress", { textId, status: "COMPLETED" });
-  }
+  };
 
   const panel = (
     <LearningPanel
@@ -374,4 +380,4 @@ export function TextReader({
       )}
     </div>
   );
-}
+};

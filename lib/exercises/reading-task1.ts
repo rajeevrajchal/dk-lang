@@ -1,4 +1,4 @@
-import type { ExerciseVariant } from "./types";
+import type { ExerciseVariant } from "@/types";
 
 // Læsning, Opgave 1 — match each person to the advert that suits them.
 //
@@ -97,10 +97,10 @@ export const READING_TASK1_VARIANTS: ExerciseVariant[] = [
       ],
       answers: { "1": "B", "2": "C", "3": "D", "4": "E" },
       rationales: {
-        "1": "Familien vil have et hus med have til maks. 16.000 kr. B er et rækkehus med egen have til 15.400 kr. F har også have, men er til salg og koster 9,4 mio. kr.",
-        "2": "Mikkel vil købe på landet under 1 mio. kr. og selv sætte i stand. C koster 845.000 kr., ligger på landet, og køkken og bad skal laves om. F er netop færdigrenoveret, så der er intet at lave.",
-        "3": "Layla skal bo helt tæt på hospitalet i Aarhus for maks. 5.000 kr. D ligger 300 meter fra Aarhus Universitetshospital og koster 4.700 kr. A er billigere, men ligger i København og kun for KU-studerende.",
-        "4": "Ove og Bente vil have altan, elevator og butikker tæt på. E har alle tre dele. B og F er huse, ikke lejligheder.",
+        "1": "The family wants a house with a garden for at most 16,000 kr. B is a terraced house with its own garden at 15,400 kr. F has a garden too, but it is for sale (til salg) at 9.4 million, not for rent.",
+        "2": "Mikkel wants to buy in the countryside under 1 million and do the place up himself. C costs 845,000 kr., is in the country, and needs a new kitchen and bathroom. F has just been renovated, so there would be nothing left for him to do.",
+        "3": "Layla needs to live very close to the hospital in Aarhus for at most 5,000 kr. D is 300 metres from Aarhus University Hospital and costs 4,700 kr. A is cheaper, but it is in Copenhagen and only for students at KU.",
+        "4": "Ove and Bente want a balcony, a lift and shops nearby. E has all three. B and F are houses, not flats, so neither has a lift.",
       },
     },
   },
@@ -184,10 +184,10 @@ export const READING_TASK1_VARIANTS: ExerciseVariant[] = [
       ],
       answers: { "1": "B", "2": "C", "3": "D", "4": "E" },
       rationales: {
-        "1": "Nadia vil hjem hver dag. B er lokal kørsel uden overnatning, tilbage senest kl. 16. F er også lastbil, men man er væk hele ugen.",
-        "2": "Tobias kan kun arbejde i weekenden og har ingen erfaring. C er lørdag og søndag, og man behøver ikke have arbejdet før.",
-        "3": "Rikke er pædagog, vil arbejde med ældre og søger fuldtid i Odense. D er et plejehjem i Odense på 37 timer. G er også for pædagoger, men det er små børn i Aarhus.",
-        "4": "Jonas vil arbejde hjemmefra og taler engelsk. E er hjemmearbejde fire dage om ugen og kræver engelsk og en ingeniøruddannelse.",
+        "1": "Nadia wants to be home every day. B is local driving with no overnight stays, back by 16:00 at the latest. F is also a lorry job, but you are away all week.",
+        "2": "Tobias can only work at the weekend and has no experience. C is Saturday and Sunday, and says you do not need to have worked before.",
+        "3": "Rikke is a pædagog, wants to work with older people and is looking for full-time work in Odense. D is a care home in Odense, 37 hours. G is also for pædagoger, but it is small children, and in Aarhus.",
+        "4": "Jonas wants to work from home and speaks English. E is home working four days a week and asks for English and an engineering qualification.",
       },
     },
   },
@@ -271,10 +271,10 @@ export const READING_TASK1_VARIANTS: ExerciseVariant[] = [
       ],
       answers: { "1": "B", "2": "C", "3": "D", "4": "E" },
       rationales: {
-        "1": "Hassan er ikke i form og vil træne udendørs i en gruppe. B starter helt fra bunden og træner ude. F er også løb, men kræver 10 km på under 50 minutter.",
-        "2": "Yuki vil øve dansk afslappet. C er en sprogcafé uden undervisning, lektier og prøver.",
-        "3": "Bo og datteren på 9 år vil lave noget sammen om lørdagen med værktøj. D er lørdag, for børn på 7-12 år, og man deltager netop en voksen og et barn sammen.",
-        "4": "Grete er 71 og har dårlige knæ. E er vandgymnastik for folk over 65 og er skånsomt for knæene. G er også i vand, men for børn på 5-10 år.",
+        "1": "Hassan is out of shape and wants to train outdoors in a group. B starts from scratch and trains outside. F is also running, but it asks for 10 km in under 50 minutes.",
+        "2": "Yuki wants to practise Danish in a relaxed way. C is a language café with no lessons, no homework and no tests.",
+        "3": "Bo and his nine-year-old daughter want to do something together on a Saturday, using tools. D is on Saturdays, for children aged 7-12, and you take part as one adult and one child together.",
+        "4": "Grete is 71 and has bad knees. E is water aerobics for people over 65 and is gentle on the knees. G is also in water, but it is for children aged 5-10.",
       },
     },
   },

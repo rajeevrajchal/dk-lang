@@ -1,5 +1,5 @@
 import { content, srs } from "@/lib/repositories";
-import type { Skill } from "@/lib/constants";
+import type { ConstructStat, PracticeItemRow, Skill, TierReason } from "@/types";
 
 // --------------------------------------------------------------------------
 // Adaptive difficulty engine.
@@ -32,21 +32,11 @@ const FAIL_THRESHOLD = 0.5;
 const DEFAULT_STARTING_TIER = 2;
 const MAX_TIER = 4;
 
-export interface ConstructStat {
-  constructId: string;
-  code: string;
-  name: string;
-  tierId: number;
-  correctCount: number;
-  totalCount: number;
-  accuracy: number | null; // null = no attempts yet
-}
-
-export async function getConstructStats(
+export const getConstructStats = async (
   userId: string,
   skill: Skill,
   moduleId?: number
-): Promise<ConstructStat[]> {
+): Promise<ConstructStat[]> => {
   const constructs = await content.constructsWithAccuracy(userId, skill, moduleId);
 
   return constructs.map((c) => {
@@ -63,24 +53,17 @@ export async function getConstructStats(
       accuracy: total > 0 ? correct / total : null,
     };
   });
-}
+};
 
 // Reason a tier was chosen, as a key + params rather than a baked-in
 // sentence, so callers can render it in whatever locale is active (see
 // lib/i18n/format.ts's formatTierReason).
-export type TierReason =
-  | { key: "noAttemptsStartTier2" }
-  | { key: "heldAtTier"; tier: number; construct: string; pct: number }
-  | { key: "establishingData"; tier: number }
-  | { key: "tierNotSolid"; tier: number; threshold: number }
-  | { key: "allTiersSolid" };
-
 // The tier the learner should be practicing right now for this module/skill.
-export async function determineCurrentTier(
+export const determineCurrentTier = async (
   userId: string,
   moduleId: number,
   skill: Skill
-): Promise<{ tier: number; reason: TierReason }> {
+): Promise<{ tier: number; reason: TierReason }> => {
   const stats = await getConstructStats(userId, skill, moduleId);
   const hasAnyAttempts = stats.some((s) => s.totalCount > 0);
 
@@ -129,16 +112,16 @@ export async function determineCurrentTier(
   }
 
   return { tier: MAX_TIER, reason: { key: "allTiersSolid" } };
-}
+};
 
 // Names the single weakest construct with enough data to be meaningful —
 // this is what powers "you drop to 40% on sentences using 'selvom'" rather
 // than a generic "reading is weak".
-export async function getWeakestConstruct(
+export const getWeakestConstruct = async (
   userId: string,
   skill: Skill,
   moduleId?: number
-): Promise<ConstructStat | null> {
+): Promise<ConstructStat | null> => {
   const stats = await getConstructStats(userId, skill, moduleId);
   const withSignal = stats.filter((s) => s.totalCount >= MIN_ATTEMPTS_FOR_SIGNAL);
   if (withSignal.length === 0) return null;
@@ -146,29 +129,17 @@ export async function getWeakestConstruct(
   return withSignal.reduce((worst, s) =>
     (s.accuracy ?? 1) < (worst.accuracy ?? 1) ? s : worst
   );
-}
-
-interface PracticeItem {
-  id: string;
-  tierId: number;
-  type: string;
-  topic: string;
-  passageText: string | null;
-  passageId: string | null;
-  promptText: string;
-  optionsJson: string | null;
-  constructs: { id: string; code: string; name: string }[];
-}
+};
 
 // Builds a practice set: mostly the current growing-edge tier, with a slice
 // of spaced-repetition review pulled from constructs whose SRS state is due,
 // so earlier material keeps resurfacing instead of the learner plateauing.
-export async function selectPracticeSet(
+export const selectPracticeSet = async (
   userId: string,
   moduleId: number,
   skill: Skill,
   count = 8
-): Promise<{ items: PracticeItem[]; currentTier: number; tierReason: TierReason }> {
+): Promise<{ items: PracticeItemRow[]; currentTier: number; tierReason: TierReason }> => {
   const { tier: currentTier, reason: tierReason } = await determineCurrentTier(
     userId,
     moduleId,
@@ -204,9 +175,9 @@ export async function selectPracticeSet(
     reviewSlots * 2
   );
 
-  function shuffle<T>(arr: T[]): T[] {
+  const shuffle = <T>(arr: T[]): T[] => {
     return [...arr].sort(() => Math.random() - 0.5);
-  }
+  };
 
   const picked = [
     ...shuffle(currentTierItems).slice(0, newSlots),
@@ -245,14 +216,14 @@ export async function selectPracticeSet(
     currentTier,
     tierReason,
   };
-}
+};
 
 // SM-2-ish spaced repetition update, applied per construct touched by the
 // attempt.
-function nextSrsState(
+const nextSrsState = (
   prev: { easeFactor: number; intervalDays: number; repetitions: number },
   correct: boolean
-) {
+) => {
   if (!correct) {
     return { easeFactor: Math.max(1.3, prev.easeFactor - 0.2), intervalDays: 0, repetitions: 0 };
   }
@@ -263,14 +234,14 @@ function nextSrsState(
   else if (repetitions === 2) intervalDays = 3;
   else intervalDays = Math.round(prev.intervalDays * easeFactor);
   return { easeFactor, intervalDays, repetitions };
-}
+};
 
-export async function recordAttemptEffects(
+export const recordAttemptEffects = async (
   userId: string,
   itemId: string,
   skill: Skill,
   isCorrect: boolean
-) {
+) => {
   const item = await content.findItem(itemId);
   if (!item) throw new Error(`item ${itemId} not found`);
 
@@ -290,4 +261,4 @@ export async function recordAttemptEffects(
       lastReviewedAt: new Date().toISOString(),
     });
   }
-}
+};

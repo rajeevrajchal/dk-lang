@@ -1,9 +1,12 @@
-import type { Dictionary } from "./en";
+import type { Dictionary } from "@/types";
 
 export const da: Dictionary = {
   appName: "Dansk Modultest Prep",
 
   nav: {
+    verbs: "Verber",
+    mistakes: "Fejl",
+    history: "Historik",
     dashboard: "Dashboard",
     lessons: "Lektioner",
     class: "Træning",

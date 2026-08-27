@@ -6,7 +6,7 @@ import { MODUL2_READING_ITEMS } from "../lib/content-gen/modul2-reading";
 
 const prisma = new PrismaClient();
 
-async function main() {
+const main = async () => {
   console.log("Seeding tiers...");
   for (const tier of TIERS) {
     await prisma.tier.upsert({
@@ -96,7 +96,7 @@ async function main() {
   }
 
   console.log(`Seeded ${MODUL2_READING_ITEMS.length} Modul 2 reading items.`);
-}
+};
 
 main()
   .catch((e) => {

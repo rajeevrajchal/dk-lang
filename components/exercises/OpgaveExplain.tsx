@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import type { Explanation } from "@/lib/exercises/explain";
+import type { Explanation, OpgaveExplainState } from "@/types";
 
 // The "why?" button on a finished opgave. Sits under the per-answer
 // rationales in the results and, when opened, explains the Danish text
@@ -10,19 +10,13 @@ import type { Explanation } from "@/lib/exercises/explain";
 // doing. Generated on demand and cached server-side, so opening it a second
 // time is instant.
 
-type State =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "ready"; explanation: Explanation }
-  | { kind: "error"; noKey: boolean };
-
-export function OpgaveExplain({ attemptId }: { attemptId: string }) {
+export const OpgaveExplain = ({ attemptId }: { attemptId: string }) => {
   const { dict } = useI18n();
   const t = dict.explain;
-  const [state, setState] = useState<State>({ kind: "idle" });
+  const [state, setState] = useState<OpgaveExplainState>({ kind: "idle" });
   const [open, setOpen] = useState(false);
 
-  async function load() {
+  const load = async () => {
     if (state.kind === "ready") {
       setOpen((o) => !o);
       return;
@@ -40,7 +34,7 @@ export function OpgaveExplain({ attemptId }: { attemptId: string }) {
     } catch {
       setState({ kind: "error", noKey: false });
     }
-  }
+  };
 
   return (
     <div className="mt-4">
@@ -140,4 +134,4 @@ export function OpgaveExplain({ attemptId }: { attemptId: string }) {
       )}
     </div>
   );
-}
+};

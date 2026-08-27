@@ -1,15 +1,14 @@
 import "server-only";
 
 import { db, rpc, unwrap } from "@/lib/supabase/db";
-import type { Tables } from "@/lib/supabase/database.types";
-import type { LessonStatus, ProgressMap } from "@/lib/curriculum/progress";
+import type { LessonStatus, ProgressMap, Tables } from "@/types";
 
 // Progress through the grammar course.
 //
 // One row per learner per lesson slug, keyed by slug rather than an id so a
 // lesson keeps its progress when the curriculum is reordered around it.
 
-export async function loadProgress(userId: string): Promise<ProgressMap> {
+export const loadProgress = async (userId: string): Promise<ProgressMap> => {
   const supabase = await db();
   const rows = unwrap(
     await supabase.from("LessonProgress").select("*").eq("userId", userId),
@@ -28,7 +27,7 @@ export async function loadProgress(userId: string): Promise<ProgressMap> {
     };
   }
   return map;
-}
+};
 
 /**
  * Records that a lesson is open.
@@ -39,11 +38,11 @@ export async function loadProgress(userId: string): Promise<ProgressMap> {
  * back to IN_PROGRESS — an upsert writing the same values on both paths would
  * undo the completion every time it was re-read.
  */
-export async function recordVisit(
+export const recordVisit = async (
   userId: string,
   lessonSlug: string,
   chapterId: string | null
-): Promise<Tables<"LessonProgress">> {
+): Promise<Tables<"LessonProgress">> => {
   const supabase = await db();
   const rows = await rpc(supabase, "lesson_progress_visit", {
     p_user_id: userId,
@@ -51,9 +50,9 @@ export async function recordVisit(
     p_chapter_id: chapterId,
   });
   return rows[0];
-}
+};
 
-export async function recordCompletion(
+export const recordCompletion = async (
   userId: string,
   lessonSlug: string,
   input: {
@@ -62,7 +61,7 @@ export async function recordCompletion(
     total: number | null;
     responsesJson: string;
   }
-): Promise<Tables<"LessonProgress">> {
+): Promise<Tables<"LessonProgress">> => {
   const supabase = await db();
   const now = new Date().toISOString();
 
@@ -90,12 +89,12 @@ export async function recordCompletion(
     "recordCompletion"
   );
   return rows[0];
-}
+};
 
-export async function listCompleted(
+export const listCompleted = async (
   userId: string,
   take = 12
-): Promise<Tables<"LessonProgress">[]> {
+): Promise<Tables<"LessonProgress">[]> => {
   const supabase = await db();
   return unwrap(
     await supabase
@@ -107,4 +106,4 @@ export async function listCompleted(
       .limit(take),
     "listCompleted"
   );
-}
+};

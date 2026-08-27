@@ -13,7 +13,7 @@ import { users } from "@/lib/repositories";
 // they are at, and which real tests they have sat. The learning areas read
 // those facts; none of them writes one.
 
-export default async function SettingsPage() {
+const SettingsPage = async () => {
   const session = await auth();
   const dict = await getServerDictionary();
   const [level, officialResults, interestsJson] = await Promise.all([
@@ -91,4 +91,6 @@ export default async function SettingsPage() {
       </section>
     </div>
   );
-}
+};
+
+export default SettingsPage;

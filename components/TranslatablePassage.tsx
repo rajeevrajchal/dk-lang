@@ -1,20 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { GLOSSARY_BY_PASSAGE_ID, type WordGloss } from "@/lib/content-gen/modul2-glossary";
+import { GLOSSARY_BY_PASSAGE_ID } from "@/lib/content-gen/modul2-glossary";
+import { DanishBlock } from "@/components/translation/DanishText";
+import type { PassageSelection } from "@/types";
 
-type Selection = { kind: "word"; gloss: WordGloss } | { kind: "paragraph"; summary: string } | null;
-
-function tokenize(paragraph: string): string[] {
+const tokenize = (paragraph: string): string[] => {
   // Keep whitespace as its own token so join-back preserves exact spacing.
   return paragraph.split(/(\s+)/).filter((t) => t.length > 0);
-}
+};
 
-function lookupKey(token: string): string {
+const lookupKey = (token: string): string => {
   return token.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "").toLowerCase();
-}
+};
 
-function InfoPanel({ selection, onClose }: { selection: Selection; onClose: () => void }) {
+const InfoPanel = ({ selection, onClose }: { selection: PassageSelection; onClose: () => void }) => {
   if (!selection) return null;
   return (
     <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm relative">
@@ -42,9 +42,9 @@ function InfoPanel({ selection, onClose }: { selection: Selection; onClose: () =
       )}
     </div>
   );
-}
+};
 
-export function TranslatablePassage({
+export const TranslatablePassage = ({
   passageText,
   passageId,
   defaultOn,
@@ -52,12 +52,23 @@ export function TranslatablePassage({
   passageText: string;
   passageId: string | null;
   defaultOn: boolean;
-}) {
-  const [selection, setSelection] = useState<Selection>(null);
+}) => {
+  const [selection, setSelection] = useState<PassageSelection>(null);
   const glossary = passageId ? GLOSSARY_BY_PASSAGE_ID.get(passageId) : undefined;
 
+  // No authored glossary for this passage — which is the normal case outside
+  // the twelve Modul 2 passages. It used to render as plain, dead text; now it
+  // falls through to the generic translation layer, so every word is still
+  // clickable and every sentence still has an English button. The authored
+  // path below is kept because a gloss written for this exact passage is
+  // better than a generated one, and it costs nothing.
   if (!glossary) {
-    return <p className="mb-5 leading-relaxed text-slate-800 whitespace-pre-line">{passageText}</p>;
+    return (
+      <DanishBlock
+        text={passageText}
+        className="mb-5 leading-relaxed text-slate-800"
+      />
+    );
   }
 
   const wordByKey = new Map(glossary.words.map((w) => [w.surface.toLowerCase(), w]));
@@ -98,4 +109,4 @@ export function TranslatablePassage({
       <InfoPanel selection={selection} onClose={() => setSelection(null)} />
     </div>
   );
-}
+};

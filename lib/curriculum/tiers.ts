@@ -1,8 +1,4 @@
-export interface TierDef {
-  id: number;
-  name: string;
-  description: string;
-}
+import type { TierDef } from "@/types";
 
 export const TIERS: TierDef[] = [
   {

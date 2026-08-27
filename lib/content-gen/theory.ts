@@ -15,92 +15,12 @@
 // item bank, but you can't read the passages without them, so they're taught.
 // Those carry `constructCodes: []`.
 
-import type {
-  LessonExercise,
-  LessonKind,
-  WritingModel,
-} from "@/lib/curriculum/course-types";
-import type { LearningText } from "@/lib/learning/text";
-
-export interface TheoryExample {
-  danish: string;
-  english: string;
-  note?: string; // why this example is here / what to notice
-}
-
-export interface TheoryTable {
-  headers: string[];
-  rows: string[][];
-}
-
-export interface TheorySection {
-  heading: string;
-  body: string;
-  examples?: TheoryExample[];
-  table?: TheoryTable;
-}
-
-export interface TheoryLesson {
-  slug: string;
-  title: string; // English title
-  danishName: string; // the Danish grammar term
-  tier: number;
-  constructCodes: string[]; // codes from CONSTRUCTS this lesson explains
-  summary: string;
-  sections: TheorySection[];
-  pitfalls: string[]; // common mistakes, stated as the mistake + the fix
-
-  // ---------------------------------------------------------------------
-  // Course fields.
-  //
-  // All optional. The twelve lessons below were written before the course
-  // existed and set none of them; they keep working untouched, both at their
-  // own /theory/[slug] route and inside a chapter. A lesson gains objectives
-  // and exercises by having them added here, not by being rewritten.
-  // ---------------------------------------------------------------------
-
-  /** "After this lesson you can ..." — stated before the teaching starts. */
-  learningObjectives?: string[];
-  /** The one-line takeaway, shown at the end as "what you should know". */
-  canDo?: string;
-  /**
-   * A short plain-language opening for a reader who does not yet know the
-   * grammar words. Rendered before `summary` when present.
-   */
-  primer?: string;
-  /** Practice attached to the lesson, in ladder order. */
-  exercises?: LessonExercise[];
-
-  // ---------------------------------------------------------------------
-  // Lesson kind and its content.
-  //
-  // Also all optional, for the same reason: a lesson without `kind` is a
-  // grammar lesson, which is what all sixteen written before this were. A
-  // grammar lesson that gains a `text` starts showing it; one that does not
-  // renders exactly as it did.
-  // ---------------------------------------------------------------------
-
-  /** Defaults to "grammar" when absent — see LESSON_KINDS. */
-  kind?: LessonKind;
-  /**
-   * Danish to read, structured for word/sentence/paragraph study. A grammar
-   * lesson uses this to show the rule working in a real text; a reading lesson
-   * IS this.
-   */
-  texts?: LearningText[];
-  /** For writing lessons: the worked example, taken apart. */
-  writingModel?: WritingModel;
-  /**
-   * Which PD3 modules this lesson prepares for. Readiness metadata, not
-   * hierarchy — the course is ordered by grammar, not by module.
-   */
-  pd3Modules?: number[];
-}
+import type { LessonKind, TheoryLesson } from "@/types";
 
 /** A lesson's kind, defaulting the way an unlabelled lesson is treated. */
-export function lessonKind(lesson: TheoryLesson): LessonKind {
+export const lessonKind = (lesson: TheoryLesson): LessonKind => {
   return lesson.kind ?? "grammar";
-}
+};
 
 export const THEORY_LESSONS: TheoryLesson[] = [
   // -------------------------------------------------------------------
@@ -822,6 +742,6 @@ for (const lesson of THEORY_LESSONS) {
 
 // Modul 2 spans tiers 1-3 (see lib/curriculum/modules.ts). A module shows the
 // theory for the tiers it actually covers.
-export function theoryForTiers(tiers: number[]): TheoryLesson[] {
+export const theoryForTiers = (tiers: number[]): TheoryLesson[] => {
   return THEORY_LESSONS.filter((l) => tiers.includes(l.tier));
-}
+};

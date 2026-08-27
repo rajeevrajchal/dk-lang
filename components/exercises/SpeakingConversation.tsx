@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import type { SpeakingStage } from "@/lib/exercises/types";
+import type { ConversationTurn, SpeakingStage } from "@/types";
 
 // The turn-by-turn half of a speaking opgave.
 //
@@ -14,22 +14,17 @@ import type { SpeakingStage } from "@/lib/exercises/types";
 // All progression lives on the server (see /api/exercises/[id]/speaking-turn);
 // this component only renders turns and posts what was said.
 
-interface Turn {
-  speaker: "examiner" | "candidate";
-  text: string;
-}
-
-export function SpeakingConversation({
+export const SpeakingConversation = ({
   attemptId,
   stages,
 }: {
   attemptId: string;
   stages: SpeakingStage[];
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.exercises;
 
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
@@ -39,7 +34,7 @@ export function SpeakingConversation({
   const [uncovered, setUncovered] = useState<string[]>([]);
   const [adaptive, setAdaptive] = useState(true);
 
-  async function turn(said?: string) {
+  const turn = async (said?: string) => {
     setBusy(true);
     try {
       const res = await fetch(`/api/exercises/${attemptId}/speaking-turn`, {
@@ -56,8 +51,8 @@ export function SpeakingConversation({
       }
       setTurns((prev) => [
         ...prev,
-        ...(said ? ([{ speaker: "candidate", text: said }] as Turn[]) : []),
-        { speaker: "examiner", text: data.question } as Turn,
+        ...(said ? ([{ speaker: "candidate", text: said }] as ConversationTurn[]) : []),
+        { speaker: "examiner", text: data.question } as ConversationTurn,
       ]);
       setStageIndex(data.stageIndex ?? 0);
       setCovered(data.covered ?? []);
@@ -66,14 +61,14 @@ export function SpeakingConversation({
     } finally {
       setBusy(false);
     }
-  }
+  };
 
-  async function send() {
+  const send = async () => {
     const said = answer.trim();
     if (!said) return;
     setAnswer("");
     await turn(said);
-  }
+  };
 
   const stage = stages[stageIndex];
 
@@ -179,4 +174,4 @@ export function SpeakingConversation({
       )}
     </div>
   );
-}
+};

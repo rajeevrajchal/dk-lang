@@ -1,4 +1,4 @@
-import type { LessonExercise } from "@/lib/curriculum/course-types";
+import type { LessonExercise, Mistake } from "@/types";
 
 // Turning a wrong answer into a correction the learner can learn from.
 //
@@ -12,30 +12,21 @@ import type { LessonExercise } from "@/lib/curriculum/course-types";
 // sentence, an ordering mistake is a whole word order, a recognition mistake
 // is pointing at the wrong word.
 
-export interface Mistake {
-  /** The learner's answer, rendered the way they would recognise it. */
-  yours: string;
-  /** The same thing, correct. */
-  correct: string;
-  /** What kind of difference this is, when it can be named cheaply. */
-  hint?: string;
-}
-
 /** Fills the ___ in a gapped sentence, or appends when there is no gap. */
-function fillGap(sentence: string, word: string): string {
+const fillGap = (sentence: string, word: string): string => {
   return sentence.includes("___") ? sentence.replace("___", word) : `${sentence} ${word}`.trim();
-}
+};
 
 /**
  * Builds the ❌ / ✅ contrast for one wrong answer, or null when there is
  * nothing useful to contrast — an unanswered exercise, or a rung with no
  * single right answer.
  */
-export function buildMistake(
+export const buildMistake = (
   exercise: LessonExercise,
   response: string | undefined,
   expected: string | undefined
-): Mistake | null {
+): Mistake | null => {
   const given = (response ?? "").trim();
   if (!given || !expected) return null;
 
@@ -73,10 +64,10 @@ export function buildMistake(
       // there is nothing honest to put in the ✅ line.
       return null;
   }
-}
+};
 
 /** Whether two answers use the same words and differ only in order. */
-export function sameWords(a: string, b: string): boolean {
+export const sameWords = (a: string, b: string): boolean => {
   const norm = (s: string) =>
     s
       .toLowerCase()
@@ -86,4 +77,4 @@ export function sameWords(a: string, b: string): boolean {
       .sort()
       .join(" ");
   return norm(a) === norm(b) && a.trim().toLowerCase() !== b.trim().toLowerCase();
-}
+};

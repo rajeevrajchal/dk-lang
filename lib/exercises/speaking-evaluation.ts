@@ -1,6 +1,10 @@
-import type { SpeakingContent, TaskType } from "./types";
-import type { SpeakingState } from "./speaking-state";
 import { uncoveredTargets } from "./speaking-state";
+import type {
+  SpeakingContent,
+  SpeakingCriterion,
+  SpeakingState,
+  TaskType,
+} from "@/types";
 
 // What "doing the task well" means, per task type.
 //
@@ -12,28 +16,16 @@ import { uncoveredTargets } from "./speaking-state";
 // against, which is the thing a mindmap task and an information-gap task
 // genuinely differ on.
 
-export interface SpeakingCriterion {
-  id: string;
-  /** What the learner had to do, in their interface language. */
-  label: string;
-  /**
-   * Whether the app can tell from the transcript. Null means the learner has
-   * to judge it themselves — most of speaking is like that without audio.
-   */
-  met: boolean | null;
-  detail?: string;
-}
-
 /**
  * Criteria for a finished speaking task. `state` is optional: without a
  * transcript every criterion is self-assessed, which is the right answer for
  * an exercise the learner did out loud without typing anything.
  */
-export function speakingCriteria(
+export const speakingCriteria = (
   taskType: TaskType,
   content: SpeakingContent,
   state?: SpeakingState
-): SpeakingCriterion[] {
+): SpeakingCriterion[] => {
   const answered = state?.turns.filter((t) => t.speaker === "candidate").length ?? 0;
   const missed = state ? uncoveredTargets(state) : [];
 
@@ -125,7 +117,7 @@ export function speakingCriteria(
         { id: "tenses", label: "Brugte både nutid, datid og fremtid", met: null },
       ];
   }
-}
+};
 
 /** English labels, for the interface language switch. */
 export const CRITERION_LABELS_EN: Record<string, string> = {

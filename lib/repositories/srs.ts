@@ -1,14 +1,14 @@
 import "server-only";
 
 import { db, unwrap, isNoRows } from "@/lib/supabase/db";
-import type { Tables } from "@/lib/supabase/database.types";
+import type { Tables } from "@/types";
 
 // Spaced repetition and running per-construct accuracy.
 //
 // Both are learner-owned and go through the learner's own client, so Row Level
 // Security filters them in the database.
 
-export async function dueStates(userId: string, take: number): Promise<Tables<"SrsState">[]> {
+export const dueStates = async (userId: string, take: number): Promise<Tables<"SrsState">[]> => {
   const supabase = await db();
   return unwrap(
     await supabase
@@ -20,12 +20,12 @@ export async function dueStates(userId: string, take: number): Promise<Tables<"S
       .limit(take),
     "dueStates"
   );
-}
+};
 
-export async function findState(
+export const findState = async (
   userId: string,
   constructId: string
-): Promise<Tables<"SrsState"> | null> {
+): Promise<Tables<"SrsState"> | null> => {
   const supabase = await db();
   const { data, error } = await supabase
     .from("SrsState")
@@ -35,9 +35,9 @@ export async function findState(
     .single();
   if (error && !isNoRows(error)) throw new Error(`[supabase] findState: ${error.message}`);
   return data ?? null;
-}
+};
 
-export async function upsertState(
+export const upsertState = async (
   userId: string,
   constructId: string,
   state: {
@@ -47,7 +47,7 @@ export async function upsertState(
     dueAt: string;
     lastReviewedAt: string;
   }
-): Promise<Tables<"SrsState">> {
+): Promise<Tables<"SrsState">> => {
   const supabase = await db();
   const existing = await findState(userId, constructId);
 
@@ -62,7 +62,7 @@ export async function upsertState(
     "upsertState"
   );
   return rows[0];
-}
+};
 
 /**
  * Adds one answer to the running accuracy for a construct and skill.
@@ -73,12 +73,12 @@ export async function upsertState(
  * The results that matter — attempts, scores, module status — are all written
  * atomically.
  */
-export async function recordAccuracy(
+export const recordAccuracy = async (
   userId: string,
   constructId: string,
   skill: string,
   isCorrect: boolean
-): Promise<void> {
+): Promise<void> => {
   const supabase = await db();
 
   const { data: existing, error } = await supabase
@@ -110,20 +110,20 @@ export async function recordAccuracy(
       .select("id"),
     "recordAccuracy(write)"
   );
-}
+};
 
 // ---------------------------------------------------------------------------
 // Item attempts
 // ---------------------------------------------------------------------------
 
-export async function createAttempt(data: {
+export const createAttempt = async (data: {
   userId: string;
   itemId: string;
   examSessionId: string | null;
   responseJson: string;
   isCorrect: boolean;
   timeMs: number | null;
-}): Promise<Tables<"Attempt">> {
+}): Promise<Tables<"Attempt">> => {
   const supabase = await db();
   const rows = unwrap(
     await supabase
@@ -133,12 +133,12 @@ export async function createAttempt(data: {
     "createAttempt"
   );
   return rows[0];
-}
+};
 
-export async function attemptsForExamSession(
+export const attemptsForExamSession = async (
   userId: string,
   examSessionId: string
-): Promise<Tables<"Attempt">[]> {
+): Promise<Tables<"Attempt">[]> => {
   const supabase = await db();
   return unwrap(
     await supabase
@@ -148,4 +148,4 @@ export async function attemptsForExamSession(
       .eq("examSessionId", examSessionId),
     "attemptsForExamSession"
   );
-}
+};

@@ -6,11 +6,11 @@ import { CONSTRUCTS } from "@/lib/content-gen/constructs";
 import { hasContent } from "@/lib/dashboard";
 import { getServerDictionary } from "@/lib/i18n/server";
 
-export default async function TheoryLessonPage({
+const TheoryLessonPage = async ({
   params,
 }: {
   params: Promise<{ moduleId: string; slug: string }>;
-}) {
+}) => {
   const { moduleId, slug } = await params;
   const moduleIdNum = Number(moduleId);
 
@@ -144,4 +144,6 @@ export default async function TheoryLessonPage({
       </section>
     </div>
   );
-}
+};
+
+export default TheoryLessonPage;

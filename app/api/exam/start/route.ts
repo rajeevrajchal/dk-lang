@@ -16,7 +16,7 @@ const StartSchema = z.object({
 const TIER_WEIGHTS: Record<number, number> = { 1: 3, 2: 5, 3: 4 };
 export const TIME_LIMIT_SECONDS = 12 * 60;
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -66,4 +66,4 @@ export async function POST(req: Request) {
       optionsJson: item.optionsJson,
     })),
   });
-}
+};

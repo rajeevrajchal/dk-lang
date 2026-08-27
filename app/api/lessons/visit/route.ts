@@ -10,7 +10,7 @@ const VisitSchema = z.object({
 });
 
 /** Marks a lesson as opened, so the learner can be sent back to it later. */
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,4 +31,4 @@ export async function POST(req: Request) {
     parsed.data.chapterId ?? null
   );
   return NextResponse.json({ ok: true });
-}
+};

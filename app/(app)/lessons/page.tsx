@@ -21,7 +21,7 @@ const STATUS_STYLES: Record<string, string> = {
   available: "bg-slate-100 text-slate-700",
 };
 
-export default async function LessonsPage() {
+const LessonsPage = async () => {
   const session = await auth();
   const dict = await getServerDictionary();
   const t = dict.course;
@@ -122,4 +122,6 @@ export default async function LessonsPage() {
       </section>
     </div>
   );
-}
+};
+
+export default LessonsPage;

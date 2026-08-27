@@ -1,8 +1,15 @@
 import { generateStructured } from "@/lib/ai/generate";
 import { aiAvailable } from "@/lib/ai/registry";
 import { z } from "zod";
-import type { Gloss, LearningText } from "@/lib/learning/text";
 import { glossaryIndex, lookupKey } from "@/lib/learning/text";
+import type {
+  ExplainOutcome,
+  ExplainRequest,
+  Gloss,
+  LearningText,
+  ReadingExplanation,
+  TextScope,
+} from "@/types";
 
 // Explaining a piece of a text on demand.
 //
@@ -18,11 +25,7 @@ import { glossaryIndex, lookupKey } from "@/lib/learning/text";
 // this?", and the deeper follow-up when the short answer was not enough.
 
 export const EXPLANATION_SCOPES = ["WORD", "PHRASE", "SENTENCE", "PARAGRAPH", "TEXT"] as const;
-export type ExplanationScope = (typeof EXPLANATION_SCOPES)[number];
-
 export const EXPLANATION_DEPTHS = ["DEFAULT", "DEEP"] as const;
-export type ExplanationDepth = (typeof EXPLANATION_DEPTHS)[number];
-
 // ---------------------------------------------------------------------------
 // What an explanation looks like
 //
@@ -58,19 +61,9 @@ export const ExplanationSchema = z.object({
   relatedConstructs: z.array(z.string()).max(3).optional(),
 });
 
-export type ReadingExplanation = z.infer<typeof ExplanationSchema>;
-
 // ---------------------------------------------------------------------------
 // The free path: answer from what the text already carries
 // ---------------------------------------------------------------------------
-
-export interface TextScope {
-  kind: ExplanationScope;
-  /** Sentence index, paragraph index, or the selected string. */
-  id: string;
-  /** The Danish that was selected. */
-  selection: string;
-}
 
 /**
  * Answers from the text's own authored data, or returns null when it cannot.
@@ -80,10 +73,10 @@ export interface TextScope {
  * model would be slower, cost money and produce a worse answer than the one a
  * human wrote for this exact text.
  */
-export function answerFromText(
+export const answerFromText = (
   text: LearningText,
   scope: TextScope
-): ReadingExplanation | null {
+): ReadingExplanation | null => {
   switch (scope.kind) {
     case "WORD": {
       const gloss = glossaryIndex(text.glossary ?? []).get(lookupKey(scope.selection));
@@ -121,9 +114,9 @@ export function answerFromText(
     case "PHRASE":
       return null;
   }
-}
+};
 
-export function fromGloss(gloss: Gloss): ReadingExplanation {
+export const fromGloss = (gloss: Gloss): ReadingExplanation => {
   return {
     summary: gloss.englishGloss,
     meaning: gloss.englishGloss,
@@ -131,17 +124,17 @@ export function fromGloss(gloss: Gloss): ReadingExplanation {
     partOfSpeech: gloss.partOfSpeech,
     grammar: gloss.inflectionNote,
   };
-}
+};
 
-function sentenceAt(text: LearningText, index: number) {
+const sentenceAt = (text: LearningText, index: number) => {
   return text.paragraphs.flatMap((p) => p.sentences)[index];
-}
+};
 
 /** The sentence a selection sits in, for giving the model its context. */
-export function contextFor(
+export const contextFor = (
   text: LearningText,
   scope: TextScope
-): { sentence?: string; paragraph?: string } {
+): { sentence?: string; paragraph?: string } => {
   const sentences = text.paragraphs.flatMap((p) => p.sentences);
 
   if (scope.kind === "SENTENCE") {
@@ -166,15 +159,15 @@ export function contextFor(
     }
   }
   return {};
-}
+};
 
 // ---------------------------------------------------------------------------
 // The generated path
 // ---------------------------------------------------------------------------
 
-export function generationAvailable(): boolean {
+export const generationAvailable = (): boolean => {
   return aiAvailable();
-}
+};
 
 const SYSTEM = `Du hjælper en voksen kursist, der læser dansk. Kursisten læser engelsk flydende, så forklaringerne skrives på ENGELSK. Det danske bliver stående på dansk — det er dét, der skal læres.
 
@@ -185,7 +178,7 @@ Du forklarer ordet eller sætningen SÅDAN SOM DEN BRUGES HER. Ikke alle betydni
 Oversættelser skal være naturligt engelsk. 'Jeg står op klokken syv' er 'I get up at seven', aldrig 'I stand up clock seven'. Hvis den ordrette version viser noget om, hvordan dansk er bygget op, kan den stå i 'literal' ved siden af.`;
 
 /** How much Danish the learner can be assumed to handle, from the text level. */
-function levelGuidance(level: number): string {
+const levelGuidance = (level: number): string => {
   if (level <= 2) {
     return `The learner is a beginner (A1-A2). Avoid grammar terminology beyond "verb", "noun", "adjective", "present", "past". Do not mention subordinate clauses, participles or the passive unless the learner asked directly.`;
   }
@@ -193,21 +186,9 @@ function levelGuidance(level: number): string {
     return `The learner is at A2, working towards PD3 Modul 2. Ordinary grammar terms are fine. Keep it to what explains this sentence.`;
   }
   return `The learner is at B1-B2, preparing for PD3 Modul 3-5. You can name subordinate clauses, the passive, participles and word order directly, and you can be brief because they already know the terms.`;
-}
+};
 
-export interface ExplainRequest {
-  text: LearningText;
-  scope: TextScope;
-  depth: ExplanationDepth;
-  /** The learner's own question, when they asked one ("why is it er and not var?"). */
-  question?: string;
-  /** Where the learner is in the course, for pitching the answer. */
-  courseChapter?: string;
-  /** Official level, when they have told us. */
-  learnerLevel?: string;
-}
-
-function buildPrompt(req: ExplainRequest): string {
+const buildPrompt = (req: ExplainRequest): string => {
   const { text, scope, depth, question, courseChapter, learnerLevel } = req;
   const ctx = contextFor(text, scope);
 
@@ -248,14 +229,9 @@ function buildPrompt(req: ExplainRequest): string {
   }
 
   return lines.join("\n");
-}
+};
 
-export interface ExplainOutcome {
-  explanation: ReadingExplanation | null;
-  reason?: string;
-}
-
-export async function generateExplanation(req: ExplainRequest): Promise<ExplainOutcome> {
+export const generateExplanation = async (req: ExplainRequest): Promise<ExplainOutcome> => {
   // Two task configs, not one. The default is the cheapest thing in the
   // registry — low effort, a hard 900-token cap — because the learner clicked
   // one word and wants to get back to reading; that cap is part of the
@@ -272,4 +248,4 @@ export async function generateExplanation(req: ExplainRequest): Promise<ExplainO
     return { explanation: null, reason };
   }
   return { explanation: object };
-}
+};

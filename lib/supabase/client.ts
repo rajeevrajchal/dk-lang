@@ -1,7 +1,7 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import type { Database } from "./database.types";
+import type { Database } from "@/types";
 
 // Supabase in the browser.
 //
@@ -14,7 +14,7 @@ import type { Database } from "./database.types";
 // current session. Application data goes through the server, never straight
 // from the browser to PostgREST — see docs/supabase-migration.md.
 
-export function createClient() {
+export const createClient = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   // Supabase renamed the anon key to "publishable" for new projects. Accept
   // either so a project of any age works without editing this file.
@@ -28,10 +28,10 @@ export function createClient() {
     );
   }
   return createBrowserClient<Database>(url, key);
-}
+};
 
 /** Whether Supabase auth can be used at all, for hiding the Google button. */
-export function supabaseConfigured(): boolean {
+export const supabaseConfigured = (): boolean => {
   return (
     !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
     !!(
@@ -39,7 +39,7 @@ export function supabaseConfigured(): boolean {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     )
   );
-}
+};
 
 /**
  * Whether to offer email and password alongside Google.
@@ -53,6 +53,6 @@ export function supabaseConfigured(): boolean {
  * Google not enabled on the project, nobody can sign in at all. So it defaults
  * to ON and has to be turned off deliberately, once Google is known to work.
  */
-export function passwordAuthEnabled(): boolean {
+export const passwordAuthEnabled = (): boolean => {
   return process.env.NEXT_PUBLIC_AUTH_PASSWORD !== "off";
-}
+};

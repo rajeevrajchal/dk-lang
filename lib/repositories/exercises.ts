@@ -1,7 +1,14 @@
 import "server-only";
 
 import { db, unwrap, isNoRows } from "@/lib/supabase/db";
-import type { Inserts, Tables, Updates } from "@/lib/supabase/database.types";
+import type {
+  ExamSessionWithAttempts,
+  ExerciseAttemptRow,
+  HistoryFilter,
+  Inserts,
+  Tables,
+  Updates,
+} from "@/types";
 
 // Modultest exercises ("opgaver") and the mock-test sessions they belong to.
 //
@@ -10,18 +17,11 @@ import type { Inserts, Tables, Updates } from "@/lib/supabase/database.types";
 // modes throughout the app — see lib/exercises/mode.ts — so it is never
 // derived twice.
 
-export interface HistoryFilter {
-  moduleId?: number;
-  category?: string;
-}
-
-type AttemptRow = Tables<"ExerciseAttempt">;
-
 /** Completed attempts, for the selector's "don't repeat this" rotation. */
-export async function completedHistory(
+export const completedHistory = async (
   userId: string,
   filter: HistoryFilter = {}
-): Promise<Pick<AttemptRow, "variantId" | "taskType" | "topic" | "completedAt">[]> {
+): Promise<Pick<ExerciseAttemptRow, "variantId" | "taskType" | "topic" | "completedAt">[]> => {
   const supabase = await db();
   let query = supabase
     .from("ExerciseAttempt")
@@ -34,13 +34,13 @@ export async function completedHistory(
   if (filter.category) query = query.eq("category", filter.category);
 
   return unwrap(await query, "completedHistory");
-}
+};
 
-export async function recentCompleted(
+export const recentCompleted = async (
   userId: string,
   filter: HistoryFilter = {},
   take = 30
-): Promise<AttemptRow[]> {
+): Promise<ExerciseAttemptRow[]> => {
   const supabase = await db();
   let query = supabase
     .from("ExerciseAttempt")
@@ -54,9 +54,9 @@ export async function recentCompleted(
   if (filter.category) query = query.eq("category", filter.category);
 
   return unwrap(await query, "recentCompleted");
-}
+};
 
-export async function findAttempt(userId: string, attemptId: string): Promise<AttemptRow | null> {
+export const findAttempt = async (userId: string, attemptId: string): Promise<ExerciseAttemptRow | null> => {
   const supabase = await db();
   // The userId filter is redundant under RLS and kept deliberately: an attempt
   // id alone must not be enough to read somebody else's answers, and saying so
@@ -69,9 +69,9 @@ export async function findAttempt(userId: string, attemptId: string): Promise<At
     .single();
   if (error && !isNoRows(error)) throw new Error(`[supabase] findAttempt: ${error.message}`);
   return data ?? null;
-}
+};
 
-export async function createAttempt(data: Inserts<"ExerciseAttempt">): Promise<AttemptRow> {
+export const createAttempt = async (data: Inserts<"ExerciseAttempt">): Promise<ExerciseAttemptRow> => {
   const supabase = await db();
   const rows = unwrap(
     await supabase
@@ -81,13 +81,13 @@ export async function createAttempt(data: Inserts<"ExerciseAttempt">): Promise<A
     "createAttempt"
   );
   return rows[0];
-}
+};
 
-export async function updateAttempt(
+export const updateAttempt = async (
   userId: string,
   attemptId: string,
   data: Updates<"ExerciseAttempt">
-): Promise<AttemptRow | null> {
+): Promise<ExerciseAttemptRow | null> => {
   const supabase = await db();
   const rows = unwrap(
     await supabase
@@ -99,12 +99,12 @@ export async function updateAttempt(
     "updateAttempt"
   );
   return rows[0] ?? null;
-}
+};
 
 /** Class practice only — a mock attempt is a test, not practice. */
-export async function practiceActivity(
+export const practiceActivity = async (
   userId: string
-): Promise<Pick<AttemptRow, "category" | "completedAt">[]> {
+): Promise<Pick<ExerciseAttemptRow, "category" | "completedAt">[]> => {
   const supabase = await db();
   return unwrap(
     await supabase
@@ -115,12 +115,12 @@ export async function practiceActivity(
       .is("examSessionId", null),
     "practiceActivity"
   );
-}
+};
 
-export async function completedReadingSince(
+export const completedReadingSince = async (
   userId: string,
   since: Date
-): Promise<Pick<AttemptRow, "completedAt">[]> {
+): Promise<Pick<ExerciseAttemptRow, "completedAt">[]> => {
   const supabase = await db();
   return unwrap(
     await supabase
@@ -132,20 +132,16 @@ export async function completedReadingSince(
       .gte("completedAt", since.toISOString()),
     "completedReadingSince"
   );
-}
+};
 
 // ---------------------------------------------------------------------------
 // Mock test sessions
 // ---------------------------------------------------------------------------
 
-export interface ExamSessionWithAttempts extends Tables<"ExamSession"> {
-  exerciseAttempts: AttemptRow[];
-}
-
-export async function findExamSession(
+export const findExamSession = async (
   userId: string,
   sessionId: string
-): Promise<ExamSessionWithAttempts | null> {
+): Promise<ExamSessionWithAttempts | null> => {
   const supabase = await db();
   const { data, error } = await supabase
     .from("ExamSession")
@@ -169,11 +165,11 @@ export async function findExamSession(
   );
 
   return { ...data, exerciseAttempts: attempts };
-}
+};
 
-export async function createExamSession(
+export const createExamSession = async (
   data: Inserts<"ExamSession">
-): Promise<Tables<"ExamSession">> {
+): Promise<Tables<"ExamSession">> => {
   const supabase = await db();
   const rows = unwrap(
     await supabase
@@ -183,13 +179,13 @@ export async function createExamSession(
     "createExamSession"
   );
   return rows[0];
-}
+};
 
-export async function completeExamSession(
+export const completeExamSession = async (
   userId: string,
   sessionId: string,
   data: { scoresJson: string; passedJson: string }
-): Promise<Tables<"ExamSession"> | null> {
+): Promise<Tables<"ExamSession"> | null> => {
   const supabase = await db();
   const rows = unwrap(
     await supabase
@@ -201,9 +197,9 @@ export async function completeExamSession(
     "completeExamSession"
   );
   return rows[0] ?? null;
-}
+};
 
-export async function completedExamSessions(userId: string): Promise<Tables<"ExamSession">[]> {
+export const completedExamSessions = async (userId: string): Promise<Tables<"ExamSession">[]> => {
   const supabase = await db();
   return unwrap(
     await supabase
@@ -214,4 +210,4 @@ export async function completedExamSessions(userId: string): Promise<Tables<"Exa
       .order("completedAt", { ascending: false }),
     "completedExamSessions"
   );
-}
+};

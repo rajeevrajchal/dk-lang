@@ -4,25 +4,35 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 
-// The four learning areas, then settings. The order is the learner's journey:
-// see where you are, learn, practise, test yourself.
+// The learning areas, then the two review areas, then settings. The order is
+// the learner's journey: see where you are, learn, build vocabulary, practise,
+// test yourself - then understand what you got wrong.
 const PRIMARY = [
   { href: "/dashboard", key: "dashboard" as const, icon: "🏠" },
   { href: "/lessons", key: "lessons" as const, icon: "📖" },
+  { href: "/verbs", key: "verbs" as const, icon: "🗣" },
   { href: "/class", key: "class" as const, icon: "🎓" },
   { href: "/mock", key: "mock" as const, icon: "📝" },
 ];
 
+// Review is separated from practice on purpose: these two answer "what did I
+// get wrong and what should I do about it", which is a different question from
+// "what shall I do next".
+const REVIEW = [
+  { href: "/mistakes", key: "mistakes" as const, icon: "🔁" },
+  { href: "/history", key: "history" as const, icon: "🕒" },
+];
+
 const SECONDARY = [{ href: "/settings", key: "settings" as const, icon: "⚙" }];
 
-export function Sidebar({ userEmail }: { userEmail?: string | null }) {
+export const Sidebar = ({ userEmail }: { userEmail?: string | null }) => {
   const pathname = usePathname();
   const { dict } = useI18n();
 
   // The routes that moved keep their old URLs working, so the nav has to
   // highlight the right area for both. /class/course is Lessons; the timed
   // exam and mock-test routes are Mock.
-  function isActive(href: string): boolean {
+  const isActive = (href: string): boolean => {
     const aliases: Record<string, string[]> = {
       "/lessons": ["/class/course"],
       "/mock": ["/mock-test", "/exam"],
@@ -31,12 +41,16 @@ export function Sidebar({ userEmail }: { userEmail?: string | null }) {
     };
     const prefixes = [href, ...(aliases[href] ?? [])];
     return prefixes.some((p) => pathname === p || pathname.startsWith(p + "/"));
-  }
+  };
 
   // /class/course is a Lessons URL, so Class must not also claim it.
   const lessonsActive = isActive("/lessons");
 
-  function renderLink(link: { href: string; key: "dashboard" | "lessons" | "class" | "mock" | "settings"; icon: string }) {
+  const renderLink = (link: {
+    href: string;
+    key: "dashboard" | "lessons" | "verbs" | "class" | "mock" | "mistakes" | "history" | "settings";
+    icon: string;
+  }) => {
     const active = link.href === "/class" ? isActive("/class") && !lessonsActive : isActive(link.href);
     return (
       <Link
@@ -52,7 +66,7 @@ export function Sidebar({ userEmail }: { userEmail?: string | null }) {
         <span>{dict.nav[link.key]}</span>
       </Link>
     );
-  }
+  };
 
   return (
     <aside className="w-56 shrink-0 border-r border-slate-200 bg-white flex flex-col">
@@ -62,6 +76,8 @@ export function Sidebar({ userEmail }: { userEmail?: string | null }) {
 
       <nav className="flex-1 px-3 space-y-1">
         {PRIMARY.map(renderLink)}
+        <div className="pt-2 mt-2 border-t border-slate-100" />
+        {REVIEW.map(renderLink)}
         <div className="pt-2 mt-2 border-t border-slate-100" />
         {SECONDARY.map(renderLink)}
       </nav>
@@ -73,4 +89,4 @@ export function Sidebar({ userEmail }: { userEmail?: string | null }) {
       )}
     </aside>
   );
-}
+};

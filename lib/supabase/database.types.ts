@@ -213,7 +213,9 @@ export interface Database {
           orderIndex: number | null;
           generated: boolean;
           variantJson: string | null;
+          taskId: string | null;
           explanationJson: string | null;
+          feedbackJson: string | null;
           speakingStateJson: string | null;
           responseJson: string | null;
           score: number | null;
@@ -236,7 +238,9 @@ export interface Database {
           orderIndex?: number | null;
           generated?: boolean;
           variantJson?: string | null;
+          taskId?: string | null;
           explanationJson?: string | null;
+          feedbackJson?: string | null;
           speakingStateJson?: string | null;
           responseJson?: string | null;
           score?: number | null;
@@ -259,7 +263,9 @@ export interface Database {
           orderIndex?: number | null;
           generated?: boolean;
           variantJson?: string | null;
+          taskId?: string | null;
           explanationJson?: string | null;
+          feedbackJson?: string | null;
           speakingStateJson?: string | null;
           responseJson?: string | null;
           score?: number | null;
@@ -400,6 +406,90 @@ export interface Database {
         // the relations that matter here are resolved in application code.
         Relationships: [];
       };
+      "MistakeRecord": {
+        Row: {
+          id: string;
+          userId: string;
+          questionKey: string;
+          source: string;
+          moduleId: number | null;
+          category: string | null;
+          taskType: string | null;
+          topic: string | null;
+          grammarTopic: string | null;
+          questionText: string;
+          danishText: string | null;
+          passageLabel: string | null;
+          passageText: string | null;
+          lastWrongAnswer: string | null;
+          correctAnswer: string;
+          explanation: string | null;
+          attemptId: string | null;
+          timesWrong: number;
+          timesRight: number;
+          lastWrongAt: string;
+          lastSeenAt: string;
+          resolvedAt: string | null;
+          createdAt: string;
+          updatedAt: string;
+        };
+        Insert: {
+          id?: string;
+          userId: string;
+          questionKey: string;
+          source: string;
+          moduleId?: number | null;
+          category?: string | null;
+          taskType?: string | null;
+          topic?: string | null;
+          grammarTopic?: string | null;
+          questionText: string;
+          danishText?: string | null;
+          passageLabel?: string | null;
+          passageText?: string | null;
+          lastWrongAnswer?: string | null;
+          correctAnswer: string;
+          explanation?: string | null;
+          attemptId?: string | null;
+          timesWrong?: number;
+          timesRight?: number;
+          lastWrongAt: string;
+          lastSeenAt: string;
+          resolvedAt?: string | null;
+          createdAt?: string;
+          updatedAt?: string;
+        };
+        Update: {
+          id?: string;
+          userId?: string;
+          questionKey?: string;
+          source?: string;
+          moduleId?: number | null;
+          category?: string | null;
+          taskType?: string | null;
+          topic?: string | null;
+          grammarTopic?: string | null;
+          questionText?: string;
+          danishText?: string | null;
+          passageLabel?: string | null;
+          passageText?: string | null;
+          lastWrongAnswer?: string | null;
+          correctAnswer?: string;
+          explanation?: string | null;
+          attemptId?: string | null;
+          timesWrong?: number;
+          timesRight?: number;
+          lastWrongAt?: string;
+          lastSeenAt?: string;
+          resolvedAt?: string | null;
+          createdAt?: string;
+          updatedAt?: string;
+        };
+        // supabase-js requires this key on every table. Left empty: the
+        // repositories never ask PostgREST to embed a related table, because
+        // the relations that matter here are resolved in application code.
+        Relationships: [];
+      };
       "Module": {
         Row: {
           id: number;
@@ -525,6 +615,81 @@ export interface Database {
           source?: string;
           reportCardId?: string | null;
           note?: string | null;
+          createdAt?: string;
+        };
+        // supabase-js requires this key on every table. Left empty: the
+        // repositories never ask PostgREST to embed a related table, because
+        // the relations that matter here are resolved in application code.
+        Relationships: [];
+      };
+      "QuestionEvent": {
+        Row: {
+          id: string;
+          userId: string;
+          source: string;
+          questionKey: string;
+          attemptId: string | null;
+          examSessionId: string | null;
+          moduleId: number | null;
+          category: string | null;
+          taskType: string | null;
+          topic: string | null;
+          grammarTopic: string | null;
+          questionText: string;
+          danishText: string | null;
+          passageLabel: string | null;
+          passageText: string | null;
+          userAnswer: string | null;
+          correctAnswer: string;
+          isCorrect: boolean;
+          explanation: string | null;
+          attemptNumber: number;
+          createdAt: string;
+        };
+        Insert: {
+          id?: string;
+          userId: string;
+          source: string;
+          questionKey: string;
+          attemptId?: string | null;
+          examSessionId?: string | null;
+          moduleId?: number | null;
+          category?: string | null;
+          taskType?: string | null;
+          topic?: string | null;
+          grammarTopic?: string | null;
+          questionText: string;
+          danishText?: string | null;
+          passageLabel?: string | null;
+          passageText?: string | null;
+          userAnswer?: string | null;
+          correctAnswer: string;
+          isCorrect: boolean;
+          explanation?: string | null;
+          attemptNumber?: number;
+          createdAt?: string;
+        };
+        Update: {
+          id?: string;
+          userId?: string;
+          source?: string;
+          questionKey?: string;
+          attemptId?: string | null;
+          examSessionId?: string | null;
+          moduleId?: number | null;
+          category?: string | null;
+          taskType?: string | null;
+          topic?: string | null;
+          grammarTopic?: string | null;
+          questionText?: string;
+          danishText?: string | null;
+          passageLabel?: string | null;
+          passageText?: string | null;
+          userAnswer?: string | null;
+          correctAnswer?: string;
+          isCorrect?: boolean;
+          explanation?: string | null;
+          attemptNumber?: number;
           createdAt?: string;
         };
         // supabase-js requires this key on every table. Left empty: the
@@ -850,6 +1015,54 @@ export interface Database {
         // the relations that matter here are resolved in application code.
         Relationships: [];
       };
+      "Task": {
+        Row: {
+          id: string;
+          moduleId: number;
+          category: string;
+          taskType: string;
+          taskNumber: number;
+          difficulty: string;
+          variantId: string;
+          contentJson: string;
+          source: string;
+          topic: string;
+          title: string;
+          createdAt: string;
+        };
+        Insert: {
+          id?: string;
+          moduleId: number;
+          category: string;
+          taskType: string;
+          taskNumber: number;
+          difficulty: string;
+          variantId: string;
+          contentJson: string;
+          source: string;
+          topic: string;
+          title: string;
+          createdAt?: string;
+        };
+        Update: {
+          id?: string;
+          moduleId?: number;
+          category?: string;
+          taskType?: string;
+          taskNumber?: number;
+          difficulty?: string;
+          variantId?: string;
+          contentJson?: string;
+          source?: string;
+          topic?: string;
+          title?: string;
+          createdAt?: string;
+        };
+        // supabase-js requires this key on every table. Left empty: the
+        // repositories never ask PostgREST to embed a related table, because
+        // the relations that matter here are resolved in application code.
+        Relationships: [];
+      };
       "Tier": {
         Row: {
           id: number;
@@ -865,6 +1078,39 @@ export interface Database {
           id?: number;
           name?: string;
           description?: string;
+        };
+        // supabase-js requires this key on every table. Left empty: the
+        // repositories never ask PostgREST to embed a related table, because
+        // the relations that matter here are resolved in application code.
+        Relationships: [];
+      };
+      "TranslationCache": {
+        Row: {
+          id: string;
+          hash: string;
+          kind: string;
+          danish: string;
+          level: number;
+          json: string;
+          createdAt: string;
+        };
+        Insert: {
+          id?: string;
+          hash: string;
+          kind: string;
+          danish: string;
+          level: number;
+          json: string;
+          createdAt?: string;
+        };
+        Update: {
+          id?: string;
+          hash?: string;
+          kind?: string;
+          danish?: string;
+          level?: number;
+          json?: string;
+          createdAt?: string;
         };
         // supabase-js requires this key on every table. Left empty: the
         // repositories never ask PostgREST to embed a related table, because
@@ -936,6 +1182,111 @@ export interface Database {
           levelSetAt?: string | null;
           onboardedAt?: string | null;
           interestsJson?: string | null;
+          updatedAt?: string;
+        };
+        // supabase-js requires this key on every table. Left empty: the
+        // repositories never ask PostgREST to embed a related table, because
+        // the relations that matter here are resolved in application code.
+        Relationships: [];
+      };
+      "UserTaskProgress": {
+        Row: {
+          id: string;
+          userId: string;
+          taskId: string;
+          status: string;
+          attemptCount: number;
+          bestScore: number | null;
+          bestTotal: number | null;
+          lastScore: number | null;
+          lastTotal: number | null;
+          lastMistakes: number | null;
+          firstCompletedAt: string | null;
+          lastAttemptAt: string;
+          createdAt: string;
+          updatedAt: string;
+        };
+        Insert: {
+          id?: string;
+          userId: string;
+          taskId: string;
+          status?: string;
+          attemptCount?: number;
+          bestScore?: number | null;
+          bestTotal?: number | null;
+          lastScore?: number | null;
+          lastTotal?: number | null;
+          lastMistakes?: number | null;
+          firstCompletedAt?: string | null;
+          lastAttemptAt: string;
+          createdAt?: string;
+          updatedAt?: string;
+        };
+        Update: {
+          id?: string;
+          userId?: string;
+          taskId?: string;
+          status?: string;
+          attemptCount?: number;
+          bestScore?: number | null;
+          bestTotal?: number | null;
+          lastScore?: number | null;
+          lastTotal?: number | null;
+          lastMistakes?: number | null;
+          firstCompletedAt?: string | null;
+          lastAttemptAt?: string;
+          createdAt?: string;
+          updatedAt?: string;
+        };
+        // supabase-js requires this key on every table. Left empty: the
+        // repositories never ask PostgREST to embed a related table, because
+        // the relations that matter here are resolved in application code.
+        Relationships: [];
+      };
+      "VerbProgress": {
+        Row: {
+          id: string;
+          userId: string;
+          verbId: string;
+          learned: boolean;
+          correctCount: number;
+          wrongCount: number;
+          streak: number;
+          lastPracticedAt: string | null;
+          dueAt: string | null;
+          intervalDays: number;
+          easeFactor: number;
+          createdAt: string;
+          updatedAt: string;
+        };
+        Insert: {
+          id?: string;
+          userId: string;
+          verbId: string;
+          learned?: boolean;
+          correctCount?: number;
+          wrongCount?: number;
+          streak?: number;
+          lastPracticedAt?: string | null;
+          dueAt?: string | null;
+          intervalDays?: number;
+          easeFactor?: number;
+          createdAt?: string;
+          updatedAt?: string;
+        };
+        Update: {
+          id?: string;
+          userId?: string;
+          verbId?: string;
+          learned?: boolean;
+          correctCount?: number;
+          wrongCount?: number;
+          streak?: number;
+          lastPracticedAt?: string | null;
+          dueAt?: string | null;
+          intervalDays?: number;
+          easeFactor?: number;
+          createdAt?: string;
           updatedAt?: string;
         };
         // supabase-js requires this key on every table. Left empty: the

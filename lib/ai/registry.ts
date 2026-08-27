@@ -1,6 +1,6 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
-import type { LanguageModel } from "ai";
+import type { AiProvider, AiTask, Effort, ResolvedModel, TaskConfig } from "@/types";
 
 // Which model runs which job.
 //
@@ -15,8 +15,6 @@ import type { LanguageModel } from "ai";
 // the difference is worth an order of magnitude in tokens and latency.
 
 export const AI_PROVIDERS = ["anthropic", "openai"] as const;
-export type AiProvider = (typeof AI_PROVIDERS)[number];
-
 export const AI_TASKS = [
   "exercise-generation", // write a whole opgave, answer key included
   "exercise-explanation", // sentence-by-sentence pass over a long text
@@ -24,23 +22,6 @@ export const AI_TASKS = [
   "reading-explanation", // gloss a word, sentence or paragraph on demand
   "reading-explanation-deep", // the same, after the learner asked for more
 ] as const;
-export type AiTask = (typeof AI_TASKS)[number];
-
-/**
- * How much thinking a task deserves. Named rather than numeric so the two
- * providers can map it onto their own knobs — Anthropic has extended thinking
- * with a token budget, OpenAI has a reasoning effort enum, and they are not
- * the same thing.
- */
-export type Effort = "low" | "medium" | "high";
-
-export interface TaskConfig {
-  effort: Effort;
-  maxOutputTokens: number;
-  /** Models per provider. Both must be able to do the job. */
-  models: Record<AiProvider, string>;
-}
-
 export const TASK_CONFIG: Record<AiTask, TaskConfig> = {
   "exercise-generation": {
     effort: "high",
@@ -79,20 +60,20 @@ export const TASK_CONFIG: Record<AiTask, TaskConfig> = {
 // Which providers are usable
 // ---------------------------------------------------------------------------
 
-export function providerAvailable(provider: AiProvider): boolean {
+export const providerAvailable = (provider: AiProvider): boolean => {
   return provider === "anthropic"
     ? !!process.env.ANTHROPIC_API_KEY
     : !!process.env.OPENAI_API_KEY;
-}
+};
 
 /** The configured default, falling back to whichever key actually exists. */
-export function defaultProvider(): AiProvider | null {
+export const defaultProvider = (): AiProvider | null => {
   const configured = process.env.AI_PROVIDER as AiProvider | undefined;
   if (configured && AI_PROVIDERS.includes(configured) && providerAvailable(configured)) {
     return configured;
   }
   return AI_PROVIDERS.find(providerAvailable) ?? null;
-}
+};
 
 /**
  * Whether any generated feature can run at all.
@@ -101,21 +82,13 @@ export function defaultProvider(): AiProvider | null {
  * failing — the app is fully usable with no AI keys at all, and that property
  * is load-bearing for the reading library in particular.
  */
-export function aiAvailable(): boolean {
+export const aiAvailable = (): boolean => {
   return defaultProvider() !== null;
-}
+};
 
 // ---------------------------------------------------------------------------
 // Resolving a model
 // ---------------------------------------------------------------------------
-
-export interface ResolvedModel {
-  model: LanguageModel;
-  provider: AiProvider;
-  config: TaskConfig;
-  /** Vendor-specific options, keyed the way the AI SDK expects. */
-  providerOptions: Record<string, Record<string, unknown>>;
-}
 
 /**
  * Anthropic's extended thinking takes a token budget, and the budget has to
@@ -123,15 +96,15 @@ export interface ResolvedModel {
  * text, so a budget equal to the cap would leave nothing to answer with.
  * Anthropic requires at least 1024.
  */
-function anthropicThinking(effort: Effort, maxOutputTokens: number) {
+const anthropicThinking = (effort: Effort, maxOutputTokens: number) => {
   if (effort === "low") return undefined; // not worth the latency on a word gloss
   const share = effort === "high" ? 0.6 : 0.4;
   const budget = Math.floor(maxOutputTokens * share);
   if (budget < 1024) return undefined;
   return { type: "enabled" as const, budgetTokens: budget };
-}
+};
 
-export function resolveModel(task: AiTask, preferred?: AiProvider): ResolvedModel | null {
+export const resolveModel = (task: AiTask, preferred?: AiProvider): ResolvedModel | null => {
   const provider =
     (preferred && providerAvailable(preferred) ? preferred : null) ?? defaultProvider();
   if (!provider) return null;
@@ -153,9 +126,23 @@ export function resolveModel(task: AiTask, preferred?: AiProvider): ResolvedMode
     model: openai(modelId),
     provider,
     config,
-    // OpenAI has no equivalent of a thinking budget; it has a reasoning
-    // effort. Mapping one onto the other is the closest honest translation,
-    // not an equivalence.
-    providerOptions: { openai: { reasoningEffort: config.effort } },
+    providerOptions: {
+      openai: {
+        // OpenAI has no equivalent of a thinking budget; it has a reasoning
+        // effort. Mapping one onto the other is the closest honest
+        // translation, not an equivalence.
+        reasoningEffort: config.effort,
+        // Every schema in this app with an optional field (translation, the
+        // reading explanation, several more) fails outright under OpenAI's
+        // default strict mode: it demands every property be listed in
+        // `required`, which is not what Zod's `.optional()` means. The
+        // failure is a 400 from OpenAI, non-retryable, and by the time it
+        // reaches the learner it is just "unavailable" — indistinguishable
+        // from no API key being configured at all. OpenAI ships the escape
+        // hatch for exactly this; it is not something to route around at the
+        // schema level.
+        strictJsonSchema: false,
+      },
+    },
   };
-}
+};

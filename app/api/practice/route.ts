@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { selectPracticeSet } from "@/lib/adaptive/engine";
-import { SKILLS, type Skill } from "@/lib/constants";
+import { SKILLS } from "@/lib/constants";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { formatTierReason } from "@/lib/i18n/format";
+import type { Skill } from "@/types";
 
-export async function GET(req: Request) {
+export const GET = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,4 +27,4 @@ export async function GET(req: Request) {
     ...result,
     tierReason: formatTierReason(dict, result.tierReason),
   });
-}
+};

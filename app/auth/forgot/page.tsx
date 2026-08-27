@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { classifyAuthError, type AuthErrorCode } from "@/lib/auth/errors";
+import { classifyAuthError } from "@/lib/auth/errors";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { AuthCard, ErrorNote, Field, SubmitButton } from "@/components/auth/AuthCard";
+import type { AuthErrorCode } from "@/types";
 
 // Requesting a password reset.
 //
@@ -13,7 +14,7 @@ import { AuthCard, ErrorNote, Field, SubmitButton } from "@/components/auth/Auth
 // such account" would turn this form into a way of checking which email
 // addresses are registered.
 
-export default function ForgotPasswordPage() {
+const ForgotPasswordPage = () => {
   const { dict } = useI18n();
   const t = dict.login;
 
@@ -22,7 +23,7 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [errorCode, setErrorCode] = useState<AuthErrorCode | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorCode(null);
@@ -47,7 +48,7 @@ export default function ForgotPasswordPage() {
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   if (sent) {
     return (
@@ -73,4 +74,6 @@ export default function ForgotPasswordPage() {
       </form>
     </AuthCard>
   );
-}
+};
+
+export default ForgotPasswordPage;

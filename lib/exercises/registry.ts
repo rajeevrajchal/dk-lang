@@ -6,14 +6,15 @@ import { WRITING_VARIANTS } from "./writing";
 import { SPEAKING_VARIANTS, SPEAKING_OPGAVE_VARIANTS } from "./speaking";
 import { isExplainable } from "./explainable";
 import { orderedTaskTypes } from "./module-tasks";
-import {
-  TASK_NUMBER,
-  type ExerciseCategory,
-  type ExerciseVariant,
-  type PublicExercise,
-  type PublicExerciseContent,
-  type TaskType,
-} from "./types";
+import { TASK_NUMBER } from "./constants";
+import type {
+  ExerciseCategory,
+  ExerciseVariant,
+  HistoryEntry,
+  PublicExercise,
+  PublicExerciseContent,
+  TaskType,
+} from "@/types";
 
 export const ALL_VARIANTS: ExerciseVariant[] = [
   ...READING_TASK1_VARIANTS,
@@ -27,22 +28,13 @@ export const ALL_VARIANTS: ExerciseVariant[] = [
 
 export const VARIANT_BY_ID = new Map(ALL_VARIANTS.map((v) => [v.variantId, v]));
 
-export function variantsFor(moduleId: number, category: ExerciseCategory): ExerciseVariant[] {
+export const variantsFor = (moduleId: number, category: ExerciseCategory): ExerciseVariant[] => {
   return ALL_VARIANTS.filter((v) => v.moduleId === moduleId && v.category === category);
-}
+};
 
-export function categoryHasContent(moduleId: number, category: ExerciseCategory): boolean {
+export const categoryHasContent = (moduleId: number, category: ExerciseCategory): boolean => {
   return variantsFor(moduleId, category).length > 0;
-}
-
-/** One past completion, oldest-to-newest ordering supplied by the caller. */
-export interface HistoryEntry {
-  variantId: string;
-  taskType: string;
-  completedAt: Date | null;
-  /** Present for generated exercises; lets the generator avoid recent topics. */
-  topic?: string;
-}
+};
 
 /**
  * Picks what to serve next.
@@ -61,11 +53,11 @@ export interface HistoryEntry {
  * The task type to serve next — the first of the two rotations, split out so
  * LLM generation can reuse it without needing an authored variant to exist.
  */
-export function selectNextTaskType(
+export const selectNextTaskType = (
   moduleId: number,
   category: ExerciseCategory,
   history: HistoryEntry[]
-): TaskType | null {
+): TaskType | null => {
   // Every category is composed per module: Modul 2 reading runs Opgave 1-4,
   // Modul 2 speaking the mindmap and the information gap, Modul 3 speaking the
   // prepared topic and the picture preference. A module with no composition
@@ -88,13 +80,13 @@ export function selectNextTaskType(
     const tSeen = typeLastDoneAt.get(t) ?? -1;
     return tSeen < bestSeen ? t : best;
   }, orderedTypes[0]);
-}
+};
 
-export function selectNextVariant(
+export const selectNextVariant = (
   moduleId: number,
   category: ExerciseCategory,
   history: HistoryEntry[]
-): { variant: ExerciseVariant; isNew: boolean } | null {
+): { variant: ExerciseVariant; isNew: boolean } | null => {
   const available = variantsFor(moduleId, category);
   if (available.length === 0) return null;
 
@@ -138,18 +130,18 @@ export function selectNextVariant(
     (lastDoneAt.get(v.variantId) ?? 0) < (lastDoneAt.get(best.variantId) ?? 0) ? v : best
   );
   return { variant: leastRecent, isNew: false };
-}
+};
 
 /**
  * Strips everything the learner must not see while working: answer keys,
  * rationales and the `why` notes. Mirrors how Item.answerJson never reaches
  * the client until /api/attempts grades it.
  */
-export function toPublicExercise(
+export const toPublicExercise = (
   variant: ExerciseVariant,
   attemptId: string,
   isNew: boolean
-): PublicExercise {
+): PublicExercise => {
   const c = variant.content;
   let content: PublicExerciseContent;
 
@@ -207,18 +199,18 @@ export function toPublicExercise(
     explainable: isExplainable(variant),
     content,
   };
-}
+};
 
 /**
  * Picks one authored variant of a given task type, preferring one the learner
  * hasn't sat. Used to assemble a mock test when generation is unavailable, and
  * as the per-slot fallback when a generation fails.
  */
-export function pickAuthoredVariantOfType(
+export const pickAuthoredVariantOfType = (
   moduleId: number,
   taskType: TaskType,
   history: HistoryEntry[]
-): ExerciseVariant | null {
+): ExerciseVariant | null => {
   const ofType = ALL_VARIANTS.filter(
     (v) => v.moduleId === moduleId && v.taskType === taskType
   );
@@ -237,10 +229,10 @@ export function pickAuthoredVariantOfType(
   return ofType.reduce((best, v) =>
     (lastDoneAt.get(v.variantId) ?? 0) < (lastDoneAt.get(best.variantId) ?? 0) ? v : best
   );
-}
+};
 
 /** How many answers an exercise expects — used for progress display. */
-export function answerCount(variant: ExerciseVariant): number {
+export const answerCount = (variant: ExerciseVariant): number => {
   const c = variant.content;
   switch (c.kind) {
     case "reading_task_1_matching":
@@ -254,7 +246,7 @@ export function answerCount(variant: ExerciseVariant): number {
     default:
       return 0;
   }
-}
+};
 
 /**
  * The task types a learner can choose from in Class for this module and
@@ -262,30 +254,29 @@ export function answerCount(variant: ExerciseVariant): number {
  * variant nor a generator prompt. Used to build the "pick a task" screen —
  * offering a task the engine cannot produce would be a dead end.
  */
-export function selectableTaskTypes(
+export const selectableTaskTypes = (
   moduleId: number,
   category: ExerciseCategory,
   generationAvailable: boolean
-): TaskType[] {
+): TaskType[] => {
   const authored = variantsFor(moduleId, category);
   return orderedTaskTypes(moduleId, category).filter((t) => {
     if (t.startsWith("listening_")) return false;
     if (authored.some((v) => v.taskType === t)) return true;
     return generationAvailable;
   });
-}
+};
 
 /**
  * Whether Class can offer this module/category at all — either something is
  * authored, or the module declares a composition the generator can write for.
  */
-export function moduleCategoryAvailable(
+export const moduleCategoryAvailable = (
   moduleId: number,
   category: ExerciseCategory,
   generationAvailable: boolean
-): boolean {
+): boolean => {
   return selectableTaskTypes(moduleId, category, generationAvailable).length > 0;
-}
+};
 
 export { TASK_NUMBER };
-export type { TaskType };

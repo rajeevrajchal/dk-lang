@@ -3,14 +3,16 @@ import { ExamReadingRunner } from "@/components/exam/ExamReadingRunner";
 
 // The timed reading test now lives under Mock. This route stays so older links
 // keep working, and renders the same runner rather than redirecting mid-test.
-export default async function ExamReadingPage({
+const ExamReadingPage = async ({
   params,
 }: {
   params: Promise<{ moduleId: string }>;
-}) {
+}) => {
   const { moduleId } = await params;
   const moduleIdNum = Number(moduleId);
   if (!Number.isFinite(moduleIdNum)) notFound();
 
-  return <ExamReadingRunner moduleId={moduleIdNum} backHref={`/mock/${moduleIdNum}`} />;
-}
+  return <ExamReadingRunner moduleId={moduleIdNum} backHref="/mock" />;
+};
+
+export default ExamReadingPage;

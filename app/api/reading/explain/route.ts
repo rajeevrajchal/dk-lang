@@ -3,17 +3,10 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { reading } from "@/lib/repositories";
 import { readingText } from "@/lib/reading/registry";
-import {
-  answerFromText,
-  generateExplanation,
-  generationAvailable,
-  EXPLANATION_DEPTHS,
-  EXPLANATION_SCOPES,
-  type ExplanationDepth,
-  type ExplanationScope,
-} from "@/lib/reading/explain";
+import { answerFromText, generateExplanation, generationAvailable, EXPLANATION_DEPTHS, EXPLANATION_SCOPES } from "@/lib/reading/explain";
 import { getUserLevel, levelLabel } from "@/lib/level";
 import { chapterForLesson } from "@/lib/curriculum/course";
+import type { ExplanationDepth, ExplanationScope } from "@/types";
 
 // Explaining part of a text.
 //
@@ -42,7 +35,7 @@ const ExplainSchema = z.object({
 // A short answer about one sentence; nothing here should take minutes.
 export const maxDuration = 90;
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -121,4 +114,4 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ ...outcome.explanation, source: "generated" });
-}
+};

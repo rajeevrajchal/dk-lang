@@ -19,7 +19,7 @@
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
-function env(): Record<string, string> {
+const env = (): Record<string, string> => {
   return Object.fromEntries(
     readFileSync(".env", "utf8")
       .split("\n")
@@ -29,9 +29,9 @@ function env(): Record<string, string> {
         return [k.trim(), rest.join("=").trim().replace(/^["']|["']$/g, "")];
       })
   );
-}
+};
 
-async function main() {
+const main = async () => {
   const [mode, email, password] = process.argv.slice(2);
 
   if (!mode || !email) {
@@ -90,7 +90,7 @@ async function main() {
   console.log(`\n${mode} link for ${email} — single use, expires in an hour:\n`);
   console.log(data.properties?.action_link);
   console.log("\nOpen it in the browser you want to be signed in. No email was sent.\n");
-}
+};
 
 main().catch((err) => {
   console.error(err instanceof Error ? err.message : err);

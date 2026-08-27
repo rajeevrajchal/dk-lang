@@ -1,6 +1,14 @@
 import { exercises, lessons, progress as progressRepo } from "@/lib/repositories";
 import { EXAM_PASS_THRESHOLD } from "@/lib/unlock";
-import type { ExerciseCategory } from "@/lib/exercises/types";
+import type {
+  ActivityEntry,
+  ExerciseCategory,
+  HabitDay,
+  MockHistory,
+  MockTestSummary,
+  PracticeActivity,
+  ReadingHabit,
+} from "@/types";
 
 // Activity and habit, read from the tables that already record it.
 //
@@ -15,31 +23,13 @@ import type { ExerciseCategory } from "@/lib/exercises/types";
 // ---------------------------------------------------------------------------
 
 /** Local-time YYYY-MM-DD, so "today" means the learner's today. */
-function dayKey(d: Date): string {
+const dayKey = (d: Date): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate()
   ).padStart(2, "0")}`;
-}
+};
 
-export interface HabitDay {
-  date: string; // YYYY-MM-DD
-  /** 0 (Mon) .. 6 (Sun) — the week starts on Monday here, as in Denmark. */
-  weekday: number;
-  sessions: number;
-  active: boolean;
-  isToday: boolean;
-}
-
-export interface ReadingHabit {
-  days: HabitDay[];
-  /** Consecutive active days ending today (or yesterday, if today is young). */
-  currentStreak: number;
-  longestStreak: number;
-  totalSessions: number;
-  activeDays: number;
-}
-
-function buildHabit(dates: Date[], windowDays: number): ReadingHabit {
+const buildHabit = (dates: Date[], windowDays: number): ReadingHabit => {
   const counts = new Map<string, number>();
   for (const d of dates) counts.set(dayKey(d), (counts.get(dayKey(d)) ?? 0) + 1);
 
@@ -86,13 +76,13 @@ function buildHabit(dates: Date[], windowDays: number): ReadingHabit {
     totalSessions: dates.length,
     activeDays: [...counts.values()].filter((n) => n > 0).length,
   };
-}
+};
 
 /**
  * Reading practice, day by day. Counts both kinds of reading work the app
  * records: modultest opgaver and the item-based adaptive drill.
  */
-export async function getReadingHabit(userId: string, windowDays = 28): Promise<ReadingHabit> {
+export const getReadingHabit = async (userId: string, windowDays = 28): Promise<ReadingHabit> => {
   const since = new Date();
   since.setDate(since.getDate() - windowDays);
   since.setHours(0, 0, 0, 0);
@@ -118,24 +108,18 @@ export async function getReadingHabit(userId: string, windowDays = 28): Promise<
   ];
 
   return buildHabit(dates, windowDays);
-}
+};
 
 // ---------------------------------------------------------------------------
 // Practice activity
 // ---------------------------------------------------------------------------
-
-export interface PracticeActivity {
-  category: ExerciseCategory;
-  sessions: number;
-  lastAt: Date | null;
-}
 
 /**
  * How much practice the learner has done per skill. Class only — attempts that
  * belong to a mock session are a test, not practice, and are reported
  * separately.
  */
-export async function getPracticeActivity(userId: string): Promise<PracticeActivity[]> {
+export const getPracticeActivity = async (userId: string): Promise<PracticeActivity[]> => {
   const rows = await exercises.practiceActivity(userId);
 
   const byCategory = new Map<string, { sessions: number; lastAt: Date | null }>();
@@ -153,31 +137,13 @@ export async function getPracticeActivity(userId: string): Promise<PracticeActiv
     sessions: byCategory.get(category)?.sessions ?? 0,
     lastAt: byCategory.get(category)?.lastAt ?? null,
   }));
-}
+};
 
 // ---------------------------------------------------------------------------
 // Mock history
 // ---------------------------------------------------------------------------
 
-export interface MockTestSummary {
-  id: string;
-  moduleId: number;
-  examType: string;
-  completedAt: Date | null;
-  /** Reading is the only discipline these tests score objectively. */
-  readingScore: number | null;
-  passed: boolean | null;
-}
-
-export interface MockHistory {
-  completed: number;
-  latest: MockTestSummary | null;
-  best: MockTestSummary | null;
-  recent: MockTestSummary[];
-  threshold: number;
-}
-
-function parseScores(json: string | null): number | null {
+const parseScores = (json: string | null): number | null => {
   if (!json) return null;
   try {
     const parsed = JSON.parse(json) as Record<string, number>;
@@ -186,9 +152,9 @@ function parseScores(json: string | null): number | null {
   } catch {
     return null;
   }
-}
+};
 
-function parsePassed(json: string | null): boolean | null {
+const parsePassed = (json: string | null): boolean | null => {
   if (!json) return null;
   try {
     const parsed = JSON.parse(json) as Record<string, boolean>;
@@ -196,9 +162,9 @@ function parsePassed(json: string | null): boolean | null {
   } catch {
     return null;
   }
-}
+};
 
-export async function getMockHistory(userId: string): Promise<MockHistory> {
+export const getMockHistory = async (userId: string): Promise<MockHistory> => {
   const sessions = await exercises.completedExamSessions(userId);
 
   const summaries: MockTestSummary[] = sessions.map((s) => ({
@@ -222,27 +188,13 @@ export async function getMockHistory(userId: string): Promise<MockHistory> {
     recent: summaries.slice(0, 5),
     threshold: EXAM_PASS_THRESHOLD,
   };
-}
+};
 
 // ---------------------------------------------------------------------------
 // Recent activity, across all three areas
 // ---------------------------------------------------------------------------
 
-export interface ActivityEntry {
-  id: string;
-  kind: "lesson" | "practice" | "mock";
-  at: Date;
-  /** Filled in by the caller's dictionary; raw fields only here. */
-  category?: string;
-  moduleId?: number;
-  taskType?: string;
-  lessonSlug?: string;
-  chapterId?: string | null;
-  score?: number | null;
-  total?: number | null;
-}
-
-export async function getRecentActivity(userId: string, take = 12): Promise<ActivityEntry[]> {
+export const getRecentActivity = async (userId: string, take = 12): Promise<ActivityEntry[]> => {
   const [lessonRows, practice, mocks] = await Promise.all([
     lessons.listCompleted(userId, take),
     exercises.recentCompleted(userId, {}, take),
@@ -280,4 +232,4 @@ export async function getRecentActivity(userId: string, take = 12): Promise<Acti
   ];
 
   return entries.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, take);
-}
+};

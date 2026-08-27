@@ -15,7 +15,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 /** Splits on semicolons that are not inside a string or a dollar-quoted body. */
-export function splitStatements(sql: string): string[] {
+export const splitStatements = (sql: string): string[] => {
   const out: string[] = [];
   let buf = "";
   let i = 0;
@@ -73,9 +73,9 @@ export function splitStatements(sql: string): string[] {
   if (buf.trim()) out.push(buf.trim());
   // Comment-only fragments are not statements.
   return out.filter((s) => s.split("\n").some((l) => l.trim() && !l.trim().startsWith("--")));
-}
+};
 
-async function main() {
+const main = async () => {
   const file = process.argv[2];
   if (!file) {
     console.error("usage: npx tsx scripts/run-sql.ts <file.sql>");
@@ -98,7 +98,7 @@ async function main() {
   }
 
   console.log(`${n} statements applied`);
-}
+};
 
 main()
   .catch((err) => {

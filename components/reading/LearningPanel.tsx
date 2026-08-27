@@ -3,9 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import type { Focus } from "./InteractiveText";
-import type { ReadingExplanation } from "@/lib/reading/explain";
-import type { Phrase } from "@/lib/reading/library";
+import type {
+  Focus,
+  NoteRow,
+  PanelTab,
+  Phrase,
+  ReadingExplanation,
+  SavedWordRow,
+} from "@/types";
 
 // The teacher beside the text.
 //
@@ -15,25 +20,7 @@ import type { Phrase } from "@/lib/reading/library";
 // selected too; a panel that is blank until you click something teaches the
 // learner it is not worth looking at.
 
-export type PanelTab = "explain" | "vocabulary" | "notes";
-
-export interface SavedWordRow {
-  id: string;
-  kind: string;
-  danish: string;
-  translation: string;
-  note: string | null;
-  learned: boolean;
-}
-
-export interface NoteRow {
-  id: string;
-  anchorKind: string;
-  quote: string | null;
-  body: string;
-}
-
-export function LearningPanel({
+export const LearningPanel = ({
   focus,
   explanation,
   explaining,
@@ -75,7 +62,7 @@ export function LearningPanel({
   grammarLinks: { code: string; name: string; href: string | null }[];
   tab: PanelTab;
   onTabChange: (tab: PanelTab) => void;
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.reading;
 
@@ -489,4 +476,4 @@ export function LearningPanel({
       </div>
     </div>
   );
-}
+};

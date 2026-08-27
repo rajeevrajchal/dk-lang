@@ -21,7 +21,7 @@ const HighlightSchema = z.object({
   color: z.enum(HIGHLIGHT_COLORS).nullable(),
 });
 
-export async function GET(req: Request) {
+export const GET = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,9 +31,9 @@ export async function GET(req: Request) {
   return NextResponse.json(
     await reading.listHighlights(session.user.id, textId ?? undefined)
   );
-}
+};
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -50,4 +50,4 @@ export async function POST(req: Request) {
   const row = await reading.setHighlight(session.user.id, textId, sentenceIndex, color);
   if (!row) return NextResponse.json({ ok: true, removed: true });
   return NextResponse.json(row);
-}
+};

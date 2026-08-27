@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import type { ReadingSummary, ReadingTopic } from "@/lib/reading/library";
+import type { LibraryEntryState, ReadingSummary, ReadingTopic } from "@/types";
 
 // Browsing what there is to read.
 //
@@ -13,12 +13,7 @@ import type { ReadingSummary, ReadingTopic } from "@/lib/reading/library";
 // people actually ask. Recommendations sit above the list rather than
 // replacing it, because a library that only shows three things is not one.
 
-export interface LibraryEntryState {
-  completed: boolean;
-  bookmarked: boolean;
-}
-
-export function LibraryBrowser({
+export const LibraryBrowser = ({
   texts,
   recommended,
   states,
@@ -32,7 +27,7 @@ export function LibraryBrowser({
   interests: ReadingTopic[];
   topics: string[];
   genres: string[];
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.reading;
 
@@ -153,9 +148,9 @@ export function LibraryBrowser({
       )}
     </div>
   );
-}
+};
 
-function Select({
+const Select = ({
   value,
   onChange,
   label,
@@ -165,7 +160,7 @@ function Select({
   onChange: (v: string | null) => void;
   label: string;
   options: { value: string; label: string }[];
-}) {
+}) => {
   return (
     <select
       value={value ?? ""}
@@ -182,9 +177,9 @@ function Select({
       ))}
     </select>
   );
-}
+};
 
-function TextCard({
+const TextCard = ({
   text,
   state,
   compact,
@@ -192,7 +187,7 @@ function TextCard({
   text: ReadingSummary;
   state?: LibraryEntryState;
   compact?: boolean;
-}) {
+}) => {
   const { dict } = useI18n();
   const t = dict.reading;
 
@@ -235,4 +230,4 @@ function TextCard({
       </div>
     </Link>
   );
-}
+};

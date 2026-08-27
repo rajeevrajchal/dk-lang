@@ -11,17 +11,7 @@
 // out of the passage they render, but the breakdown always shows the whole
 // sentence — seeing the intact structure is the point of the exercise here.
 
-export interface SentenceBreakdown {
-  danish: string;
-  english: string;
-  structureNote: string;
-  constructCodes: string[]; // codes from constructs.ts demonstrated here
-}
-
-export interface PassageSentences {
-  passageId: string;
-  sentences: SentenceBreakdown[];
-}
+import type { PassageSentences } from "@/types";
 
 export const MODUL2_SENTENCES: PassageSentences[] = [
   {

@@ -1,11 +1,11 @@
 import { auth } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
 
-export default async function AppLayout({
+const AppLayout = async ({
   children,
 }: {
   children: React.ReactNode;
-}) {
+}) => {
   const session = await auth();
 
   return (
@@ -14,4 +14,6 @@ export default async function AppLayout({
       <main className="flex-1 overflow-y-auto">{children}</main>
     </div>
   );
-}
+};
+
+export default AppLayout;

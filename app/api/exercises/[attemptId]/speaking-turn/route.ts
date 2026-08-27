@@ -4,19 +4,8 @@ import { auth } from "@/lib/auth";
 import { exercises } from "@/lib/repositories";
 import { VARIANT_BY_ID } from "@/lib/exercises/registry";
 import { nextExaminerTurn, scriptedExaminerTurn, examinerAvailable } from "@/lib/exercises/examiner";
-import {
-  advanceStage,
-  currentStage,
-  initialSpeakingState,
-  isStageComplete,
-  isTaskComplete,
-  recordCandidateTurn,
-  recordExaminerTurn,
-  stagesFor,
-  uncoveredTargets,
-  type SpeakingState,
-} from "@/lib/exercises/speaking-state";
-import type { ExerciseVariant } from "@/lib/exercises/types";
+import { advanceStage, currentStage, initialSpeakingState, isStageComplete, isTaskComplete, recordCandidateTurn, recordExaminerTurn, stagesFor, uncoveredTargets } from "@/lib/exercises/speaking-state";
+import type { ExerciseVariant, SpeakingState } from "@/types";
 
 const TurnSchema = z.object({
   /** What the candidate said. Omitted on the very first turn. */
@@ -36,10 +25,10 @@ export const maxDuration = 120;
  * turn is used instead, which still respects state — so the conversation
  * works, it just doesn't react to the exact wording.
  */
-export async function POST(
+export const POST = async (
   req: Request,
   { params }: { params: Promise<{ attemptId: string }> }
-) {
+) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -113,4 +102,4 @@ export async function POST(
     adaptive: outcome.turn !== null,
     state,
   });
-}
+};
