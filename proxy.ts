@@ -16,7 +16,15 @@ import { NextResponse, type NextRequest } from "next/server";
 // /auth/* covers the OAuth callback, the forgot-password form and the
 // reset-password page. The last one is reached holding a recovery session, so
 // it must not be treated as "already signed in" and bounced to the dashboard.
-const PUBLIC_PATHS = ["/login"];
+//
+// /api/dev/test-login has to be reachable signed OUT — that is the only time
+// the "Test login" button on /login is ever used — so it needs the same
+// carve-out. It is still safe in production: the route itself refuses to run
+// there, this just stops middleware bouncing the request before it can say
+// so, and the check is repeated here (not left to the route alone) so the
+// path never becomes reachable pre-auth in prod even if that route changes.
+const PUBLIC_PATHS =
+  process.env.NODE_ENV === "production" ? ["/login"] : ["/login", "/api/dev/test-login"];
 
 function supabaseConfigured(): boolean {
   return (
