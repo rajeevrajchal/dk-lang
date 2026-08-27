@@ -53,3 +53,24 @@ export interface ExplanationOutcome {
   explanation: Explanation | null;
   reason?: string;
 }
+
+/**
+ * The slot a generated exercise is being written for.
+ *
+ * Supplied when generation is filling a numbered task rather than serving a
+ * one-off exercise. It carries the two things the model cannot work out for
+ * itself: how hard this position on the ladder has to be, and which tasks it
+ * must not resemble. Both are what make "generate with AI" a step inside the
+ * category structure rather than a separate feature that happens to produce
+ * exercises.
+ */
+export interface GenerationSlot {
+  taskNumber: number;
+  totalTasks: number;
+  /** The band's own name, e.g. "medium_hard". */
+  difficulty: string;
+  /** What that band means in terms of Danish grammar and text complexity. */
+  difficultyGuidance: string;
+  /** Titles of the tasks already in this ladder, for de-duplication. */
+  existingTitles: string[];
+}

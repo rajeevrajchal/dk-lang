@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { apiFetch } from "@/lib/http/client";
+import { useAction } from "@/lib/hooks/useAction";
+import { ActionButton, ErrorState } from "@/components/ui/states";
+import { DanishText } from "@/components/translation/DanishText";
 import { buildMistake } from "@/lib/learning/feedback";
 import type { ExerciseCheck, LessonExercise, NextStep } from "@/types";
 
@@ -41,28 +45,27 @@ export const LessonExercises = ({
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [checks, setChecks] = useState<Record<string, ExerciseCheck> | null>(null);
   const [score, setScore] = useState<{ score: number | null; total: number | null } | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const set = (id: string, value: string) => setResponses((r) => ({ ...r, [id]: value }));
 
-  const submit = async () => {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/course/progress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lessonSlug, responses }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const byId: Record<string, ExerciseCheck> = {};
-      for (const c of data.checks as ExerciseCheck[]) byId[c.id] = c;
-      setChecks(byId);
-      setScore({ score: data.score, total: data.total });
-    } finally {
-      setBusy(false);
-    }
-  };
+  // This used to fail silently: a non-ok response returned early, the button
+  // came back to life, and nothing at all appeared. The learner's only
+  // evidence that they had pressed it was that nothing happened.
+  const check = useCallback(async () => {
+    const data = await apiFetch<{
+      checks: ExerciseCheck[];
+      score: number | null;
+      total: number | null;
+    }>("/api/course/progress", { json: { lessonSlug, responses } });
+
+    const byId: Record<string, ExerciseCheck> = {};
+    for (const c of data.checks) byId[c.id] = c;
+    setChecks(byId);
+    setScore({ score: data.score, total: data.total });
+    return data;
+  }, [lessonSlug, responses]);
+
+  const submit = useAction(check);
 
   const passed =
     score?.total == null || score.total === 0
@@ -115,7 +118,11 @@ export const LessonExercises = ({
 
               {ex.kind === "selection" && (
                 <div>
-                  <p className="text-sm text-slate-700 mb-2">{ex.sentence}</p>
+                  <DanishText
+                    as="div"
+                    text={ex.sentence}
+                    className="mb-2 text-sm text-slate-700"
+                  />
                   <div className="flex flex-wrap gap-2">
                     {ex.options.map((opt) => (
                       <button
@@ -156,7 +163,11 @@ export const LessonExercises = ({
 
               {ex.kind === "controlled_production" && (
                 <div>
-                  <p className="text-sm text-slate-700 mb-2">{ex.prompt}</p>
+                  <DanishText
+                    as="div"
+                    text={ex.prompt}
+                    className="mb-2 text-sm text-slate-700"
+                  />
                   <input
                     disabled={!!checks}
                     value={responses[ex.id] ?? ""}
@@ -170,7 +181,11 @@ export const LessonExercises = ({
 
               {ex.kind === "free_production" && (
                 <div>
-                  <p className="text-sm text-slate-700 mb-2">{ex.prompt}</p>
+                  <DanishText
+                    as="div"
+                    text={ex.prompt}
+                    className="mb-2 text-sm text-slate-700"
+                  />
                   <textarea
                     disabled={!!checks}
                     value={responses[ex.id] ?? ""}
@@ -255,13 +270,23 @@ export const LessonExercises = ({
       })}
 
       {!checks ? (
-        <button
-          onClick={submit}
-          disabled={busy}
-          className="rounded-md bg-slate-900 text-white text-sm font-medium px-5 py-2.5 disabled:opacity-50"
-        >
-          {t.checkAnswers}
-        </button>
+        <div className="space-y-3">
+          <ActionButton
+            onClick={() => void submit.run()}
+            pending={submit.pending}
+            pendingLabel="Checking…"
+          >
+            {t.checkAnswers}
+          </ActionButton>
+          {submit.error && (
+            <ErrorState
+              error={submit.error}
+              onRetry={() => void submit.run()}
+              title="Your answers were not checked"
+              retryLabel="Try again"
+            />
+          )}
+        </div>
       ) : (
         <div className={`${card} ${passed ? "border-emerald-300" : "border-amber-300"}`}>
           {score?.total != null && score.total > 0 && (

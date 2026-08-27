@@ -72,6 +72,10 @@ model User {
   savedWords        SavedWord[]
   readingNotes      ReadingNote[]
   readingHighlights ReadingHighlight[]
+  questionEvents    QuestionEvent[]
+  mistakes          MistakeRecord[]
+  verbProgress      VerbProgress[]
+  taskProgress      UserTaskProgress[]
 }
 
 model Account {
@@ -413,10 +417,26 @@ model ExerciseAttempt {
   generated     Boolean @default(false)
   variantJson   String?
 
+  // The numbered task this attempt was a sitting of, when it came from the
+  // task list rather than from the older "serve me something" flow.
+  //
+  // This is what makes attempt history per task possible: attempts are never
+  // updated in place and never deleted, so Task 14's row here grows by one
+  // every time it is practised and "26 Aug 6/10, 27 Aug 8/10" is a query
+  // rather than a thing that has to be remembered separately.
+  taskId String?
+
   // Cached word-by-word / sentence-by-sentence breakdown of this opgave's
   // Danish text, generated on demand after the learner has answered. Cached
   // because it is expensive and the text never changes once served.
   explanationJson String?
+
+  // Cached English feedback on THIS learner's answers: why the one they chose
+  // is wrong, why the right one is right, and the rule behind it. Separate
+  // from explanationJson because it depends on the response — the same opgave
+  // answered differently needs different feedback — and is written once, when
+  // the attempt is graded.
+  feedbackJson String?
 
   // Conversation state for a speaking opgave: which stage, what has been
   // covered, and the transcript so far. The app owns this — the examiner is
@@ -439,6 +459,7 @@ model ExerciseAttempt {
 
   @@index([userId, moduleId, category])
   @@index([examSessionId])
+  @@index([userId, taskId])
 }
 
 // ---------------------------------------------------------------------------
@@ -688,4 +709,310 @@ model ReadingExplanation {
   createdAt DateTime @default(now())
 
   @@unique([textId, scopeKind, scopeId, level, depth])
+}
+
+// ---------------------------------------------------------------------------
+// Translation cache.
+//
+// Not per-user, and for the same reason ReadingExplanation is not: what a
+// Danish word or sentence means is a fact about the Danish, not about the
+// learner who clicked it. One learner asking pays for it and everyone
+// benefits.
+//
+// Keyed by a hash of the normalised Danish plus the kind and the level it was
+// pitched at, because "hun har taget bussen" gets a different answer as a
+// clicked word than as a whole sentence, and a different one again for a
+// beginner than for a PD3 candidate.
+// ---------------------------------------------------------------------------
+
+model TranslationCache {
+  id String @id @default(cuid())
+
+  /// sha256 of `${kind}:${level}:${normalised danish}` — the whole key in one
+  /// indexed column, so a long sentence does not need a long unique index.
+  hash String @unique
+
+  kind   String // WORD | SENTENCE
+  danish String
+  level  Int
+
+  json String
+
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Learning history: one row per question the learner actually answered.
+//
+// ExerciseAttempt records a whole opgave (six answers is one row). That is the
+// right unit for "which variants has this learner sat", and the wrong unit for
+// every question the learner has ever asked about their own learning: which
+// questions did I get wrong, what did I answer, what was the paragraph, has it
+// improved since. This is the finer grain, appended once per graded answer.
+//
+// Append-only. MistakeRecord below is the aggregate; this is the log that
+// aggregate is derived from and that the history screens read directly.
+// ---------------------------------------------------------------------------
+
+model QuestionEvent {
+  id     String @id @default(cuid())
+  userId String
+
+  /// EXERCISE (an opgave sub-answer) | VERB (verb practice)
+  source String
+
+  /// Stable identity of this question ACROSS attempts, e.g.
+  /// "exercise:r1-bolig:person-1" or "verb:arbejde:DA_EN". Two sittings of the
+  /// same question share a key, which is what makes "have I answered it
+  /// correctly since?" answerable.
+  questionKey String
+
+  /// The opgave this answer belonged to, when it came from one.
+  attemptId     String?
+  examSessionId String?
+
+  moduleId Int?
+  category String? // READING | WRITING | SPEAKING | LISTENING
+  taskType String?
+  topic    String?
+
+  /// What this question is really testing, in the app's own vocabulary — a
+  /// construct code, a verb id, or a coarse label like "word-order". This is
+  /// what the pattern insights group by, so it is never a free-text string
+  /// from a model.
+  grammarTopic String?
+
+  questionText  String
+  /// The Danish the question was about, kept so history is readable without
+  /// re-fetching the variant.
+  danishText    String?
+  /// The reading paragraph/section this question belonged to, and its label,
+  /// so a historical question can show its context again.
+  passageLabel  String?
+  passageText   String?
+
+  userAnswer    String?
+  correctAnswer String
+  isCorrect     Boolean
+
+  /// English explanation shown with the result.
+  explanation String?
+
+  /// Which sitting of this question this was, 1-based.
+  attemptNumber Int @default(1)
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, questionKey])
+  @@index([attemptId])
+}
+
+// One row per question this learner has ever got wrong.
+//
+// Derived from QuestionEvent, but stored rather than computed: the review
+// screen's question is "what am I still getting wrong", and answering that by
+// scanning every event a learner has ever produced gets slower every week.
+//
+// The snapshot fields are deliberate duplication. A mistake has to stay
+// readable — the question, the paragraph, the right answer — even when the
+// exercise it came from was generated for one attempt and no longer exists
+// anywhere.
+model MistakeRecord {
+  id     String @id @default(cuid())
+  userId String
+
+  questionKey String
+  source      String
+
+  moduleId     Int?
+  category     String?
+  taskType     String?
+  topic        String?
+  grammarTopic String?
+
+  questionText  String
+  danishText    String?
+  passageLabel  String?
+  passageText   String?
+  /// The answer given the last time it was wrong, not the first: what the
+  /// learner is doing NOW is what a review has to address.
+  lastWrongAnswer String?
+  correctAnswer   String
+  explanation     String?
+
+  /// Where to go to see it in context.
+  attemptId String?
+
+  timesWrong Int @default(1)
+  timesRight Int @default(0)
+
+  lastWrongAt DateTime
+  lastSeenAt  DateTime
+  /// Set the first time the learner answers it correctly after getting it
+  /// wrong, and cleared again if they get it wrong later. Nullable rather than
+  /// a boolean so "when did this click?" is answerable.
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionKey])
+  @@index([userId, resolvedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Verb collection progress.
+//
+// The 500 verbs themselves are code (lib/verbs/data.ts), the same way the
+// reading library and the curriculum are: content that ships with the app and
+// is the same for every learner does not belong in a table. What belongs here
+// is what this learner has done with them.
+//
+// Keyed by the verb's infinitive rather than a foreign key, for the same
+// reason ReadingProgress is keyed by textId: the collection is code, so there
+// is no row to point at.
+// ---------------------------------------------------------------------------
+
+model VerbProgress {
+  id     String @id @default(cuid())
+  userId String
+
+  /// The infinitive without "at", e.g. "arbejde". Stable across releases.
+  verbId String
+
+  /// The learner's own mark. Never set by the practice engine — "I know this"
+  /// is a claim the learner makes, and the accuracy counts below are what the
+  /// app measured. Merging them would lose the disagreement, which is the
+  /// interesting part.
+  learned Boolean @default(false)
+
+  correctCount Int @default(0)
+  wrongCount   Int @default(0)
+  /// Consecutive correct answers; reset by a wrong one. Drives which verbs
+  /// come back and how soon.
+  streak Int @default(0)
+
+  lastPracticedAt DateTime?
+  /// When this verb should next be practised. SM-2-shaped, matching SrsState.
+  dueAt        DateTime?
+  intervalDays Int   @default(0)
+  easeFactor   Float @default(2.5)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, verbId])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Numbered practice tasks.
+//
+// The unit the learner navigates by: Reading → Missing words → Task 14. A task
+// is a SLOT — a fixed position in a category's fifty, with a fixed difficulty
+// band — and the content that fills it.
+//
+// This is a table rather than code (as the reading library and the verb
+// collection are) for one reason: the content is generated per module and per
+// slot, so it does not exist until somebody opens the slot, and once it exists
+// it must never change. Task 14 has to be the same Task 14 tomorrow, or a
+// score against it means nothing and an attempt history is a list of
+// unrelated exercises.
+//
+// It carries no user data at all. What a learner did with a task is
+// UserTaskProgress (the summary) and ExerciseAttempt (each sitting) — see
+// docs/task-architecture.md for why those are three tables and not one.
+// ---------------------------------------------------------------------------
+
+model Task {
+  id String @id @default(cuid())
+
+  /// The learner's own module, from onboarding or Settings. Tasks are per
+  /// module because a Modul 3 "missing words" is not a Modul 2 one; the
+  /// learner never picks this, it comes from their profile.
+  moduleId Int
+  category String // READING | WRITING | SPEAKING | LISTENING
+  /// The practice type — "reading_task_3_missing_words" and so on. This is
+  /// what the learner picks under a category.
+  taskType String
+  /// 1..50. Position in the ladder, and the learner-facing name of the task.
+  taskNumber Int
+
+  /// easy | easy_medium | medium | medium_hard | hard. Derived from
+  /// taskNumber by the band table in lib/tasks/catalogue.ts and stored, so a
+  /// later change to the bands cannot silently re-label content that was
+  /// written for the old ones.
+  difficulty String
+
+  /// Stable content id. An authored variant keeps its own; a generated one
+  /// gets a fresh id at materialisation.
+  variantId String
+  /// The whole ExerciseVariant, answer key included. Server-side only — it is
+  /// stripped by toPublicExercise before anything reaches the browser.
+  contentJson String
+  /// AUTHORED (from the hand-written pool) | GENERATED (written by the model).
+  source String
+
+  /// Short description of what this task is about, used to steer generation of
+  /// the NEXT task away from it. Kept denormalised so de-duplication does not
+  /// have to parse fifty content blobs.
+  topic String
+  title String
+
+  createdAt DateTime @default(now())
+
+  progress UserTaskProgress[]
+
+  /// One task per slot. This is the constraint that makes a slot a slot: two
+  /// learners opening Task 14 at the same moment get the same task.
+  @@unique([moduleId, category, taskType, taskNumber])
+  @@index([moduleId, category, taskType])
+}
+
+// What one learner has done with one task.
+//
+// A SUMMARY, derived from the attempts and stored because the task list asks
+// "how did I do on each of these fifty?" and answering that by aggregating
+// every attempt row on every page load gets slower every week.
+//
+// It never replaces the attempts. `bestScore` and `lastScore` are both here
+// because they answer different questions — "how well can I do this?" and "how
+// am I doing now?" — and neither is allowed to overwrite the history that
+// produced it.
+model UserTaskProgress {
+  id     String @id @default(cuid())
+  userId String
+  taskId String
+
+  /// IN_PROGRESS the moment it is opened, COMPLETED once submitted. A task
+  /// with no row at all is "not started" — an absent row is a cleaner
+  /// representation of "never touched" than fifty empty rows per learner.
+  status String @default("IN_PROGRESS")
+
+  attemptCount Int @default(0)
+
+  bestScore Int?
+  bestTotal Int?
+  lastScore Int?
+  lastTotal Int?
+  lastMistakes Int?
+
+  firstCompletedAt DateTime?
+  lastAttemptAt    DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taskId])
+  @@index([userId])
 }

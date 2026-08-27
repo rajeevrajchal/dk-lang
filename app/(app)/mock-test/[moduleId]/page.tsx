@@ -1,14 +1,9 @@
 import { redirect } from "next/navigation";
 
-// Mock tests moved into the Mock area. Old links land on the module's mock
-// page, which offers the full test and the individual sections.
-const MockTestRedirect = async ({
-  params,
-}: {
-  params: Promise<{ moduleId: string }>;
-}) => {
-  const { moduleId } = await params;
-  redirect(`/mock/${moduleId}`);
+// Mock tests moved into the Mock area, which no longer asks for a module —
+// it comes from the learner's profile. Old links land on Mock itself.
+const MockTestRedirect = async () => {
+  redirect("/mock");
 };
 
 export default MockTestRedirect;

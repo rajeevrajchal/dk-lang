@@ -1,4 +1,5 @@
-import type { MockSummary, ScoredPart, SummaryEntry, TaskType } from "@/types";
+import { CATEGORY_BY_KEY, practiceType } from "@/lib/tasks/catalogue";
+import type { ExerciseCategory, MockSummary, ScoredPart, SummaryEntry } from "@/types";
 
 // Turning a finished mock test into "what went well, what needs work".
 //
@@ -44,10 +45,17 @@ export const summariseMock = (parts: ScoredPart[]): MockSummary => {
 };
 
 /** Where in Class to go and work on a weak task type. */
-export const practiceHrefFor = (entry: SummaryEntry, moduleId: number): string => {
-  const skill = entry.category.toLowerCase();
-  const isTaskType = entry.taskType !== entry.category;
-  return isTaskType
-    ? `/class/${skill}/${moduleId}/${entry.taskType as TaskType}`
-    : `/class/${skill}/${moduleId}`;
+/**
+ * Where to go and work on a weak area.
+ *
+ * Points at the practice type's own task ladder rather than at a module: the
+ * whole point of a mock result is "go and practise THIS", and the learner's
+ * module is already known. A task type with no catalogue entry falls back to
+ * its category.
+ */
+export const practiceHrefFor = (entry: SummaryEntry): string => {
+  const category = CATEGORY_BY_KEY.get(entry.category as ExerciseCategory);
+  const slug = category?.slug ?? entry.category.toLowerCase();
+  const type = practiceType(entry.taskType);
+  return type ? `/class/${slug}/${type.slug}` : `/class/${slug}`;
 };

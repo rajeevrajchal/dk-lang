@@ -18,6 +18,7 @@ import type {
   ExerciseCategory,
   ExerciseVariant,
   GenerationOutcome,
+  GenerationSlot,
   TaskType,
 } from "@/types";
 
@@ -72,7 +73,7 @@ Regler, der gør opgaven fair og løsbar:
 4. Annoncerne skal indeholde konkrete detaljer: pris i kroner, antal værelser eller m², bydel eller by, tidspunkter, hvem det henvender sig til, betingelser.
 5. Eksemplets annonce A må ikke være svaret på nogen af de 4 personer.
 
-For hvert svar skriver du en kort begrundelse på dansk (rationale), der forklarer, hvorfor netop den annonce passer, og gerne hvorfor en nærliggende annonce ikke gør.`;
+For hvert svar skriver du en kort begrundelse (rationale) PÅ ENGELSK, der forklarer, hvorfor netop den annonce passer, og hvorfor en nærliggende annonce ikke gør. Kursisten skal kunne læse forklaringen uden besvær — det er det danske, der skal læres, ikke forklaringen. Citer gerne de danske ord, der afgør det; de bliver stående på dansk.`;
 };
 
 const task2Prompt = (topic: string, avoid: string[]): string => {
@@ -97,7 +98,7 @@ Dårligt eksempel: et afsnit om en børnehave, hvor den forkerte sætning er "Hu
 
 Kursisten skal altså holde afsnittets oplysninger op mod hinanden for at finde fejlen.
 
-For hvert afsnit skriver du i 'why' på dansk, hvilke oplysninger i afsnittet den forkerte sætning modsiger.`;
+For hvert afsnit skriver du i 'why' PÅ ENGELSK, hvilke oplysninger i afsnittet den forkerte sætning modsiger. Selve de danske sætninger citeres på dansk, men forklaringen er engelsk, så kursisten kan læse den.`;
 };
 
 const task3Prompt = (topic: string, avoid: string[]): string => {
@@ -121,7 +122,7 @@ Regler:
 5. De 4 ubrugte ord skal være ord, der ser plausible ud i teksten, men som ikke passer noget sted.
 6. Sørg for, at tekststykkerne sat sammen med svarene giver en helt naturlig, sammenhængende dansk tekst. Tegnsætning og mellemrum skal passe (tekststykker slutter typisk med et mellemrum før hullet).
 
-For hvert svar skriver du en kort begrundelse på dansk (rationale): hvorfor netop det ord, og gerne hvorfor et nærliggende ord i banken ikke passer.`;
+For hvert svar skriver du en kort begrundelse (rationale) PÅ ENGELSK: hvorfor netop det ord — grammatikken og sammenhængen — og hvorfor et nærliggende ord i banken ikke passer. De danske ord citeres på dansk; forklaringen er engelsk.`;
 };
 
 const task4Prompt = (topic: string, avoid: string[]): string => {
@@ -142,7 +143,7 @@ DET VIGTIGSTE — spørgsmålene skal kræve forståelse, ikke ordgenkendelse:
 3. Mindst to forskellige personer skal være svaret på tværs af de 5 spørgsmål — gerne alle tre.
 4. Hver person skal have mindst ét klart, men indirekte formuleret særtræk, som ét spørgsmål rammer.
 
-For hvert spørgsmål skriver du i 'why' på dansk, hvad i personens tekst der gør ham eller hende til svaret, og gerne hvorfor en anden person kunne forveksles.`;
+For hvert spørgsmål skriver du i 'why' PÅ ENGELSK, hvad i personens tekst der gør ham eller hende til svaret, og hvorfor en anden person kunne forveksles. Citer den danske sætning, der afgør det, på dansk — forklaringen omkring den er engelsk.`;
 };
 
 const writingPrompt = (taskType: TaskType, topic: string, avoid: string[]): string => {
@@ -652,12 +653,54 @@ const schemaFor = (taskType: TaskType) => {
  * the caller falls back to the authored pool so a missing key or a bad night
  * for the API never blocks practice.
  */
+/**
+ * The extra instructions a numbered slot adds to a prompt: how hard this one
+ * has to be, and what it must not resemble.
+ *
+ * Written in Danish like the rest of the prompts, and concrete about
+ * difficulty — "svær" on its own produces the same exercise with rarer nouns,
+ * which is not a harder exercise. The band descriptions name the grammar that
+ * actually raises the difficulty of a Danish text.
+ */
+const slotGuidance = (slot: GenerationSlot): string => {
+  const lines = [
+    "",
+    "",
+    `DENNE OPGAVE ER NR. ${slot.taskNumber} AF ${slot.totalTasks} I RÆKKEN.`,
+    `SVÆRHEDSGRAD: ${slot.difficulty}.`,
+    `Hvad det betyder her: ${slot.difficultyGuidance}`,
+  ];
+
+  if (slot.existingTitles.length > 0) {
+    lines.push(
+      "",
+      "KURSISTEN HAR ALLEREDE DISSE OPGAVER I SAMME KATEGORI:",
+      ...slot.existingTitles.slice(0, 25).map((t) => `- ${t}`),
+      "",
+      "Din opgave skal være GENUINT anderledes end dem. Det er ikke nok at skifte navne eller bynavn ud. Lav noget andet: en anden situation, en anden slags tekst, andre grammatiske konstruktioner, en anden slags spørgsmål og andre distraktorer. Hvis din idé ligger tæt på en af ovenstående, så vælg en anden idé."
+    );
+  }
+
+  return lines.join("\n");
+};
+
 export const generateExercise = async (
   taskType: TaskType,
   category: ExerciseCategory,
   moduleId: number,
   usedTopics: string[],
-  attempts = 2
+  attempts = 2,
+  /**
+   * What slot this is being written for, when it is being written for one.
+   *
+   * A numbered task is not a loose exercise: it sits at a fixed point on a
+   * fifty-step difficulty ladder, and it has to differ from the tasks already
+   * in that ladder in more than its nouns. Both of those are facts the model
+   * cannot infer from the task type, so they are handed to it — which is what
+   * makes "generate with AI" a step inside the category structure rather than
+   * a separate feature that happens to produce exercises.
+   */
+  slot?: GenerationSlot
 ): Promise<GenerationOutcome> => {
   if (!llmGenerationAvailable()) {
     return {
@@ -672,6 +715,7 @@ export const generateExercise = async (
   for (let i = 0; i < attempts; i++) {
     const topic = pickTopic(taskType, usedTopics);
     let prompt = promptFor(taskType, topic, usedTopics.map(shortTopic), moduleId);
+    if (slot) prompt += slotGuidance(slot);
 
     // On the retry, tell the model exactly what was wrong last time.
     if (problems.length > 0) {

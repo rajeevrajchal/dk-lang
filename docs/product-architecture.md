@@ -11,23 +11,35 @@ that exists.
 
 ```
 LESSONS   Learn Danish      grammar course, chapter → topic → lesson
+VERBS     Build vocabulary  the 500 most common verbs, browse and practise
 CLASS     Practise it       reading / speaking / writing, module-specific
 MOCK      Simulate the test full mock test + individual sections, then results
 DASHBOARD Understand where  level, lesson progress, habit, activity, history
           you are
+
+MISTAKES  Fix what is wrong every question you got wrong, with the paragraph
+HISTORY   Look back         every question you have answered, grouped by test
 
 SETTINGS  Profile, current level, official test results
 ```
 
 The learner's question decides the area:
 
-| Question                     | Area      |
-| ---------------------------- | --------- |
-| What do I need to learn?     | Lessons   |
-| Can I use what I learned?    | Class     |
-| Am I ready for the real test?| Mock      |
-| How am I doing?              | Dashboard |
-| What level am I?             | Settings  |
+| Question                      | Area      |
+| ----------------------------- | --------- |
+| What do I need to learn?      | Lessons   |
+| What words do I not know yet? | Verbs     |
+| Can I use what I learned?     | Class     |
+| Am I ready for the real test? | Mock      |
+| How am I doing?               | Dashboard |
+| What do I keep getting wrong? | Mistakes  |
+| What did I do last week?      | History   |
+| What level am I?              | Settings  |
+
+Verbs, Mistakes and History were added after the original four. They are
+separate areas rather than tabs inside Class because they answer questions a
+learner asks *between* practice sessions, not during one — see
+`docs/learning-history.md`.
 
 ## 2. Route map (before → after)
 
@@ -48,6 +60,8 @@ behind or stayed exactly where it was.
 | `/reports`                                | unchanged (linked from Settings)         | kept           |
 | `/dashboard`, `/settings`                 | unchanged, extended                      | kept           |
 | —                                         | `/onboarding` (new)                      | new            |
+| —                                         | `/verbs`, `/verbs/practice` (new)        | new            |
+| —                                         | `/mistakes`, `/history` (new)            | new            |
 
 `/class/[moduleId]` survives as the per-module hub the exercise runners link
 back to; it now presents the three skills rather than being the only way in.
@@ -68,6 +82,20 @@ a dynamic-segment name clash.
      LESSONS             CLASS               MOCK
    mode "lesson"      mode "class"        mode "mock"
 ```
+
+Everything that happens AFTER an answer is shared too, and by the same rule —
+one implementation, never one per area:
+
+```
+  grading.ts        was it right?          (the answer key)
+  feedback.ts       why, in English?       (what the learner chose)
+  context.ts        what text was it about? (the paragraph behind the answer)
+  learning-history  what should be kept?    (QuestionEvent + MistakeRecord)
+```
+
+Verb practice joins the same pipeline at `learning-history`, which is why a
+struggling verb and a misread paragraph show up in one review list rather than
+two. See `docs/learning-history.md`.
 
 `lib/exercises/mode.ts` names the three modes and what each one does about
 feedback, guidance, retries and timing. The mode is *derived*, never a second

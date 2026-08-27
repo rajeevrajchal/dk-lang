@@ -183,16 +183,17 @@ export const getLearnerOverview = async (userId: string): Promise<LearnerOvervie
       href: `/lessons/${resumeDetail.chapter.id}/${resumeDetail.lessonSlug}`,
     };
   } else if (lastPractice) {
-    // Practice module: the learner's own level where they have given us one,
-    // and Modul 2 (the only module with a full authored bank) otherwise. This
-    // reads the level; it never writes it.
-    const moduleId = level.currentModule ?? 2;
+    // Points at the category landing page, not a module-scoped URL: the
+    // learner's module comes from their profile wherever it is used, and no
+    // route in Class takes it as a path segment any more (see
+    // docs/task-architecture.md). "Continue" reopens the category they were
+    // last in; which practice type and task within it follows the same
+    // not-started → in-progress → completed rule every task list uses.
     continueCard = {
       kind: "practice",
       title: "",
       category: lastPractice.category,
-      moduleId,
-      href: `/class/${lastPractice.category.toLowerCase()}/${moduleId}`,
+      href: `/class/${lastPractice.category.toLowerCase()}`,
     };
   } else if (resumeDetail) {
     continueCard = {

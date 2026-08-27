@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { describeActivity, getLearnerOverview } from "@/lib/dashboard";
+import { moduleFor } from "@/lib/tasks/module";
+import { ProgressPanel } from "@/components/tasks/ProgressPanel";
 import { getServerDictionary } from "@/lib/i18n/server";
 
 // The Dashboard answers three questions and no others: where am I, what have I
@@ -38,9 +40,10 @@ const DashboardPage = async () => {
           ? dict.exercises.categories[data.continueCard.category]
           : t.continueCourse);
 
-  const continueDetail =
-    data.continueCard.detail ??
-    (data.continueCard.moduleId ? `Modul ${data.continueCard.moduleId}` : null);
+  // No module label here any more: the learner's module is shown once, in the
+  // level card, and repeating it on every card is what made the old dashboard
+  // read as a module browser.
+  const continueDetail = data.continueCard.detail ?? null;
 
   return (
     <div className="max-w-5xl mx-auto p-6 sm:p-8 space-y-8">
@@ -90,6 +93,12 @@ const DashboardPage = async () => {
           {t.continueButton}
         </Link>
       </section>
+
+      {/* ---- What you have practised, and what to do next ------------
+          Replaces the module grid that used to be the Dashboard's main
+          navigation. A learner asks "what should I work on?", not "which
+          module am I allowed into?". */}
+      <ProgressPanel userId={session!.user.id} moduleId={moduleFor(data.level.currentModule)} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ---- Lesson progress --------------------------------------- */}
@@ -188,30 +197,6 @@ const DashboardPage = async () => {
           </Link>
         </section>
 
-        {/* ---- Practice activity ------------------------------------- */}
-        <section className="rounded-xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
-              {t.practiceActivity}
-            </h2>
-            <Link href="/class" className="text-xs text-slate-500 hover:underline">
-              {dict.nav.class} →
-            </Link>
-          </div>
-          <ul className="mt-4 space-y-3">
-            {data.practice.map((p) => (
-              <li key={p.category} className="flex items-baseline justify-between gap-3">
-                <span className="text-sm text-slate-700">
-                  {dict.class2.skills[p.category] ?? p.category}
-                </span>
-                <span className="text-sm text-slate-500">
-                  {p.sessions > 0 ? t.practiceSessions(p.sessions) : t.practiceNever}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
         {/* ---- Mock tests -------------------------------------------- */}
         <section className="rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between gap-3">
@@ -232,8 +217,7 @@ const DashboardPage = async () => {
 
               <dt className="text-slate-500">{t.mockLatest}</dt>
               <dd className="text-right">
-                Modul {data.mock.latest?.moduleId}
-                <span className="ml-2 text-slate-400">{fmtDate(data.mock.latest?.completedAt)}</span>
+                <span className="text-slate-400">{fmtDate(data.mock.latest?.completedAt)}</span>
               </dd>
 
               <dt className="text-slate-500">{t.mockBest}</dt>

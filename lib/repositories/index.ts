@@ -24,3 +24,7 @@ export * as lessons from "./lessons";
 export * as exercises from "./exercises";
 export * as content from "./content";
 export * as srs from "./srs";
+export * as translation from "./translation";
+export * as history from "./learning-history";
+export * as verbs from "./verbs";
+export * as tasks from "./tasks";

@@ -1,26 +1,19 @@
 import { notFound, redirect } from "next/navigation";
-import { EXERCISE_CATEGORIES } from "@/lib/exercises/constants";
-import type { ExerciseCategory } from "@/types";
+import { CATEGORY_BY_SLUG } from "@/lib/tasks/catalogue";
 
-// Opgave practice moved under Class, where it sits beside the other two
-// skills instead of being a separate corner of the app. Old links still work.
+// Opgave practice moved under Class, which is now organised by category and
+// takes the module from the learner's profile. Old links keep working: the
+// module in the URL is dropped, because it is no longer the learner's to pick.
 const OpgaverRedirect = async ({
   params,
 }: {
   params: Promise<{ moduleId: string; category: string }>;
 }) => {
-  const { moduleId, category } = await params;
-  const upper = category.toUpperCase() as ExerciseCategory;
+  const { category } = await params;
+  const definition = CATEGORY_BY_SLUG.get(category.toLowerCase());
+  if (!definition) notFound();
 
-  if (!Number.isFinite(Number(moduleId)) || !EXERCISE_CATEGORIES.includes(upper)) {
-    notFound();
-  }
-
-  // Listening has no practice route of its own — it has no content — so it
-  // lands on the Class overview, which says as much.
-  if (upper === "LISTENING") redirect("/class");
-
-  redirect(`/class/${category.toLowerCase()}/${moduleId}/any`);
+  redirect(`/class/${definition.slug}`);
 };
 
 export default OpgaverRedirect;

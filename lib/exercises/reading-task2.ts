@@ -42,7 +42,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
           "Hun kender mange af de faste gæster ved navn.",
         ],
         wrongIndex: 4,
-        why: "Afsnittet fortæller, at Karina er glad for at hjælpe børnene, og at hun kender gæsterne ved navn. Så kan hun ikke samtidig lade være med at ville tale med mennesker.",
+        why: "The paragraph says Karina enjoys helping the children and knows the visitors by name. She cannot also be someone who would rather not talk to people.",
       },
       sections: [
         {
@@ -55,7 +55,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Klokken ni åbner biblioteket, og de første gæster kommer ind.",
           ],
           wrongIndex: 3,
-          why: "Der står lige før, at der altid er rigtig mange bøger om mandagen. Så kan mandag ikke være dagen med mindst at lave.",
+          why: "The sentence just before says there are always a great many books on Mondays. So Monday cannot be the day with the least to do.",
         },
         {
           id: "2",
@@ -67,7 +67,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Karina hjælper dem, der ikke kan finde det, de søger.",
           ],
           wrongIndex: 3,
-          why: "Afsnittet siger, at nogle bliver i flere timer og taler sammen. Så går alle ikke hjem efter ti minutter.",
+          why: "The paragraph says some people stay for hours and talk to each other. So it cannot be true that everyone goes home after ten minutes.",
         },
         {
           id: "3",
@@ -80,7 +80,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Bagefter låner mange af dem en ekstra bog med hjem.",
           ],
           wrongIndex: 4,
-          why: "Karina har fundet tyve bøger frem, og børnene arbejder i små grupper. Så læser de ikke alle den samme bog på én gang.",
+          why: "Karina has got twenty books out and the children work in small groups. So they are not all reading the same book at once.",
         },
         {
           id: "4",
@@ -92,7 +92,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Karina glæder sig til at høre, hvad de synes om den første bog.",
           ],
           wrongIndex: 3,
-          why: "Ti personer har allerede meldt sig til. Så er det forkert, at ingen har vist interesse.",
+          why: "Ten people have already signed up, so it cannot be true that nobody has shown any interest.",
         },
       ],
     },
@@ -121,7 +121,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
           "De har set på boliger i tre måneder.",
         ],
         wrongIndex: 4,
-        why: "Hele afsnittet handler om, at der er for lidt plads. Så kan de ikke synes, at lejligheden er for stor.",
+        why: "The whole paragraph is about there not being enough room. So they cannot think the flat is too big.",
       },
       sections: [
         {
@@ -134,7 +134,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Prisen er lidt højere, end familien havde regnet med.",
           ],
           wrongIndex: 3,
-          why: "Der står, at huset har en have med et æbletræ, og at drengene løb rundt i haven. Så kan der ikke mangle en have.",
+          why: "The text says the house has a garden with an apple tree, and that the boys ran around in it. So the garden cannot be missing.",
         },
         {
           id: "2",
@@ -146,7 +146,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Der er masser af busser hele dagen, så hun behøver ikke en bil.",
           ],
           wrongIndex: 4,
-          why: "Afsnittet siger, at der kun går én bus om morgenen og én om eftermiddagen, og at de derfor skal købe en bil mere.",
+          why: "The paragraph says there is only one bus in the morning and one in the afternoon, and that this is why they need a second car. A good bus service would contradict both statements.",
         },
         {
           id: "3",
@@ -158,7 +158,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Den yngste, Elliot, glæder sig derimod til at møde nye børn.",
           ],
           wrongIndex: 3,
-          why: "Oscar synes, det er svært at forlade sine venner, og han har gået i klassen siden 0. klasse. Så kender han bestemt nogen.",
+          why: "Oscar finds it hard to leave his friends and has been in the class since year 0. So he certainly does know people there.",
         },
         {
           id: "4",
@@ -170,7 +170,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Drengene har lovet at pakke deres eget legetøj ned i weekenden.",
           ],
           wrongIndex: 3,
-          why: "De har lånt en trailer og skal selv pakke, og Line er allerede gået i gang. Så har de ikke bestilt et flyttefirma til at klare det hele.",
+          why: "They have borrowed a trailer and are packing themselves, and Line has already started. So they have not booked a removal firm to do it all.",
         },
       ],
     },
@@ -198,7 +198,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
           "Sidste måned var han til lægen, fordi han sov dårligt.",
         ],
         wrongIndex: 3,
-        why: "Afsnittet beskriver en mand, der sidder ned hele dagen og er træt om aftenen. En times løb hver morgen passer ikke ind i det billede.",
+        why: "The paragraph describes a man who sits down all day and is tired in the evening. An hour of running every morning does not fit that picture.",
       },
       sections: [
         {
@@ -211,7 +211,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Malik besluttede at cykle på arbejde i stedet for at tage bussen.",
           ],
           wrongIndex: 3,
-          why: "Lægen sagde netop, at han skal begynde med noget helt let og ikke gå i fitnesscenter med det samme.",
+          why: "The doctor said precisely that he should start with something very gentle and not go straight to a gym.",
         },
         {
           id: "2",
@@ -223,7 +223,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Men efter fjorten dage begyndte det at føles nemmere.",
           ],
           wrongIndex: 3,
-          why: "Den første uge var svær, han var forpustet, og benene gjorde ondt. Så var turen ikke uden problemer fra dag ét.",
+          why: "The first week was hard, he was out of breath and his legs hurt. So it cannot have gone smoothly from day one.",
         },
         {
           id: "3",
@@ -235,7 +235,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "I weekenden har de aftalt at tage på en længere tur langs fjorden.",
           ],
           wrongIndex: 3,
-          why: "Afsnittet handler om, at han cykler sammen med Sanne tre gange om ugen, og at de taler undervejs.",
+          why: "The paragraph is about him cycling with Sanne three times a week and the two of them talking as they go. A sentence about cycling alone contradicts it.",
         },
         {
           id: "4",
@@ -247,7 +247,7 @@ export const READING_TASK2_VARIANTS: ExerciseVariant[] = [
             "Nu vil Malik prøve at svømme en gang om ugen om vinteren.",
           ],
           wrongIndex: 3,
-          why: "Han sover bedre, har mere energi og har tabt fire kilo. Så er der tydelig forskel at se.",
+          why: "He sleeps better, has more energy and has lost four kilos. So there is a clear difference to see.",
         },
       ],
     },

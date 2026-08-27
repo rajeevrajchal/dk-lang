@@ -8,6 +8,9 @@ export const en = {
   appName: "Dansk Modultest Prep",
 
   nav: {
+    verbs: "Verbs",
+    mistakes: "Mistakes",
+    history: "History",
     dashboard: "Dashboard",
     lessons: "Lessons",
     class: "Class",

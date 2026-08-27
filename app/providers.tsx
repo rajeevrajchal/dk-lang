@@ -1,14 +1,17 @@
 "use client";
 
+import { TranslationProvider } from "@/components/translation/TranslationProvider";
+
 // Client-side providers.
 //
-// Previously wrapped everything in NextAuth's SessionProvider. There is no
-// equivalent now and none is needed: the session lives in cookies that the
-// server reads on every request, and no client component asks for it — the
-// pages that need the user are server components calling auth().
+// The session is NOT one of them: it lives in cookies the server reads on every
+// request, and the pages that need the user are server components calling
+// auth().
 //
-// Kept as a component rather than removed so app/layout.tsx does not need
-// changing, and so there is an obvious place for the next client provider.
+// TranslationProvider is here rather than around each screen because its whole
+// value is being shared — one cache and one in-flight request per session, so
+// the same Danish word clicked in an opgave, in a verb example and in the
+// reading library is fetched once. Scoped per page it would be three caches.
 export const Providers = ({ children }: { children: React.ReactNode }) => {
-  return <>{children}</>;
+  return <TranslationProvider>{children}</TranslationProvider>;
 };

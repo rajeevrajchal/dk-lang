@@ -4,6 +4,10 @@ import { useEffect, useState, useCallback, use as usePromise } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { TranslatablePassage } from "@/components/TranslatablePassage";
+import { DanishText } from "@/components/translation/DanishText";
+import { ErrorState, SkeletonList, Spinner } from "@/components/ui/states";
+import { apiFetch } from "@/lib/http/client";
+import { useAction } from "@/lib/hooks/useAction";
 import { ExplainPanel } from "@/components/ExplainPanel";
 import type { MatchingOptions, PracticeItem } from "@/types";
 
@@ -134,32 +138,55 @@ const ReadingPracticePage = ({
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [startedAt, setStartedAt] = useState<number>(Date.now());
 
+  // This used to read `data.items` off whatever came back without checking the
+  // status. A failed request therefore set `items` to undefined, the component
+  // fell into its "loading" branch, and the page sat there forever with no way
+  // out - the exact frozen-UI failure this audit was looking for.
   const loadSet = useCallback(async () => {
-    const res = await fetch(`/api/practice?moduleId=${moduleIdNum}&skill=READING&count=8`);
-    const data = await res.json();
+    const data = await apiFetch<{
+      items: PracticeItem[];
+      currentTier: number;
+      tierReason: string;
+    }>(`/api/practice?moduleId=${moduleIdNum}&skill=READING&count=8`);
     setItems(data.items);
     setTierInfo({ currentTier: data.currentTier, tierReason: data.tierReason });
     setIndex(0);
     setFeedback(null);
     setScore({ correct: 0, total: 0 });
     setStartedAt(Date.now());
+    return data;
   }, [moduleIdNum]);
 
-  useEffect(() => {
-    loadSet();
-  }, [loadSet]);
+  const load = useAction(loadSet);
+  const { run: runLoad } = load;
 
-  const handleSubmit = async (response: string | string[]) => {
-    if (!items) return;
-    const item = items[index];
-    const res = await fetch("/api/attempts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId: item.id, response, timeMs: Date.now() - startedAt }),
-    });
-    const data = await res.json();
-    setFeedback({ isCorrect: data.isCorrect, explanation: data.explanation });
-    setScore((s) => ({ correct: s.correct + (data.isCorrect ? 1 : 0), total: s.total + 1 }));
+  useEffect(() => {
+    void runLoad();
+  }, [runLoad]);
+
+  const grade = useCallback(
+    async (response: string | string[]) => {
+      if (!items) return null;
+      const item = items[index];
+      const data = await apiFetch<{ isCorrect: boolean; explanation: string | null }>(
+        "/api/attempts",
+        { json: { itemId: item.id, response, timeMs: Date.now() - startedAt } }
+      );
+      setFeedback({ isCorrect: data.isCorrect, explanation: data.explanation });
+      setScore((sc) => ({
+        correct: sc.correct + (data.isCorrect ? 1 : 0),
+        total: sc.total + 1,
+      }));
+      return data;
+    },
+    [items, index, startedAt]
+  );
+
+  // The guard is inside the hook and checked synchronously, so a double click
+  // cannot score the same item twice.
+  const submit = useAction(grade);
+  const handleSubmit = (response: string | string[]) => {
+    void submit.run(response);
   };
 
   const handleNext = () => {
@@ -168,8 +195,25 @@ const ReadingPracticePage = ({
     setIndex((i) => i + 1);
   };
 
+  if (load.error && !items) {
+    return (
+      <div className="mx-auto max-w-2xl p-8">
+        <ErrorState
+          error={load.error}
+          onRetry={() => void load.run()}
+          title="Could not load your practice set"
+        />
+      </div>
+    );
+  }
+
   if (!items || !tierInfo) {
-    return <div className="p-8 text-sm text-slate-500">{dict.practice.loadingExercises}</div>;
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 p-8">
+        <p className="text-sm text-slate-500">{dict.practice.loadingExercises}</p>
+        <SkeletonList rows={2} lines={4} />
+      </div>
+    );
   }
 
   if (index >= items.length) {
@@ -232,9 +276,25 @@ const ReadingPracticePage = ({
             defaultOn={translateHelperDefault}
           />
         )}
-        <p className="mb-4 font-medium">{item.promptText}</p>
+        <DanishText as="div" text={item.promptText} className="mb-4 font-medium" />
 
-        <AnswerInput item={item} onSubmit={handleSubmit} disabled={!!feedback} />
+        <AnswerInput item={item} onSubmit={handleSubmit} disabled={!!feedback || submit.pending} />
+
+        {submit.pending && !feedback && (
+          <p className="mt-3 text-sm text-slate-500">
+            <Spinner className="mr-1" />
+            Checking your answer…
+          </p>
+        )}
+
+        {submit.error && !feedback && (
+          <div className="mt-4">
+            <ErrorState
+              error={submit.error}
+              title="Your answer was not recorded"
+            />
+          </div>
+        )}
 
         {feedback && (
           <div

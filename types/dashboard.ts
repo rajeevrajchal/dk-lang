@@ -52,7 +52,6 @@ export interface ContinueCard {
   detail?: string;
   href: string;
   category?: string;
-  moduleId?: number;
 }
 
 export interface LearnerOverview {

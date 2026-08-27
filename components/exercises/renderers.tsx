@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { countWords } from "@/lib/exercises/grading";
+import { DanishBlock, DanishText } from "@/components/translation/DanishText";
+import { useSentenceTranslations } from "@/components/translation/TranslationProvider";
+import { Spinner } from "@/components/ui/states";
 import type {
   PublicExerciseContent,
   ReadingTask1Content,
@@ -11,6 +15,54 @@ import type {
 } from "@/types";
 
 const cardCls = "rounded-lg border border-slate-200 bg-white p-4";
+
+/**
+ * "Show the English" for a block of Danish that cannot itself be made
+ * clickable - the sentences in Opgave 2 are answer buttons, and a button
+ * inside a button is neither valid nor operable.
+ *
+ * Everywhere else the Danish is rendered through DanishText and translates in
+ * place; this is the fallback for the places where it cannot be.
+ */
+const TranslateSection = ({ sentences }: { sentences: string[] }) => {
+  const [open, setOpen] = useState(false);
+  const { english, pending, load } = useSentenceTranslations(sentences);
+
+  const toggle = () => {
+    setOpen((o) => !o);
+    if (!open) void load();
+  };
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-50"
+      >
+        {open ? "Hide English" : "English"}
+      </button>
+      {open && (
+        <ol className="mt-1.5 space-y-0.5 border-l-2 border-blue-300 pl-3">
+          {sentences.map((s, i) => (
+            <li key={i} className="text-xs text-blue-900">
+              {english.get(s) ??
+                (pending ? (
+                  <span className="text-blue-600">
+                    <Spinner className="mr-1" />
+                    Translating
+                  </span>
+                ) : (
+                  <span className="text-amber-700">Not available right now.</span>
+                ))}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+};
 
 // The two matching opgaver are read side by side on a wide screen: the thing
 // you read on one side, the thing you answer on the other, so that finding an
@@ -41,7 +93,7 @@ const Task1 = ({
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
           {t.example} (0) — {c.example.adId}
         </p>
-        <p className="mt-1 text-sm text-slate-700">{c.example.personText}</p>
+        <DanishBlock text={c.example.personText} className="mt-1 text-sm text-slate-700" />
       </div>
 
       <div className={splitCls}>
@@ -57,9 +109,10 @@ const Task1 = ({
                   <span className="text-sm font-semibold text-slate-900 shrink-0">
                     {p.id}.
                   </span>
-                  <p className="text-sm text-slate-700 leading-relaxed">
-                    {p.text}
-                  </p>
+                  <DanishBlock
+                    text={p.text}
+                    className="text-sm text-slate-700 leading-relaxed"
+                  />
                 </div>
                 <div className="mt-3 flex items-center gap-2">
                   <label className="text-xs text-slate-500">
@@ -107,9 +160,10 @@ const Task1 = ({
                     {a.title}
                   </p>
                 </div>
-                <p className="mt-1.5 text-xs text-slate-600 leading-relaxed whitespace-pre-line">
-                  {a.body}
-                </p>
+                <DanishBlock
+                  text={a.body}
+                  className="mt-1.5 text-xs text-slate-600 leading-relaxed"
+                />
               </div>
             ))}
           </div>
@@ -186,6 +240,7 @@ const Task2 = ({
               );
             })}
           </div>
+          <TranslateSection sentences={section.sentences} />
         </div>
       ))}
     </div>
@@ -311,9 +366,10 @@ const Task4 = ({ content, response, setResponse, disabled }: RendererProps) => {
               <p className="text-sm font-semibold text-slate-900">
                 {p.id}. {p.name}
               </p>
-              <p className="mt-1.5 text-sm text-slate-700 leading-relaxed">
-                {p.text}
-              </p>
+              <DanishBlock
+                text={p.text}
+                className="mt-1.5 text-sm text-slate-700 leading-relaxed"
+              />
             </div>
           ))}
         </div>
@@ -355,7 +411,8 @@ const Task4 = ({ content, response, setResponse, disabled }: RendererProps) => {
                   className="border-b border-slate-100 last:border-0"
                 >
                   <td className="py-2.5 pr-4 text-slate-800">
-                    {qi + 1}. {q.question}
+                    <span className="mr-1">{qi + 1}.</span>
+                    <DanishText as="span" text={q.question} />
                   </td>
                   {c.people.map((p) => (
                     <td key={p.id} className="py-2.5 px-2 text-center">
@@ -403,18 +460,19 @@ const Writing = ({
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
           {t.situation}
         </p>
-        <p className="mt-1 text-sm text-slate-700">{c.situation}</p>
+        <DanishBlock text={c.situation} className="mt-1 text-sm text-slate-700" />
         <p className="mt-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">
           {t.task}
         </p>
-        <p className="mt-1 text-sm text-slate-700">{c.task}</p>
+        <DanishBlock text={c.task} className="mt-1 text-sm text-slate-700" />
       </div>
 
       {c.incomingEmail && (
         <div className="rounded-lg border-2 border-slate-300 p-4">
-          <p className="text-sm text-slate-800 whitespace-pre-line leading-relaxed">
-            {c.incomingEmail.body}
-          </p>
+          <DanishBlock
+            text={c.incomingEmail.body}
+            className="text-sm text-slate-800 leading-relaxed"
+          />
           <ul className="mt-3 space-y-1">
             {c.incomingEmail.questions.map((q) => (
               <li
@@ -626,7 +684,7 @@ const Speaking = ({ content, dict }: RendererProps) => {
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
             {t.situation}
           </p>
-          <p className="mt-1 text-sm text-slate-700">{c.situation}</p>
+          <DanishBlock text={c.situation} className="mt-1 text-sm text-slate-700" />
         </div>
       )}
 
@@ -637,7 +695,7 @@ const Speaking = ({ content, dict }: RendererProps) => {
               <span className="text-sm font-semibold text-slate-400 shrink-0">
                 {i + 1}.
               </span>
-              <span className="text-sm text-slate-800">{q}</span>
+              <DanishText as="span" text={q} className="text-sm text-slate-800" />
             </li>
           ))}
         </ol>

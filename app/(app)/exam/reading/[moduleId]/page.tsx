@@ -12,7 +12,7 @@ const ExamReadingPage = async ({
   const moduleIdNum = Number(moduleId);
   if (!Number.isFinite(moduleIdNum)) notFound();
 
-  return <ExamReadingRunner moduleId={moduleIdNum} backHref={`/mock/${moduleIdNum}`} />;
+  return <ExamReadingRunner moduleId={moduleIdNum} backHref="/mock" />;
 };
 
 export default ExamReadingPage;

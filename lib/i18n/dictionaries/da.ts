@@ -4,6 +4,9 @@ export const da: Dictionary = {
   appName: "Dansk Modultest Prep",
 
   nav: {
+    verbs: "Verber",
+    mistakes: "Fejl",
+    history: "Historik",
     dashboard: "Dashboard",
     lessons: "Lektioner",
     class: "Træning",

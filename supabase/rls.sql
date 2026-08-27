@@ -130,9 +130,23 @@ create policy "User_self_update" on public."User"
 -- Readable by any signed-in user; writable only by the service role, which
 -- bypasses RLS anyway.
 --
--- "ReadingExplanation" is here rather than in section 3 on purpose: an
--- explanation is a fact about a sentence, not about a learner, so it is cached
--- once and shared. It has no "userId" column for exactly that reason.
+-- "ReadingExplanation" and "TranslationCache" are here rather than in section 3
+-- on purpose: what a sentence means is a fact about the sentence, not about a
+-- learner, so both are cached once and shared. Neither has a "userId" column
+-- for exactly that reason.
+--
+-- Read-only to a user token: a learner may use a cached translation but may
+-- not write one, because a poisoned cache entry would be served to everybody.
+-- The application writes through the service role (lib/repositories/translation
+-- .ts) after it has generated the entry itself.
+--
+-- "Task" is here for the same reason and needs one extra caution: its
+-- "contentJson" holds the ANSWER KEY. Nothing may select the row from the
+-- browser — the repository projects the columns it returns and the answers are
+-- stripped by toPublicExercise before an exercise is served. The read policy
+-- exists so a task's number, title and difficulty can be listed; the key is
+-- kept out of reach by never putting it in a response, which is the same rule
+-- Item.answerJson has always followed.
 -- ---------------------------------------------------------------------------
 
 do $$
@@ -140,7 +154,7 @@ declare t text;
 begin
   foreach t in array array[
     'Module', 'Tier', 'Construct', 'Item', 'ItemConstruct', 'VocabItem',
-    'ReadingExplanation'
+    'ReadingExplanation', 'TranslationCache', 'Task'
   ]
   loop
     if to_regclass('public.' || quote_ident(t)) is not null then

@@ -1,7 +1,5 @@
-import { SkillModules } from "@/components/class/SkillModules";
+import { CategoryPage } from "@/components/tasks/CategoryPage";
 
-const WritingModulesPage = () => {
-  return <SkillModules category="WRITING" skill="writing" />;
-};
+const Page = async () => <CategoryPage category="WRITING" />;
 
-export default WritingModulesPage;
+export default Page;

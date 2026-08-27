@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { GLOSSARY_BY_PASSAGE_ID } from "@/lib/content-gen/modul2-glossary";
+import { DanishBlock } from "@/components/translation/DanishText";
 import type { PassageSelection } from "@/types";
 
 const tokenize = (paragraph: string): string[] => {
@@ -55,8 +56,19 @@ export const TranslatablePassage = ({
   const [selection, setSelection] = useState<PassageSelection>(null);
   const glossary = passageId ? GLOSSARY_BY_PASSAGE_ID.get(passageId) : undefined;
 
+  // No authored glossary for this passage — which is the normal case outside
+  // the twelve Modul 2 passages. It used to render as plain, dead text; now it
+  // falls through to the generic translation layer, so every word is still
+  // clickable and every sentence still has an English button. The authored
+  // path below is kept because a gloss written for this exact passage is
+  // better than a generated one, and it costs nothing.
   if (!glossary) {
-    return <p className="mb-5 leading-relaxed text-slate-800 whitespace-pre-line">{passageText}</p>;
+    return (
+      <DanishBlock
+        text={passageText}
+        className="mb-5 leading-relaxed text-slate-800"
+      />
+    );
   }
 
   const wordByKey = new Map(glossary.words.map((w) => [w.surface.toLowerCase(), w]));

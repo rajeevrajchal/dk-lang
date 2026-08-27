@@ -4,13 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 
-// The four learning areas, then settings. The order is the learner's journey:
-// see where you are, learn, practise, test yourself.
+// The learning areas, then the two review areas, then settings. The order is
+// the learner's journey: see where you are, learn, build vocabulary, practise,
+// test yourself - then understand what you got wrong.
 const PRIMARY = [
   { href: "/dashboard", key: "dashboard" as const, icon: "🏠" },
   { href: "/lessons", key: "lessons" as const, icon: "📖" },
+  { href: "/verbs", key: "verbs" as const, icon: "🗣" },
   { href: "/class", key: "class" as const, icon: "🎓" },
   { href: "/mock", key: "mock" as const, icon: "📝" },
+];
+
+// Review is separated from practice on purpose: these two answer "what did I
+// get wrong and what should I do about it", which is a different question from
+// "what shall I do next".
+const REVIEW = [
+  { href: "/mistakes", key: "mistakes" as const, icon: "🔁" },
+  { href: "/history", key: "history" as const, icon: "🕒" },
 ];
 
 const SECONDARY = [{ href: "/settings", key: "settings" as const, icon: "⚙" }];
@@ -36,7 +46,11 @@ export const Sidebar = ({ userEmail }: { userEmail?: string | null }) => {
   // /class/course is a Lessons URL, so Class must not also claim it.
   const lessonsActive = isActive("/lessons");
 
-  const renderLink = (link: { href: string; key: "dashboard" | "lessons" | "class" | "mock" | "settings"; icon: string }) => {
+  const renderLink = (link: {
+    href: string;
+    key: "dashboard" | "lessons" | "verbs" | "class" | "mock" | "mistakes" | "history" | "settings";
+    icon: string;
+  }) => {
     const active = link.href === "/class" ? isActive("/class") && !lessonsActive : isActive(link.href);
     return (
       <Link
@@ -62,6 +76,8 @@ export const Sidebar = ({ userEmail }: { userEmail?: string | null }) => {
 
       <nav className="flex-1 px-3 space-y-1">
         {PRIMARY.map(renderLink)}
+        <div className="pt-2 mt-2 border-t border-slate-100" />
+        {REVIEW.map(renderLink)}
         <div className="pt-2 mt-2 border-t border-slate-100" />
         {SECONDARY.map(renderLink)}
       </nav>
