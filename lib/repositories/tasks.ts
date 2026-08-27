@@ -106,6 +106,8 @@ export const usedVariantIds = async (
  * point of a numbered slot.
  */
 export const createTask = async (data: {
+  /** Pass the id already handed to the learner (see generationCache.ts) so the row persisted here is the row already in front of them, not a second one. */
+  id?: string;
   moduleId: number;
   category: string;
   taskType: string;
@@ -120,7 +122,7 @@ export const createTask = async (data: {
   const supabase = adminDb();
   const { data: rows, error } = await supabase
     .from("Task")
-    .insert({ id: crypto.randomUUID(), ...data })
+    .insert({ ...data, id: data.id ?? crypto.randomUUID() })
     .select();
 
   if (error) {

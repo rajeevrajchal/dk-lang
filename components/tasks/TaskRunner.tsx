@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/http/client";
 import { ActionButton } from "@/components/ui/states";
 import { ExercisePlayer } from "@/components/exercises/ExercisePlayer";
 import { DIFFICULTY_LABELS } from "@/lib/tasks/catalogue";
-import type { ExerciseCategory, PracticeType, PublicExercise, TaskDifficulty } from "@/types";
+import type { ApiError, ExerciseCategory, PracticeType, PublicExercise, TaskDifficulty } from "@/types";
 
 // Sitting one numbered task.
 //
@@ -18,10 +18,50 @@ import type { ExerciseCategory, PracticeType, PublicExercise, TaskDifficulty } f
 // somewhere else — so the task list is refreshed rather than left stale.
 
 type OpenedTask = PublicExercise & {
+  ready: true;
   taskId: string;
   taskNumber: number;
   difficulty: TaskDifficulty;
 };
+
+type OpenResponse = OpenedTask | { ready: false; status: "preparing" };
+
+// A cold slot answers "preparing" immediately rather than holding the request
+// open for however long generation takes (see app/api/tasks/open/route.ts).
+// This is what turns that into "wait a little longer" instead of "fail" from
+// the learner's side: keep asking until the slot is ready, an error arrives,
+// or it has gone on long enough that something is actually wrong.
+//
+// The interval backs off rather than staying fixed: generation runs
+// 68-152s, so a flat 3s poll means dozens of near-identical requests in the
+// network tab for one open task, which reads as a loop that forgot to stop
+// rather than a wait that is actually progressing. Starting quick keeps a
+// task that turns out to already be cached feeling instant; capping at 8s
+// keeps the wait itself from being made to feel longer than it is.
+const POLL_INTERVAL_START_MS = 2000;
+const POLL_INTERVAL_STEP_MS = 1000;
+const POLL_INTERVAL_MAX_MS = 8000;
+const MAX_WAIT_MS = 5 * 60 * 1000;
+
+const pollDelay = (attempt: number): number =>
+  Math.min(POLL_INTERVAL_START_MS + attempt * POLL_INTERVAL_STEP_MS, POLL_INTERVAL_MAX_MS);
+
+const sleep = (ms: number, signal: AbortSignal): Promise<void> =>
+  new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      },
+      { once: true }
+    );
+  });
 
 export const TaskRunner = ({
   category,
@@ -41,14 +81,28 @@ export const TaskRunner = ({
   const [finished, setFinished] = useState(false);
 
   const load = useCallback(
-    (signal: AbortSignal) =>
-      apiFetch<OpenedTask>("/api/tasks/open", {
-        signal,
+    async (signal: AbortSignal): Promise<OpenedTask> => {
+      const deadline = Date.now() + MAX_WAIT_MS;
+      for (let attempt = 0; ; attempt++) {
         // No module in the payload — deliberately. The server reads it from
         // the learner's profile, so a task cannot be opened at a level the
         // learner has not said they are at.
-        json: { category, taskType: practiceType.taskType, taskNumber },
-      }),
+        const result = await apiFetch<OpenResponse>("/api/tasks/open", {
+          signal,
+          json: { category, taskType: practiceType.taskType, taskNumber },
+        });
+        if (result.ready !== false) return result;
+
+        if (Date.now() >= deadline) {
+          const timeout: ApiError = {
+            status: 0,
+            message: "This is taking longer than expected. Please try again.",
+          };
+          throw timeout;
+        }
+        await sleep(pollDelay(attempt), signal);
+      }
+    },
     [category, practiceType.taskType, taskNumber]
   );
 

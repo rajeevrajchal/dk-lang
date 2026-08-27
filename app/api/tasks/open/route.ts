@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { exercises, tasks as tasksRepo } from "@/lib/repositories";
-import { ensureTask, variantOf } from "@/lib/tasks/service";
+import { ensureTask, ensureTaskFast, variantOf } from "@/lib/tasks/service";
+import { claimGeneration, releaseGeneration } from "@/lib/tasks/generationLocks";
 import { toPublicExercise } from "@/lib/exercises/registry";
 import { practiceType, TASKS_PER_TYPE } from "@/lib/tasks/catalogue";
 import { getUserLevel } from "@/lib/level";
@@ -27,8 +28,14 @@ const OpenSchema = z.object({
   taskNumber: z.number().int().min(1).max(TASKS_PER_TYPE),
 });
 
-// Filling an empty slot may involve writing a whole opgave.
-export const maxDuration = 300;
+// Generation itself now happens in `after()`, past the point where this
+// route's own response is sent — but on a host that enforces maxDuration,
+// that background work still shares this invocation's budget. Measured
+// directly against the real prompt, one exercise-generation call takes
+// 68-152s; ensureTask retries once on validation failure, so two full
+// attempts (each timed out at 220s in lib/exercises/generator.ts) still needs
+// real headroom even though the client is never the one waiting on it.
+export const maxDuration = 480;
 
 export const POST = async (req: Request) => {
   const session = await auth();
@@ -53,7 +60,36 @@ export const POST = async (req: Request) => {
   const level = await getUserLevel(session.user.id);
   const moduleId = level.currentModule ?? DEFAULT_MODULE;
 
-  const { task, reason } = await ensureTask(moduleId, category, taskType, taskNumber);
+  // Existing row or hand-authored pool only — never a model call, so this
+  // always settles in a couple of DB round trips. `null` means the slot needs
+  // generation, which is the one part of opening a task that can take minutes
+  // rather than milliseconds — too long to hold this request open for.
+  const fast = await ensureTaskFast(moduleId, category, taskType, taskNumber);
+
+  if (!fast) {
+    // Defer the model call to after the response is sent, so the learner gets
+    // an answer immediately instead of a connection held open for however
+    // long generation takes. claimGeneration stops a second poll for the same
+    // slot from starting its own redundant AI call while this one is still
+    // running.
+    if (claimGeneration(moduleId, category, taskType, taskNumber)) {
+      after(async () => {
+        try {
+          await ensureTask(moduleId, category, taskType, taskNumber);
+        } catch (err) {
+          console.warn(
+            `[tasks/open] background generation of ${taskType} #${taskNumber} failed:`,
+            err instanceof Error ? err.message : err
+          );
+        } finally {
+          releaseGeneration(moduleId, category, taskType, taskNumber);
+        }
+      });
+    }
+    return NextResponse.json({ ready: false, status: "preparing" }, { status: 202 });
+  }
+
+  const { task, reason } = fast;
   if (!task) {
     return NextResponse.json(
       { error: "unavailable", reason: reason ?? "This task could not be prepared." },
@@ -87,8 +123,30 @@ export const POST = async (req: Request) => {
 
   await tasksRepo.markOpened(session.user.id, task.id);
 
+  // Warm the next slot in the ladder. Runs after the response is sent, so it
+  // never adds to what this learner waits for — it is a bet that whoever just
+  // opened Task N is heading for Task N+1 next, which is how practice
+  // actually goes for anyone working through a category in order. ensureTask
+  // is already a no-op read when the slot is filled, so this costs nothing on
+  // every open after the first that reaches it, and a failure here is
+  // invisible: the slot just generates the normal way whenever it is next
+  // opened for real.
+  if (taskNumber < TASKS_PER_TYPE) {
+    after(async () => {
+      try {
+        await ensureTask(moduleId, category, taskType, taskNumber + 1);
+      } catch (err) {
+        console.warn(
+          `[tasks/open] prefetch of ${taskType} #${taskNumber + 1} failed:`,
+          err instanceof Error ? err.message : err
+        );
+      }
+    });
+  }
+
   return NextResponse.json({
     ...toPublicExercise(variant, attempt.id, true),
+    ready: true,
     generated: task.source === "GENERATED",
     taskId: task.id,
     taskNumber: task.taskNumber,

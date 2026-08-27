@@ -107,7 +107,11 @@ describe("resolveModel", () => {
 
   it("translates effort onto OpenAI's own knob rather than sending Anthropic's", () => {
     process.env.OPENAI_API_KEY = "sk-o";
-    const resolved = resolveModel("exercise-generation", "openai")!;
+    // exercise-explanation rather than exercise-generation: this is testing the
+    // high -> reasoningEffort translation mechanism, not any one task's tuning,
+    // and exercise-generation's effort has already been tuned down once
+    // (lib/exercises/generator.ts) for measured latency reasons.
+    const resolved = resolveModel("exercise-explanation", "openai")!;
     expect(resolved.providerOptions.openai?.reasoningEffort).toBe("high");
     expect(resolved.providerOptions.anthropic).toBeUndefined();
   });

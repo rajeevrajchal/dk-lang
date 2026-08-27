@@ -444,13 +444,22 @@ const READING_INSTRUCTIONS: Record<string, (title: string) => string[]> = {
  * back to the authored pool — a failure here is a normal branch, not an
  * exception. Which model runs this, how hard it thinks and how many tokens it
  * gets are all decided by the "exercise-generation" task in lib/ai/registry.ts.
+ *
+ * The default timeout in lib/ai/generate.ts is chosen from maxOutputTokens
+ * alone (16000 falls under its 20000-token cutoff, so 90s) — far too short.
+ * Measured directly against the real prompt below: at "high" reasoning effort
+ * a single call took 158-250s+ and was unreliable even at a 200s timeout;
+ * dropping the task's effort to "medium" (see lib/ai/registry.ts) brought
+ * clean single-attempt runs down to 68-152s. 220s leaves real margin over
+ * that range; the route's maxDuration is raised to match (see
+ * app/api/tasks/open/route.ts) so two full attempts still fit.
  */
 const callModel = async (
   system: string,
   prompt: string,
   schema: Parameters<typeof generateStructured>[0]["schema"]
 ): Promise<{ object: unknown | null; reason?: string; retryable: boolean }> => {
-  return generateStructured({ task: "exercise-generation", schema, system, prompt });
+  return generateStructured({ task: "exercise-generation", schema, system, prompt, timeoutMs: 220_000 });
 };
 
 /**

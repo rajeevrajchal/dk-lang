@@ -20,6 +20,22 @@ const formatTime = (seconds: number) => {
   return `${m}:${s.toString().padStart(2, "0")}`;
 };
 
+// A cold part answers "preparing" immediately rather than holding the
+// request open for however long generation takes (see
+// app/api/mock-test/start/route.ts). Kept in the same "preparing" phase the
+// UI already had for the normal case — it just now sometimes lasts longer
+// than a moment instead of always being one.
+//
+// Backs off rather than polling at a flat interval — see the matching
+// comment in components/tasks/TaskRunner.tsx.
+const POLL_INTERVAL_START_MS = 2000;
+const POLL_INTERVAL_STEP_MS = 1000;
+const POLL_INTERVAL_MAX_MS = 8000;
+const MAX_WAIT_MS = 5 * 60 * 1000;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const pollDelay = (attempt: number): number =>
+  Math.min(POLL_INTERVAL_START_MS + attempt * POLL_INTERVAL_STEP_MS, POLL_INTERVAL_MAX_MS);
+
 export const MockTestRunner = ({
   generationEnabled,
   backHref,
@@ -119,26 +135,40 @@ export const MockTestRunner = ({
   const start = async () => {
     setPhase("preparing");
     setError(null);
-    // No module in the payload: the server reads it from the learner's
-    // profile. A mock test simulates the test they are preparing for, and
-    // which one that is has already been answered at onboarding.
-    const res = await fetch("/api/mock-test/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ testNumber, category }),
-    });
-    if (!res.ok) {
-      setError((await res.json().catch(() => ({}))).error ?? "Could not start the test.");
-      setPhase("intro");
+    const deadline = Date.now() + MAX_WAIT_MS;
+
+    for (let attempt = 0; ; attempt++) {
+      // No module in the payload: the server reads it from the learner's
+      // profile. A mock test simulates the test they are preparing for, and
+      // which one that is has already been answered at onboarding.
+      const res = await fetch("/api/mock-test/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ testNumber, category }),
+      });
+      if (!res.ok) {
+        setError((await res.json().catch(() => ({}))).error ?? "Could not start the test.");
+        setPhase("intro");
+        return;
+      }
+      const data = await res.json();
+      if (data.ready === false) {
+        if (Date.now() >= deadline) {
+          setError("This is taking longer than expected. Please try again.");
+          setPhase("intro");
+          return;
+        }
+        await sleep(pollDelay(attempt));
+        continue;
+      }
+      setSessionId(data.sessionId);
+      setExercises(data.exercises);
+      setSecondsLeft(data.timeLimitSeconds);
+      setIndex(0);
+      setResponses({});
+      setPhase("running");
       return;
     }
-    const data = await res.json();
-    setSessionId(data.sessionId);
-    setExercises(data.exercises);
-    setSecondsLeft(data.timeLimitSeconds);
-    setIndex(0);
-    setResponses({});
-    setPhase("running");
   };
 
   useEffect(() => {

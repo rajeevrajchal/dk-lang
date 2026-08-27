@@ -1,6 +1,7 @@
 import { tasks as tasksRepo } from "@/lib/repositories";
 import { generateExercise, llmGenerationAvailable } from "@/lib/exercises/generator";
 import { variantsFor, VARIANT_BY_ID } from "@/lib/exercises/registry";
+import { clearGeneratedTask, getGeneratedTask, setGeneratedTask } from "./generationCache";
 import {
   DIFFICULTY_GUIDANCE,
   TASKS_PER_TYPE,
@@ -83,16 +84,32 @@ const pickAuthored = (
  * anything the outcome carries the reason, because "we could not write you an
  * exercise" and "there is nothing here" need different things said to the
  * learner.
+ *
+ * Split into a fast half and this full version because a caller on the
+ * request/response path (app/api/tasks/open, app/api/mock-test/start) needs
+ * to know WITHOUT waiting on a model call whether it can answer immediately.
+ * ensureTaskFast is exactly the part of this that never talks to an AI
+ * provider — existing row or hand-authored pool only — so it always returns
+ * within a couple of DB round trips. `null` from it means specifically "nothing
+ * on hand, this needs generation," which the caller can defer to the
+ * background instead of blocking on.
  */
-export const ensureTask = async (
+export const ensureTaskFast = async (
   moduleId: number,
   category: ExerciseCategory,
   taskType: string,
   taskNumber: number
-): Promise<MaterialiseOutcome> => {
+): Promise<MaterialiseOutcome | null> => {
   if (taskNumber < 1 || taskNumber > TASKS_PER_TYPE) {
     return { task: null, reason: `task ${taskNumber} is outside 1–${TASKS_PER_TYPE}` };
   }
+
+  // A task another poll's background generation just finished but has not
+  // yet reached Supabase. Checked before the database, not instead of it: a
+  // process that did not generate this task itself has nothing in this
+  // cache and always needs the read below.
+  const generated = getGeneratedTask(moduleId, category, taskType, taskNumber);
+  if (generated) return { task: generated };
 
   const existing = await tasksRepo.findTask(moduleId, category, taskType, taskNumber);
   if (existing) return { task: existing };
@@ -117,6 +134,20 @@ export const ensureTask = async (
       }),
     };
   }
+
+  return null;
+};
+
+export const ensureTask = async (
+  moduleId: number,
+  category: ExerciseCategory,
+  taskType: string,
+  taskNumber: number
+): Promise<MaterialiseOutcome> => {
+  const fast = await ensureTaskFast(moduleId, category, taskType, taskNumber);
+  if (fast) return fast;
+
+  const difficulty = difficultyForTask(taskNumber);
 
   if (!llmGenerationAvailable()) {
     return {
@@ -149,20 +180,32 @@ export const ensureTask = async (
     return { task: null, reason: outcome.reason ?? "the exercise could not be written" };
   }
 
-  return {
-    task: await tasksRepo.createTask({
-      moduleId,
-      category,
-      taskType,
-      taskNumber,
-      difficulty,
-      variantId: outcome.variant.variantId,
-      contentJson: JSON.stringify(outcome.variant),
-      source: "GENERATED",
-      topic: outcome.variant.topic,
-      title: outcome.variant.title,
-    }),
+  // The model call is the 68-152s the learner is actually waiting on; the
+  // write below is a Supabase round trip on top of it. So the task goes in
+  // front of the next poll the moment it exists here, in memory, rather than
+  // waiting on that write too — the write still happens, it just no longer
+  // sits on the critical path to being shown. See generationCache.ts.
+  const task: TaskRow = {
+    id: crypto.randomUUID(),
+    moduleId,
+    category,
+    taskType,
+    taskNumber,
+    difficulty,
+    variantId: outcome.variant.variantId,
+    contentJson: JSON.stringify(outcome.variant),
+    source: "GENERATED",
+    topic: outcome.variant.topic,
+    title: outcome.variant.title,
+    createdAt: new Date().toISOString(),
   };
+  setGeneratedTask(moduleId, category, taskType, taskNumber, task);
+
+  try {
+    return { task: await tasksRepo.createTask(task) };
+  } finally {
+    clearGeneratedTask(moduleId, category, taskType, taskNumber);
+  }
 };
 
 /** The content of a task, for grading and for serving. Never sent as-is. */

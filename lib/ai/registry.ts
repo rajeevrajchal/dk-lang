@@ -24,7 +24,7 @@ export const AI_TASKS = [
 ] as const;
 export const TASK_CONFIG: Record<AiTask, TaskConfig> = {
   "exercise-generation": {
-    effort: "high",
+    effort: "medium",
     maxOutputTokens: 16000,
     models: { anthropic: "claude-opus-5", openai: "gpt-5" },
   },

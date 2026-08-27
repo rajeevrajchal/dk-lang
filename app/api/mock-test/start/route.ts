@@ -1,16 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { exercises } from "@/lib/repositories";
 import { MODULES } from "@/lib/curriculum/modules";
 import { pickAuthoredVariantOfType, toPublicExercise } from "@/lib/exercises/registry";
 import { generateExercise, llmGenerationAvailable } from "@/lib/exercises/generator";
-import { ensureTask, variantOf } from "@/lib/tasks/service";
+import { ensureTask, ensureTaskFast, variantOf } from "@/lib/tasks/service";
+import { claimGeneration, releaseGeneration } from "@/lib/tasks/generationLocks";
 import { TASKS_PER_TYPE } from "@/lib/tasks/catalogue";
 import { getUserLevel } from "@/lib/level";
 import { moduleFor } from "@/lib/tasks/module";
 import { EXERCISE_CATEGORIES } from "@/lib/exercises/constants";
-import type { ExerciseCategory, ExerciseVariant, TaskType } from "@/types";
+import type { ExerciseCategory, ExerciseVariant, MaterialiseOutcome, TaskType } from "@/types";
 
 // Starting a mock test.
 //
@@ -44,8 +45,12 @@ const StartSchema = z.object({
 });
 
 // Assembling five exercises can mean five generation calls; they run in
-// parallel, but the route still needs room.
-export const maxDuration = 300;
+// parallel, but the route still needs room. Matches the 480s in
+// app/api/tasks/open/route.ts for the same measured reason (68-152s per
+// generation, retried once on validation failure). The next-test prefetch
+// below runs after the response and is best-effort — a host that cuts it off
+// at its own limit loses nothing, the slot just generates normally later.
+export const maxDuration = 480;
 
 /**
  * The shape of the real Modul 2 modultest, shortened: all four Læsning
@@ -98,11 +103,43 @@ export const POST = async (req: Request) => {
   let taskIds: (string | null)[] = plan.map(() => null);
 
   if (testNumber != null) {
-    const built = await Promise.all(
+    // Existing rows or the authored pool only — never a model call, so this
+    // settles in a couple of DB round trips per part. A part that comes back
+    // null needs generation, which is what can turn "start the test" into a
+    // multi-minute wait if made to block on it.
+    const fastResults = await Promise.all(
       plan.map(({ taskType, category: partCategory }) =>
-        ensureTask(moduleId, partCategory, taskType, testNumber)
+        ensureTaskFast(moduleId, partCategory, taskType, testNumber)
       )
     );
+    const notReady = plan.filter((_, i) => fastResults[i] === null);
+
+    if (notReady.length > 0) {
+      // Defer every missing part to after the response is sent, same pattern
+      // as /api/tasks/open: the learner gets an instant answer and the client
+      // polls this same route until every part is ready. claimGeneration
+      // stops a re-poll for a part still generating from starting a second,
+      // redundant model call for it.
+      for (const { taskType, category: partCategory } of notReady) {
+        if (claimGeneration(moduleId, partCategory, taskType, testNumber)) {
+          after(async () => {
+            try {
+              await ensureTask(moduleId, partCategory, taskType, testNumber);
+            } catch (err) {
+              console.warn(
+                `[mock-test] background generation of ${taskType} test ${testNumber} failed:`,
+                err instanceof Error ? err.message : err
+              );
+            } finally {
+              releaseGeneration(moduleId, partCategory, taskType, testNumber);
+            }
+          });
+        }
+      }
+      return NextResponse.json({ ready: false, status: "preparing" }, { status: 202 });
+    }
+
+    const built = fastResults as MaterialiseOutcome[];
     variants = built.map((b) => (b.task ? variantOf(b.task) : null));
     taskIds = built.map((b) => b.task?.id ?? null);
 
@@ -115,6 +152,30 @@ export const POST = async (req: Request) => {
         },
         { status: 503 }
       );
+    }
+
+    // Warm every part of the next numbered test, same bet as the single-task
+    // prefetch in /api/tasks/open: whoever just sat Test N is the likeliest
+    // person to sit Test N+1 next. Runs after the response is sent, and each
+    // ensureTask is already a no-op read for a part that is filled, so this is
+    // free on every start after the first that reaches a given slot.
+    if (testNumber < TASKS_PER_TYPE) {
+      const nextTestNumber = testNumber + 1;
+      after(async () => {
+        const outcomes = await Promise.allSettled(
+          plan.map(({ taskType, category: partCategory }) =>
+            ensureTask(moduleId, partCategory, taskType, nextTestNumber)
+          )
+        );
+        for (const [i, outcome] of outcomes.entries()) {
+          if (outcome.status === "rejected") {
+            console.warn(
+              `[mock-test] prefetch of ${plan[i].taskType} for test ${nextTestNumber} failed:`,
+              outcome.reason instanceof Error ? outcome.reason.message : outcome.reason
+            );
+          }
+        }
+      });
     }
   } else {
     const history = (await exercises.completedHistory(userId, { moduleId })).map((h) => ({
@@ -178,6 +239,7 @@ export const POST = async (req: Request) => {
   }
 
   return NextResponse.json({
+    ready: true,
     sessionId: examSession.id,
     timeLimitSeconds: secondsFor(plan.length),
     exercises: built,

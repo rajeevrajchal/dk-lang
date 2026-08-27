@@ -272,6 +272,19 @@ const Task3 = ({
 
   const blankCount = c.textSegments.length - 1;
 
+  // Whole-sentence translation, same as Opgave 2: the blanks are <select>
+  // elements, so the passage cannot be made clickable the way DanishText
+  // makes plain Danish clickable (a button cannot nest inside a button).
+  // Reconstructed with "___" standing in for whatever the learner has not
+  // filled in yet, since the answer key never reaches the client.
+  const plainText = c.textSegments
+    .map((seg, i) => (i < blankCount ? `${seg}___` : seg))
+    .join("");
+  const sentences = plainText
+    .split(/(?<=[.!?])\s+/u)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   return (
     <div className="space-y-5">
       <div className="rounded-lg bg-slate-100 p-4">
@@ -291,7 +304,7 @@ const Task3 = ({
         <p className="text-sm leading-loose text-slate-800">
           {c.textSegments.map((seg, i) => (
             <span key={i}>
-              {seg}
+              <DanishText as="span" text={seg} showSentenceButton={false} />
               {i < blankCount && (
                 <select
                   disabled={disabled}
@@ -315,6 +328,7 @@ const Task3 = ({
             </span>
           ))}
         </p>
+        <TranslateSection sentences={sentences} />
       </div>
 
       <div className="rounded-lg border-2 border-slate-300 p-4">
