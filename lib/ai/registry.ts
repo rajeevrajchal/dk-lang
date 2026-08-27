@@ -126,9 +126,23 @@ export const resolveModel = (task: AiTask, preferred?: AiProvider): ResolvedMode
     model: openai(modelId),
     provider,
     config,
-    // OpenAI has no equivalent of a thinking budget; it has a reasoning
-    // effort. Mapping one onto the other is the closest honest translation,
-    // not an equivalence.
-    providerOptions: { openai: { reasoningEffort: config.effort } },
+    providerOptions: {
+      openai: {
+        // OpenAI has no equivalent of a thinking budget; it has a reasoning
+        // effort. Mapping one onto the other is the closest honest
+        // translation, not an equivalence.
+        reasoningEffort: config.effort,
+        // Every schema in this app with an optional field (translation, the
+        // reading explanation, several more) fails outright under OpenAI's
+        // default strict mode: it demands every property be listed in
+        // `required`, which is not what Zod's `.optional()` means. The
+        // failure is a 400 from OpenAI, non-retryable, and by the time it
+        // reaches the learner it is just "unavailable" — indistinguishable
+        // from no API key being configured at all. OpenAI ships the escape
+        // hatch for exactly this; it is not something to route around at the
+        // schema level.
+        strictJsonSchema: false,
+      },
+    },
   };
 };
